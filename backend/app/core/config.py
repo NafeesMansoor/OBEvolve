@@ -1,0 +1,61 @@
+"""Application settings, loaded from environment variables / .env.
+
+Uses pydantic-settings so every configuration value is validated at process
+startup rather than failing deep inside a request handler.
+"""
+
+from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # --- App ---
+    environment: str = Field(default="development")
+    debug: bool = Field(default=True)
+    project_name: str = "OBEvolve"
+    api_v1_prefix: str = "/api/v1"
+
+    # --- Database ---
+    database_url: str = Field(
+        default="postgresql+psycopg://obevolve:change-me@localhost:5432/obevolve"
+    )
+
+    # --- Redis / Celery ---
+    redis_url: str = Field(default="redis://localhost:6379/0")
+
+    # --- Auth / JWT ---
+    jwt_secret_key: str = Field(default="change-me-to-a-long-random-string")
+    jwt_algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=30)
+    refresh_token_expire_days: int = Field(default=7)
+
+    # --- CORS ---
+    backend_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+
+    # --- Tenancy ---
+    dev_tenant_header: str = Field(default="X-Institution-Slug")
+    tenant_schema_prefix: str = Field(default="tenant_")
+
+    # --- Object storage ---
+    s3_endpoint_url: str | None = None
+    s3_access_key: str | None = None
+    s3_secret_key: str | None = None
+    s3_bucket_name: str = Field(default="obevolve-evidence")
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Cached settings singleton — avoids re-parsing the environment per call."""
+    return Settings()
+
+
+settings = get_settings()

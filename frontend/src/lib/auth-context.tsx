@@ -16,6 +16,7 @@ export interface AuthUser {
   full_name: string
   is_active: boolean
   mfa_enabled: boolean
+  bio: string | null
   /** Flat, already-deduplicated permission codes — see CurrentUserRead on the backend. */
   permissions: string[]
   /** Flat role names. The backend resolves scope-aware permission checks
@@ -37,6 +38,9 @@ interface AuthContextValue {
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  /** Re-fetches /auth/me — call after a self-service profile edit
+   * (PATCH /auth/me) so the topbar/profile page reflect the new values. */
+  refreshUser: () => Promise<void>
   /** All permission codes the user holds across every role/scope. */
   permissions: string[]
   hasPermission: (permission: string) => boolean
@@ -128,12 +132,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [permissions],
   )
 
+  const refreshUser = React.useCallback(async () => {
+    await fetchCurrentUser()
+  }, [fetchCurrentUser])
+
   const value: AuthContextValue = {
     user,
     isLoading,
     isAuthenticated: user !== null,
     login,
     logout,
+    refreshUser,
     permissions,
     hasPermission,
   }

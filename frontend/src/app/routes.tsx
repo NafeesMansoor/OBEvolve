@@ -4,8 +4,14 @@ import { AppLayout } from '@/app/layout'
 import { NotFoundPage } from '@/app/not-found'
 import { ProtectedRoute } from '@/app/protected-route'
 import { LoginPage } from '@/features/auth/LoginPage'
-import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { useAuth } from '@/features/auth/useAuth'
+import { AcademicOpsPage } from '@/features/academic-ops/AcademicOpsPage'
+import { AssessmentPage } from '@/features/assessment/AssessmentPage'
+import { CurriculumPage } from '@/features/curriculum/CurriculumPage'
+import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { GradingPage } from '@/features/grading/GradingPage'
+import { OrganizationPage } from '@/features/organization/OrganizationPage'
+import { ProfilePage } from '@/features/profile/ProfilePage'
 
 function LoginRoute() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -17,13 +23,8 @@ function LoginRoute() {
   return <LoginPage />
 }
 
-/**
- * Top-level route table. Phase 1 only wires /login and the dashboard;
- * future phases add nested routes under the protected layout for
- * curriculum, outcomes, assessments, attainment, surveys, and accreditation
- * (their sidebar entries already exist in app/layout.tsx, disabled until
- * then).
- */
+/** Top-level route table. Every module below the dashboard now has a real
+ * page (see app/layout.tsx's navItems for the gating permissions). */
 export function AppRoutes() {
   return (
     <Routes>
@@ -32,6 +33,12 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/curriculum" element={<CurriculumPage />} />
+          <Route path="/academic" element={<AcademicOpsPage />} />
+          <Route path="/grading" element={<GradingPage />} />
+          <Route path="/assessment" element={<AssessmentPage />} />
+          <Route path="/organization" element={<OrganizationPage />} />
         </Route>
       </Route>
 

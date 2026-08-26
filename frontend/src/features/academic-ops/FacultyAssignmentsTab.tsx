@@ -1,0 +1,205 @@
+import * as React from 'react'
+import { Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { z } from 'zod'
+
+import { useAuth } from '@/features/auth/useAuth'
+import { useAcademicTermLookup, useCourseVersionLookup } from '@/features/academic-ops/useLookups'
+import type { CourseOffering, CourseSection, FacultyAssignment } from '@/features/academic-ops/types'
+import type { AppUser } from '@/features/organization/types'
+import { ApiError } from '@/lib/api-client'
+import { useEntityCreate, useEntityDelete, useEntityList } from '@/lib/crud-hooks'
+import { useResetOnChange } from '@/lib/use-reset-on-change'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ConfirmAction } from '@/components/confirm-action'
+import { DataTable, type DataTableColumn } from '@/components/data-table'
+import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+const schema = z.object({
+  faculty_user_id: z.string().min(1, 'Faculty member is required'),
+  role: z.enum(['coordinator', 'instructor']),
+})
+
+/** faculty_user_id lists every tenant user (not filtered to a "Faculty"
+ * role) — a deliberate simplification noted in the task brief, since the
+ * backend has no way to filter users by role membership without the
+ * missing user-roles list endpoint (see role-grants-cache.ts). */
+export function FacultyAssignmentsTab() {
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('section.manage')
+  const { labelFor } = useCourseVersionLookup()
+  const { termById } = useAcademicTermLookup()
+  const { data: offerings } = useEntityList<CourseOffering>(
+    ['academic', 'course-offerings'],
+    '/academic/course-offerings',
+  )
+  const [offeringId, setOfferingId] = React.useState('')
+  const { data: sections } = useEntityList<CourseSection>(
+    ['academic', 'sections', offeringId],
+    '/academic/sections',
+    { course_offering_id: offeringId || undefined },
+    { enabled: Boolean(offeringId) },
+  )
+  const [sectionId, setSectionId] = useResetOnChange(offeringId, '')
+
+  const { data: users } = useEntityList<AppUser>(['users'], '/users')
+  const userById = React.useMemo(() => new Map((users ?? []).map((u) => [u.id, u])), [users])
+
+  const [createOpen, setCreateOpen] = React.useState(false)
+
+  const {
+    data: assignments,
+    isLoading,
+    error,
+  } = useEntityList<FacultyAssignment>(
+    ['academic', 'faculty-assignments', sectionId],
+    '/academic/faculty-assignments',
+    { course_section_id: sectionId || undefined },
+    { enabled: Boolean(sectionId) },
+  )
+  const create = useEntityCreate<Record<string, unknown>, FacultyAssignment>(
+    '/academic/faculty-assignments',
+    [['academic', 'faculty-assignments', sectionId]],
+  )
+  const remove = useEntityDelete((id) => `/academic/faculty-assignments/${id}`, [
+    ['academic', 'faculty-assignments', sectionId],
+  ])
+
+  const offeringOptions = React.useMemo(
+    () =>
+      (offerings ?? []).map((o) => ({
+        label: `${labelFor(o.course_version_id)} · ${termById.get(o.academic_term_id)?.name ?? ''}`,
+        value: o.id,
+      })),
+    [offerings, labelFor, termById],
+  )
+
+  const fields: EntityField[] = [
+    {
+      name: 'faculty_user_id',
+      label: 'Faculty member',
+      type: 'select',
+      options: (users ?? []).map((u) => ({ label: `${u.full_name} (${u.email})`, value: u.id })),
+    },
+    {
+      name: 'role',
+      label: 'Role',
+      type: 'select',
+      options: [
+        { label: 'Coordinator', value: 'coordinator' },
+        { label: 'Instructor', value: 'instructor' },
+      ],
+    },
+  ]
+
+  const columns: DataTableColumn<FacultyAssignment>[] = [
+    { key: 'faculty', header: 'Faculty', render: (r) => userById.get(r.faculty_user_id)?.full_name ?? r.faculty_user_id },
+    {
+      key: 'role',
+      header: 'Role',
+      render: (r) => (
+        <Badge variant="secondary" className="font-normal capitalize">
+          {r.role}
+        </Badge>
+      ),
+    },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        <div className="w-full max-w-md">
+          <Select value={offeringId} onValueChange={setOfferingId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a course offering" />
+            </SelectTrigger>
+            <SelectContent>
+              {offeringOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-40">
+          <Select value={sectionId} onValueChange={setSectionId} disabled={!offeringId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Section" />
+            </SelectTrigger>
+            <SelectContent>
+              {(sections ?? []).map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.section_code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {canManage && sectionId && (
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" /> Assign faculty
+          </Button>
+        )}
+      </div>
+
+      {!sectionId ? (
+        <p className="text-sm text-muted-foreground">Select an offering and section to see assignments.</p>
+      ) : (
+        <DataTable
+          data={assignments}
+          columns={columns}
+          rowKey={(r) => r.id}
+          isLoading={isLoading}
+          error={error}
+          emptyMessage="No faculty assigned to this section yet."
+          actions={
+            canManage
+              ? (r) => (
+                  <ConfirmAction
+                    trigger={
+                      <Button size="sm" variant="ghost">
+                        <Trash2 className="size-4" />
+                      </Button>
+                    }
+                    title="Remove this faculty assignment?"
+                    onConfirm={async () => {
+                      try {
+                        await remove.mutateAsync(r.id)
+                        toast.success('Assignment removed')
+                      } catch (err) {
+                        toast.error(err instanceof ApiError ? err.detail : 'Unable to remove assignment.')
+                      }
+                    }}
+                  />
+                )
+              : undefined
+          }
+        />
+      )}
+
+      <EntityFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="Assign faculty"
+        fields={fields}
+        schema={schema}
+        defaultValues={{ faculty_user_id: '', role: 'instructor' }}
+        onSubmit={async (values) => {
+          try {
+            await create.mutateAsync({
+              course_section_id: sectionId,
+              faculty_user_id: values.faculty_user_id,
+              role: values.role,
+            })
+            toast.success('Faculty assigned')
+          } catch (err) {
+            throw err instanceof ApiError ? err : new ApiError('Unable to assign faculty.')
+          }
+        }}
+      />
+    </div>
+  )
+}

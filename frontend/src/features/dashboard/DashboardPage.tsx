@@ -1,19 +1,29 @@
-import { LayoutDashboard, ShieldCheck } from 'lucide-react'
+import { BarChart3, BookOpen, ClipboardCheck, ShieldCheck } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { useAuth } from '@/features/auth/useAuth'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
+const QUICK_LINKS = [
+  { to: '/curriculum', label: 'Curriculum & Outcomes', icon: BookOpen, permission: 'curriculum.view' },
+  { to: '/academic', label: 'Academic Operations', icon: ClipboardCheck, permission: 'section.view' },
+  { to: '/grading', label: 'Grading', icon: BarChart3, permission: 'grading.view' },
+  { to: '/assessment', label: 'Assessment', icon: ClipboardCheck, permission: 'assessment.view' },
+  { to: '/organization', label: 'Organization Admin', icon: ShieldCheck, permission: 'org.view' },
+]
+
 /**
- * Phase 1 placeholder dashboard. The product spec defines role-based
- * dashboards (institution / HOD / faculty / accreditation view) that surface
- * live attainment, curriculum, and survey data — none of that exists yet, so
- * this renders an honest empty state plus a summary of the signed-in user's
- * roles and permissions rather than any fabricated content.
+ * A role-specific attainment/curriculum dashboard (per the product spec) is
+ * still future work — this renders a summary of the signed-in user's
+ * roles/permissions plus quick links into whichever modules they can
+ * access, rather than any fabricated attainment data.
  */
 export function DashboardPage() {
-  const { user } = useAuth()
+  const { user, hasPermission } = useAuth()
+
+  const links = QUICK_LINKS.filter((l) => hasPermission(l.permission))
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8">
@@ -22,33 +32,28 @@ export function DashboardPage() {
           Welcome{user?.full_name ? `, ${user.full_name}` : ''}
         </h1>
         <p className="text-muted-foreground">
-          This is your OBEvolve dashboard. Role-specific views (institution,
-          department, faculty, and accreditation dashboards) ship in later
-          phases as the curriculum, outcomes, assessment, and attainment
-          modules come online.
+          This is your OBEvolve dashboard. Attainment and reporting views are still future work —
+          use the sections below or the sidebar to manage curriculum, academic operations,
+          grading, assessment, and organization data.
         </p>
       </div>
 
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-            <LayoutDashboard className="size-6 text-muted-foreground" />
-          </div>
-          <div className="space-y-1">
-            <p className="font-medium">Nothing to show yet</p>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Phase 1 covers authentication, roles, and the application shell
-              only. Curriculum design, outcome mapping, assessments,
-              attainment, surveys, and accreditation reporting land in
-              subsequent phases — see{' '}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                docs/DATABASE_PLAN.md
-              </code>{' '}
-              for the full roadmap.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {links.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {links.map((l) => (
+            <Link key={l.to} to={l.to}>
+              <Card className="transition-colors hover:border-primary/50 hover:bg-accent/50">
+                <CardContent className="flex items-center gap-3 py-5">
+                  <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <l.icon className="size-4" />
+                  </div>
+                  <span className="font-medium">{l.label}</span>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

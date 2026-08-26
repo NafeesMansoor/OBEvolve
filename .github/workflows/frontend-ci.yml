@@ -34,3 +34,10 @@ jobs:
 
       - name: Type check + build
         run: npm run build
+
+      - name: Verify copyright footer is present
+        run: |
+          if ! grep -q "© 2026 Prof. Dr. Nafees Mansoor. All rights reserved." src/components/footer.tsx; then
+            echo "::error file=frontend/src/components/footer.tsx::Copyright notice is missing or was altered. Restore the exact text before merging."
+            exit 1
+          fi

@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-client'
 import { useAuth } from '@/features/auth/useAuth'
+import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -63,87 +64,99 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-lg font-semibold text-primary-foreground">
-            OB
+    <div className="flex min-h-screen flex-col bg-muted/40">
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex flex-col items-center gap-2 text-center">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-lg font-semibold text-primary-foreground">
+              OB
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight">OBEvolve</h1>
+            <p className="text-sm text-muted-foreground">
+              Outcome-Based Education &amp; accreditation platform
+            </p>
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">OBEvolve</h1>
-          <p className="text-sm text-muted-foreground">
-            Outcome-Based Education &amp; accreditation platform
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Sign in</CardTitle>
+              <CardDescription>
+                Use your institution email and password to continue.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
+                  noValidate
+                >
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            autoComplete="email"
+                            placeholder="you@institution.edu"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            autoComplete="current-password"
+                            placeholder="••••••••"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {serverError ? (
+                    <p
+                      role="alert"
+                      className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
+                      {serverError}
+                    </p>
+                  ) : null}
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={form.formState.isSubmitting}
+                  >
+                    {form.formState.isSubmitting ? 'Signing in…' : 'Sign in'}
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Trouble signing in? Contact your institution administrator.
           </p>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in</CardTitle>
-            <CardDescription>
-              Use your institution email and password to continue.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          autoComplete="email"
-                          placeholder="you@institution.edu"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          autoComplete="current-password"
-                          placeholder="••••••••"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {serverError ? (
-                  <p
-                    role="alert"
-                    className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                  >
-                    {serverError}
-                  </p>
-                ) : null}
-
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Signing in…' : 'Sign in'}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Trouble signing in? Contact your institution administrator.
-        </p>
       </div>
+
+      <Footer />
     </div>
   )
 }

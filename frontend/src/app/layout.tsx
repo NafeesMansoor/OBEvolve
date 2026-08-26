@@ -11,7 +11,11 @@ import {
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '@/features/auth/useAuth'
-import { NAV_SECTION_ROLES, sectionMatchesRole, useActiveRole } from '@/lib/active-role-context'
+import {
+  NAV_SECTION_ROLES,
+  sectionMatchesRole,
+  useActiveRole,
+} from '@/lib/active-role-context'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -23,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Footer } from '@/components/footer'
 import { RoleSwitcher } from '@/components/role-switcher'
 import { Separator } from '@/components/ui/separator'
 
@@ -38,7 +43,13 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', to: '/', icon: LayoutDashboard, sectionKey: 'dashboard', anyOfPermissions: [] },
+  {
+    label: 'Dashboard',
+    to: '/',
+    icon: LayoutDashboard,
+    sectionKey: 'dashboard',
+    anyOfPermissions: [],
+  },
   {
     label: 'Curriculum & Outcomes',
     to: '/curriculum',
@@ -51,7 +62,12 @@ const navItems: NavItem[] = [
     to: '/academic',
     icon: ClipboardCheck,
     sectionKey: 'academic',
-    anyOfPermissions: ['section.view', 'section.manage', 'student.view', 'student.manage'],
+    anyOfPermissions: [
+      'section.view',
+      'section.manage',
+      'student.view',
+      'student.manage',
+    ],
   },
   {
     label: 'Grading',
@@ -95,12 +111,15 @@ export function AppLayout() {
   }
 
   const visibleItems = navItems.filter(
-    (item) => item.anyOfPermissions.length === 0 || item.anyOfPermissions.some((p) => hasPermission(p)),
+    (item) =>
+      item.anyOfPermissions.length === 0 ||
+      item.anyOfPermissions.some((p) => hasPermission(p)),
   )
   // Active-role filtering only de-emphasizes — every permitted item stays
   // visible, but items irrelevant to the selected role are dimmed rather
   // than hidden, so nothing the user can access disappears outright.
-  const isDeemphasized = (item: NavItem) => activeRole !== null && !sectionMatchesRole(item.sectionKey, activeRole)
+  const isDeemphasized = (item: NavItem) =>
+    activeRole !== null && !sectionMatchesRole(item.sectionKey, activeRole)
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -138,7 +157,8 @@ export function AppLayout() {
 
         <div className="border-t p-3">
           <p className="px-3 py-2 text-xs text-muted-foreground">
-            {user?.full_name} · {user?.roles.length ?? 0} role{(user?.roles.length ?? 0) === 1 ? '' : 's'}
+            {user?.full_name} · {user?.roles.length ?? 0} role
+            {(user?.roles.length ?? 0) === 1 ? '' : 's'}
           </p>
         </div>
       </aside>
@@ -160,7 +180,9 @@ export function AppLayout() {
                   <Avatar className="size-8">
                     <AvatarFallback>{initials(user?.full_name ?? 'U')}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden text-sm font-medium sm:inline">{user?.full_name}</span>
+                  <span className="hidden text-sm font-medium sm:inline">
+                    {user?.full_name}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -168,7 +190,9 @@ export function AppLayout() {
                   <span className="flex items-center gap-1.5 font-medium">
                     <UserIcon className="size-3.5" /> {user?.full_name}
                   </span>
-                  <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {user?.email}
+                  </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/profile')}>
@@ -176,7 +200,10 @@ export function AppLayout() {
                   Your profile
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive"
+                >
                   <LogOut className="size-4" />
                   Log out
                 </DropdownMenuItem>
@@ -190,6 +217,8 @@ export function AppLayout() {
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <Outlet />
         </main>
+
+        <Footer />
       </div>
     </div>
   )

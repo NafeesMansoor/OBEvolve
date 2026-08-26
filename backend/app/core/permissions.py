@@ -47,9 +47,31 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef("outcome.create", "Create outcome definitions", "curriculum"),
     PermissionDef("outcome.approve", "Approve outcome definitions", "curriculum"),
     PermissionDef("mapping.create", "Create outcome mappings", "curriculum"),
+    # --- Course delivery: sections, faculty assignment, students, grading ---
+    PermissionDef(
+        "section.manage",
+        "Manage course offerings, sections, and faculty assignments",
+        "delivery",
+    ),
+    PermissionDef(
+        "section.view",
+        "View course offerings, sections, and faculty assignments",
+        "delivery",
+    ),
+    PermissionDef(
+        "student.manage",
+        "Create/update students, enrollments, and curriculum alignment",
+        "delivery",
+    ),
+    PermissionDef(
+        "student.view", "View students, enrollments, and curriculum alignment", "delivery"
+    ),
+    PermissionDef("grading.manage", "Manage grading policies", "delivery"),
+    PermissionDef("grading.view", "View grading policies", "delivery"),
     # --- Assessment (Phase 5 — reserved) ---
     PermissionDef("assessment.create", "Create assessments/questions", "assessment"),
     PermissionDef("assessment.approve", "Approve assessments", "assessment"),
+    PermissionDef("assessment.view", "View assessments/questions", "assessment"),
     PermissionDef("marks.enter", "Enter/record student marks", "assessment"),
     # --- Attainment engine (Phase 6 — reserved) ---
     PermissionDef("attainment.calculate", "Trigger an attainment calculation run", "attainment"),

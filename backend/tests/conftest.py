@@ -65,17 +65,27 @@ def db_engine(require_database: None):
 def public_schema_ready(db_engine, require_database: None) -> None:
     """Ensure `public.institutions` / `public.platform_admins` exist.
 
-    Uses `PublicBase.metadata.create_all` rather than running the Alembic
-    chain — the migration *files* are exercised separately (they're
-    hand-written to match these same models); this fixture only needs the
-    resulting schema to exist so tests can exercise application code.
+    Uses `create_all(tables=...)` rather than running the Alembic chain —
+    the migration *files* are exercised separately (they're hand-written to
+    match these same models); this fixture only needs the resulting schema
+    to exist so tests can exercise application code.
+
+    `PublicBase` and `TenantBase` share one `MetaData` (see app/db/base.py —
+    needed so the ORM can resolve tenant tables' cross-schema FK back to
+    `public.institutions`), so `PublicBase.metadata` now also contains every
+    tenant table. Must pass `tables=` explicitly here, or `create_all` would
+    also create every tenant table unqualified in the `public` schema.
     """
     import app.models.public  # noqa: F401 - registers tables on PublicBase.metadata
     from app.db.base import PublicBase
+    from app.models.public.institution import Institution
+    from app.models.public.platform_admin import PlatformAdmin
 
     with db_engine.begin() as connection:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
-    PublicBase.metadata.create_all(db_engine)
+    PublicBase.metadata.create_all(
+        db_engine, tables=[Institution.__table__, PlatformAdmin.__table__]
+    )
 
 
 @pytest.fixture

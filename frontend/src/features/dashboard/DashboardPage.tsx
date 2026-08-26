@@ -58,35 +58,46 @@ export function DashboardPage() {
           </CardTitle>
           <CardDescription>
             Roles and permissions returned by <code>GET /auth/me</code> for
-            your account.
+            your account. Permission resolution (including any per-department
+            or per-program scoping) happens server-side — see
+            <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">
+              app/services/rbac.py
+            </code>
+            — so this is already the flat, effective set for your account.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {user && user.roles.length > 0 ? (
             <div className="flex flex-col gap-4">
-              {user.roles.map((role, idx) => (
-                <div key={`${role.name}-${role.scope_type}-${role.scope_id ?? idx}`}>
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{role.name}</span>
-                    <Badge variant="secondary" className="font-normal">
-                      {role.scope_type}
-                      {role.scope_id ? ` · ${role.scope_id}` : ''}
+              <div>
+                <p className="mb-2 text-sm font-medium">Roles</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {user.roles.map((role) => (
+                    <Badge key={role} variant="secondary" className="font-normal">
+                      {role}
                     </Badge>
-                  </div>
-                  {role.permissions.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {role.permissions.map((permission) => (
-                        <Badge key={permission} variant="outline" className="font-mono text-[11px] font-normal">
-                          {permission}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No permissions granted.</p>
-                  )}
-                  {idx < user.roles.length - 1 ? <Separator className="mt-4" /> : null}
+                  ))}
                 </div>
-              ))}
+              </div>
+              <Separator />
+              <div>
+                <p className="mb-2 text-sm font-medium">Permissions</p>
+                {user.permissions.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {user.permissions.map((permission) => (
+                      <Badge
+                        key={permission}
+                        variant="outline"
+                        className="font-mono text-[11px] font-normal"
+                      >
+                        {permission}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No permissions granted.</p>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

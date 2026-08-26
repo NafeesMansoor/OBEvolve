@@ -24,6 +24,15 @@ if config.config_file_name is not None:
 target_metadata = PublicBase.metadata
 
 
+def include_object(obj, name, type_, reflected, compare_to) -> bool:  # noqa: ARG001
+    """PublicBase and TenantBase share one MetaData (see app/db/base.py), so
+    without this filter autogenerate here would also see every tenant table.
+    Only tables explicitly in the `public` schema belong to this chain."""
+    if type_ == "table":
+        return obj.schema == "public"
+    return True
+
+
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url") or settings.database_url
     context.configure(
@@ -31,6 +40,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         include_schemas=True,
+        include_object=include_object,
         version_table_schema="public",
         dialect_opts={"paramstyle": "named"},
     )
@@ -59,6 +69,7 @@ def _run(connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
+        include_object=include_object,
         version_table_schema="public",
         compare_type=True,
     )

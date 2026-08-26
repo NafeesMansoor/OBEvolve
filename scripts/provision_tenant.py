@@ -18,6 +18,7 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 from app.db.session import session_scope  # noqa: E402
+from app.seed.demo_institution import DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD  # noqa: E402
 from app.services.tenancy import (  # noqa: E402
     TenantAlreadyExistsError,
     TenantProvisioningError,
@@ -35,7 +36,7 @@ def main() -> None:
     parser.add_argument(
         "--contact-email",
         default=None,
-        help="Institution contact email (defaults to admin@<slug>.obevolve.local)",
+        help="Institution contact email (defaults to admin@<slug>.obevolve.dev)",
     )
     parser.add_argument("--subscription-plan", default=None)
     parser.add_argument("--timezone", default="UTC")
@@ -49,7 +50,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)-8s %(message)s")
 
     code = args.code or args.slug.upper()
-    contact_email = args.contact_email or f"admin@{args.slug}.obevolve.local"
+    contact_email = args.contact_email or f"admin@{args.slug}.obevolve.dev"
 
     try:
         with session_scope() as db:
@@ -76,7 +77,9 @@ def main() -> None:
 
     print(f"Provisioned institution {slug!r} -> schema {schema_name!r} (id={institution_id})")
     if args.seed_demo:
-        print("Seeded demo admin: admin@demo.obevolve.local / ChangeMe123!  (rotate immediately)")
+        print(
+            f"Seeded demo admin: {DEMO_ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}  (rotate immediately)"
+        )
 
 
 if __name__ == "__main__":

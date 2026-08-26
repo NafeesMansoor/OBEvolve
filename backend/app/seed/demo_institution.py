@@ -17,7 +17,10 @@ from app.core.security import hash_password
 from app.models.tenant.identity import Role, User, UserRole
 from app.models.tenant.org import Campus, Department, Program, School
 
-DEMO_ADMIN_EMAIL = "admin@demo.obevolve.local"
+DEMO_ADMIN_EMAIL = "admin@demo.obevolve.dev"  # .local is a reserved/special-use
+# TLD that pydantic's EmailStr (email-validator) rejects outright — see the
+# LoginRequest schema. .dev is a real, non-reserved gTLD, safe for seed data
+# that will actually be POSTed through email-validated endpoints.
 DEMO_ADMIN_PASSWORD = "ChangeMe123!"  # noqa: S105 — demo-only seed credential, never used in prod
 
 

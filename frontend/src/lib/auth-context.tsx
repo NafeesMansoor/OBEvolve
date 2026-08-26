@@ -10,18 +10,18 @@ import {
   setRefreshToken,
 } from '@/lib/api-client'
 
-export interface Role {
-  name: string
-  permissions: string[]
-  scope_type: string
-  scope_id: string | null
-}
-
 export interface AuthUser {
   id: string
   email: string
   full_name: string
-  roles: Role[]
+  is_active: boolean
+  mfa_enabled: boolean
+  /** Flat, already-deduplicated permission codes — see CurrentUserRead on the backend. */
+  permissions: string[]
+  /** Flat role names. The backend resolves scope-aware permission checks
+   * server-side (app/services/rbac.py); the frontend only needs the flat
+   * union of permissions to decide what UI to show. */
+  roles: string[]
 }
 
 interface LoginResponse {
@@ -121,13 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [fetchCurrentUser],
   )
 
-  const permissions = React.useMemo(
-    () =>
-      user
-        ? Array.from(new Set(user.roles.flatMap((role) => role.permissions)))
-        : [],
-    [user],
-  )
+  const permissions = user?.permissions ?? []
 
   const hasPermission = React.useCallback(
     (permission: string) => permissions.includes(permission),

@@ -26,6 +26,23 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
+    # Tenant resolution runs on every request except the tenant-agnostic
+    # paths listed in app.middleware.tenancy.TENANT_EXEMPT_PREFIXES.
+    # Audit logging is NOT a blanket middleware — it's written explicitly by
+    # the service layer on mutations (see app.services.audit), per
+    # ARCHITECTURE.md §4 / the ADR: only the code that knows what changed can
+    # produce a meaningful before/after audit row.
+    #
+    # Added BEFORE CORSMiddleware deliberately: Starlette's add_middleware()
+    # makes the most-recently-added middleware the outermost layer, so
+    # CORSMiddleware must be added last to end up outermost. Otherwise a
+    # short-circuited TenancyMiddleware response (400/403/404, e.g. unknown
+    # institution) never passes through CORSMiddleware at all, arrives at the
+    # browser with no Access-Control-Allow-Origin header, and gets silently
+    # blocked — surfacing to the frontend as an opaque "Network Error"
+    # instead of the actual error body.
+    app.add_middleware(TenancyMiddleware)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.backend_cors_origins,
@@ -33,14 +50,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    # Tenant resolution runs on every request except the tenant-agnostic
-    # paths listed in app.middleware.tenancy.TENANT_EXEMPT_PREFIXES.
-    # Audit logging is NOT a blanket middleware — it's written explicitly by
-    # the service layer on mutations (see app.services.audit), per
-    # ARCHITECTURE.md §4 / the ADR: only the code that knows what changed can
-    # produce a meaningful before/after audit row.
-    app.add_middleware(TenancyMiddleware)
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)
 

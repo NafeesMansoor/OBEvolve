@@ -15,17 +15,32 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, MetaData, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+# Tenant-schema tables declare cross-schema foreign keys back to
+# `public.institutions` (see docs/adr/0001-schema-per-tenant.md — "the one
+# cross-schema FK"). SQLAlchemy's ORM resolves a string ForeignKey target by
+# looking it up in the *same* MetaData the referencing table belongs to, so
+# PublicBase and TenantBase must share one MetaData instance even though they
+# stay separate DeclarativeBase classes (which is what lets Alembic run two
+# independent migration chains — see ARCHITECTURE.md §2). Each alembic env.py
+# filters target_metadata via include_object so this sharing doesn't leak
+# into autogenerate.
+_shared_metadata = MetaData()
 
 
 class PublicBase(DeclarativeBase):
     """Base for tables that live in the `public` schema (cross-tenant)."""
 
+    metadata = _shared_metadata
+
 
 class TenantBase(DeclarativeBase):
     """Base for tables that live in each institution's `tenant_<slug>` schema."""
+
+    metadata = _shared_metadata
 
 
 class WorkflowStatus(StrEnum):

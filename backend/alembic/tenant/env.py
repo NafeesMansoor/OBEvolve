@@ -36,6 +36,16 @@ if config.config_file_name is not None:
 target_metadata = TenantBase.metadata
 
 
+def include_object(obj, name, type_, reflected, compare_to) -> bool:  # noqa: ARG001
+    """PublicBase and TenantBase share one MetaData (see app/db/base.py), so
+    without this filter autogenerate here would also see the public-schema
+    tables. Tenant tables are declared with no explicit schema (resolved via
+    schema_translate_map at runtime), so `schema is None` identifies them."""
+    if type_ == "table":
+        return obj.schema is None
+    return True
+
+
 def get_schema_name() -> str:
     schema_name = config.attributes.get("schema_name")
     if schema_name:
@@ -60,6 +70,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         include_schemas=True,
+        include_object=include_object,
         version_table_schema=schema_name,
         dialect_opts={"paramstyle": "named"},
     )
@@ -88,6 +99,7 @@ def _run(connection, schema_name: str) -> None:
         connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
+        include_object=include_object,
         version_table_schema=schema_name,
         compare_type=True,
     )

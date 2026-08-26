@@ -1,8 +1,8 @@
 # Phase 3 — OBE Outcome Hierarchy
 
-Not yet implemented. See `docs/DATABASE_PLAN.md` §D for the planned schema
-(`bloom_levels`, `peos`, `pos`, `psos`, `cos`, `tlos`, `competencies`,
-`performance_indicators`).
+`bloom_levels`, `peos`, `program_outcomes`, `course_outcomes` are implemented
+(framework-aware per `docs/adr/0002-framework-aware-outcomes.md` — see
+`docs/DATABASE_PLAN.md` §D). Seeded for ULAB CSE by `app/seed/ulab_cse.py`.
 
-This package exists now only so the module layout under `app/models/tenant/`
-is stable for future phases; it contains no models yet.
+`psos` / `tlos` / `competencies` / `performance_indicators` are still
+planned — no source data exists for them yet.

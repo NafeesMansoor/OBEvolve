@@ -1,5 +1,5 @@
-"""Phase 3 — OBE Outcome Hierarchy — not yet implemented (empty stub package
-for stable module layout).
+"""OBE outcome hierarchy (DATABASE_PLAN.md §D, framework-aware per ADR 0002)."""
 
-See docs/DATABASE_PLAN.md §D for the planned schema this package will implement.
-"""
+from app.models.tenant.obe.outcomes import PEO, BloomLevel, CourseOutcome, ProgramOutcome
+
+__all__ = ["PEO", "BloomLevel", "CourseOutcome", "ProgramOutcome"]

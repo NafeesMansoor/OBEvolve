@@ -1,8 +1,12 @@
 # Phase 8 — Accreditation
 
-Not yet implemented. See `docs/DATABASE_PLAN.md` §K for the planned schema
-(`accreditation_bodies`, `accreditation_frameworks`, `accreditation_criteria`,
-`evidence_requirements`, `evidence_items`, `accreditation_submissions`).
+`accreditation_bodies`, `accreditation_frameworks`, `framework_pos`,
+`knowledge_profiles`, `problem_attributes`, `engineering_activities` are
+implemented (brought forward to Phase 3 — see `docs/DATABASE_PLAN.md` §D/§K —
+because the PO/WK/WP/EA catalogue is needed well before Phase 8's
+criteria/evidence workflow). Seeded from BAETE v3.0 by
+`app/seed/baete_v3.py`.
 
-This package exists now only so the module layout under `app/models/tenant/`
-is stable for future phases; it contains no models yet.
+The rest of Phase 8 (`accreditation_criteria`, `evidence_requirements`,
+`evidence_items`, `accreditation_submissions`) is still planned — see
+`docs/DATABASE_PLAN.md` §K.

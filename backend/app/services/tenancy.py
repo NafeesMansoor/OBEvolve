@@ -118,7 +118,18 @@ def provision_tenant(
     )
     db.add(institution)
     db.commit()
-    db.refresh(institution)
+    # No db.refresh() here: SQLAlchemy 2.x's psycopg dialect populates
+    # server-generated columns (created_at/updated_at) via implicit RETURNING
+    # at commit time, and the sessionmaker uses expire_on_commit=False (see
+    # app/db/session.py), so `institution`'s attributes are already current.
+    # A refresh would issue a fresh SELECT that starts a *new* transaction on
+    # this caller-supplied session and leaves it open (nothing later on this
+    # code path commits/rolls back it back) — which, since tenant tables hold
+    # a cross-schema FK to this row (docs/adr/0001-schema-per-tenant.md),
+    # can deadlock a later `DROP SCHEMA ... CASCADE` on the same connection
+    # (dropping a table's FK constraint takes AccessExclusiveLock on the
+    # referenced table too, and has to wait for this session's lingering
+    # AccessShareLock to clear first — which it never does mid-request).
 
     engine = get_engine()
     try:

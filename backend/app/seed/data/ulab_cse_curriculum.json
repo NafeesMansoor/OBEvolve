@@ -1,0 +1,1774 @@
+{
+  "university": {
+    "name": "University of Liberal Arts Bangladesh (ULAB)",
+    "vision": "The University of Liberal Arts Bangladesh will be the best university in Bangladesh and a leader in South Asia.",
+    "mission": "The University of Liberal Arts Bangladesh is an institution devoted to developing young minds to their fullest potential through the free and creative pursuit of knowledge. We are firmly committed to helping young men and women to become responsible and caring citizens of their nations and the world. We fulfill these aims by adopting an array of traditional and innovative academic and extra-curricular programs, and by bringing to our students the best that has been thought and accomplished in the arts and sciences throughout the world."
+  },
+  "program": {
+    "degree_name": "Bachelor of Science in Computer Science and Engineering",
+    "faculty": "School of Science and Engineering",
+    "department": "Computer Science and Engineering",
+    "curriculum_year": "2022",
+    "vision": "To produce highly competent graduates who will become leaders in Computer Science and Engineering.",
+    "mission": "To prepare our students to meet high standards of excellence for professional career advancement. To create and disseminate new knowledge through basic and applied research in the field of Computer Science and Engineering."
+  },
+  "peos": [
+    {
+      "code": "PEO1",
+      "statement": "Possess theoretical and practical knowledge of Computer Science and Engineering blended with multi-disciplinary knowledge to establish successful computing or engineering careers."
+    },
+    {
+      "code": "PEO2",
+      "statement": "Enhance skills and creativity, and embrace new computing technologies through self-driven life-long learning."
+    },
+    {
+      "code": "PEO3",
+      "statement": "Apply professional, ethical, and social aspects of modern computing technology for analyzing and solving national and global problems."
+    }
+  ],
+  "plos": [
+    {
+      "code": "PLO1",
+      "statement": "Engineering Knowledge - Apply knowledge of mathematics, sciences, engineering fundamentals and manufacturing engineering to the solution of complex engineering problems."
+    },
+    {
+      "code": "PLO2",
+      "statement": "Problem Analysis – Identify, formulate, research relevant literature and analyze complex engineering problems, and reaching substantiated conclusions using first principles of mathematics, natural sciences and engineering sciences."
+    },
+    {
+      "code": "PLO3",
+      "statement": "Design/Development of Solutions – Design solutions, exhibiting innovativeness, for complex engineering problems and design systems, components or processes that meet specified needs with appropriate consideration for public health and safety, cultural, societal, economical, ethical, environmental and sustainability issues."
+    },
+    {
+      "code": "PLO4",
+      "statement": "Investigation – Conduct investigation into complex problems, displaying creativeness, using research-based knowledge, and research methods including design of experiments, analysis and interpretation of data, and synthesis of information to provide valid conclusions."
+    },
+    {
+      "code": "PLO5",
+      "statement": "Modern Tool Usage – Create, select and apply appropriate techniques, resources, and modern engineering and IT tools, including prediction and modeling, to complex engineering activities, with an understanding of the limitations."
+    },
+    {
+      "code": "PLO6",
+      "statement": "The Engineer and Society – Apply reasoning based on contextual knowledge to assess societal, health, safety, legal, cultural, contemporary issues, and the consequent responsibilities relevant to professional engineering practices."
+    },
+    {
+      "code": "PLO7",
+      "statement": "Environment and Sustainability – Understand the impact of professional engineering solutions in societal, global, and environmental contexts and demonstrate knowledge of and need for sustainable development."
+    },
+    {
+      "code": "PLO8",
+      "statement": "Ethics – Apply professional ethics and commit to responsibilities and norms of professional engineering code of practices."
+    },
+    {
+      "code": "PLO9",
+      "statement": "Communication – Communicate effectively on complex engineering activities with the engineering community and with society at large, such as being able to comprehend and write effective reports and design documentation, make effective presentations, and give and receive clear instructions."
+    },
+    {
+      "code": "PLO10",
+      "statement": "Individual and Teamwork – Function effectively as an individual, and as a member or leader in diverse teams and in multi-disciplinary settings."
+    },
+    {
+      "code": "PLO11",
+      "statement": "Lifelong Learning – Recognize the need for and have the preparation and ability to engage in independent and life-long learning in the broadest context of technological change."
+    },
+    {
+      "code": "PLO12",
+      "statement": "Project Management and Finance – Demonstrate knowledge and understanding of engineering management and financial principles and apply these to one's own work, as a member and/or leader in a team, to manage projects in multidisciplinary settings, and identify opportunities of entrepreneurship."
+    }
+  ],
+  "credit_requirements": {
+    "total_credits": 140,
+    "notes": "Total minimum credit requirement to complete the program: 140 credits across 46 courses. Total class weeks in a semester: 24 weeks. Minimum CGPA requirement for graduation: 2.5 CGPA (Part A of the document states 2.5 CGPA; note the later Grading/Evaluation section of the same document states a minimum CGPA of 2.00 for the Undergraduate Program and 2.50 for the Graduate Program - a discrepancy in the source). Maximum academic years of completion: 7 years. Course Breakdown by classification (courses/credits): General Education Foundation (GEF) 2/6; Essential Skills (ESK) 4/0; ULAB Core Courses (UCC) 3/9; General Education Elective Courses 3/9; Program Foundation Courses 16/62; Program Major Study Concentration Courses 4/13; Other Engineering 2/8; Minor*/Optional Study Concentration Courses 3/9; Basic Science 3/7; Mathematics 4/12; Capstone Project 1/4; Internship 1/1. Students willing to do a minor must take a total of 5 courses (15 credits) instead of 3."
+  },
+  "courses": [
+    {
+      "course_code": "GEF1101",
+      "course_title": "Academic English I",
+      "credit": "3",
+      "category": "General Education (GED Core / GEF)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "GEF1201",
+      "course_title": "Academic English II",
+      "credit": "3",
+      "category": "General Education (GED Core / GEF)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "UCC1101",
+      "course_title": "Bangla Bhasha",
+      "credit": "3",
+      "category": "General Education (GED Core / ULAB Core Course)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "UCC1201",
+      "course_title": "History of the Emergence of Independent Bangladesh",
+      "credit": "3",
+      "category": "General Education (GED Core / ULAB Core Course)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "UCC1202 / GED2159",
+      "course_title": "Ethics / Professional Ethics",
+      "credit": "3",
+      "category": "General Education (GED Core / ULAB Core Course)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "GED Tier 1",
+      "course_title": "Arts and Humanities",
+      "credit": "3",
+      "category": "GED Elective (Tier 1)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "GED2248",
+      "course_title": "Industrial Management",
+      "credit": "3",
+      "category": "GED Elective (Tier 2)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "GED2243",
+      "course_title": "Environment and Sustainability",
+      "credit": "3",
+      "category": "GED Elective (Tier 3)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "MAT1101",
+      "course_title": "Differential and Integral Calculus",
+      "credit": "3",
+      "category": "Mathematics and Statistics",
+      "course_objective": "To provide a thorough understanding of the meaning of differentiation and Integration with real-life applications and the resource requirements. To enable students to apply the various techniques of derivative to analyze the functions, definite and definite integral to calculate areas, volumes, lengths and also solving differential equations. To emphasize on efficiency for solving real life practical problems through various formulae to be used in the solution of technical problems.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Describe the theory of differential and integral calculus which is prominent in engineering applications of the subject."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Explain terms related to various techniques of differentiation and integration, design mathematical modeling of different applications."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Understand mathematical modeling of physical applications, apply techniques and appropriate methods to design the model and solve the problem to understand the physical phenomena."
+        }
+      ],
+      "course_content": "Functional Analysis and Graphical Information: function, properties of functions, graphs of functions, new function from old, lines and family of functions, Limit: Limits (an informal view), one sided limits, the relation between one sided and two sided limits, computing limits, Continuity: continuity and discontinuity, some properties of continuity, the intermediated value theorem. Derivatives: slop and rate of change, tangent and normal, derivative of a function, physical meaning of derivative of a function, techniques of differentiation, chain rule, successive derivatives. Derivative in graphing and applications: analysis of functions, maximum and minimum, Expansion of functions: Taylor's series, Maclaurian's series, Leibniz; Rolle's and Mean Value theorems, Partials and total derivatives of a function of two or three variables. Different technique of integration: integration, fundamental integrals, methods of substitutions, integration of rational functions, integration by parts, integrals of special trigonometric functions, reduction formulae for trigonometric functions. Definite integrals: general properties of definite integral, definite integral as the limit of sum and as an zarea, definition of Riemann integral, Fundamental theorem of integral calculus and its applications to definite integrals, determination of arc length, Improper integrals, Double integrals, Evaluation of Areas and Volumes. Introduction to MATLAB and LAB Sessions."
+    },
+    {
+      "course_code": "MAT1201",
+      "course_title": "Co-ordinate Geometry and Linear Algebra",
+      "credit": "3",
+      "category": "Mathematics and Statistics",
+      "course_objective": "To provide a thorough understanding the meaning of Coordinate Geometry with vector analysis and Linear Algebra with real-life applications and the resource requirements. To introduce the various methods of calculating geometrical problems. To enable students to apply the techniques of geometry, vector and linear algebra to identify gradient of a curve and acquainted with matrices. To emphasize on efficient for solving practical problems through various formulae to be used in the implementations of technical problems. To expose the students to a variety of techniques that have practical applications, while conducting detailed analysis of the requirements.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Acquire the basic concept of geometry, vector analysis and Linear Algebra."
+        },
+        {
+          "code": "CO2",
+          "statement": "Apply various techniques of geometry, vector analysis and Linear Algebra for solving Mathematical Problems."
+        }
+      ],
+      "course_content": "Coordinate Geometry: Coordinates, polar coordinates, straight lines, Changes of axes, Pair of straight lines, Circle, Parabola, Ellipse, Hyperbola, rectangular coordinate, plane. Vector Analysis: Vector components, vector components in spherical and cylindrical system, vector operators, scalar and dot product, application of vector geometry, Derivative of vector, del, gradient, divergence and curl, physical significance, integration of vector. Line, surface and volume integration, Theorems (Green's, Gauss's, Liouville's, Stoke's) and their applications. Linear Algebra: Systems of Linear Equations (SLE): introduction to SLE, solution of a SLE, solution of a system of homogeneous LE, Gaussian and Gauss-Jordan elimination, Determinants: factorization, determinant, fundamental properties of determinants, minors and cofactors, Cramer's rules for solving a SLE, Algebra of Matrices: Matrix, some special types of matrices, transpose, adjoint and inverse of a matrix, algebraic operation on matrices, quadratic forms solution of a LE by applying matrices, Vector Space: space and subspace, Euclidean n-space, basis and dimension, rank and nullity, Linear Transformations (LT) and its Matrix Representations: LT from to , properties of LT, matrix representation of a LT, diagonalization of LT, Eigen Values and Eigen Vectors: polynomials of matrices and linear operators, eigen values and vectors, diagonalizability, Cayley-Hamilton theorem, characteristic and minimum polynomial Inner Product Spaces: inner product spaces, Cauchy-Schwarz inequality, orthogonality, Gram-Schmidt orthogonalization process, linear functional and adjoint operators, Some Applications of LA."
+    },
+    {
+      "course_code": "MAT2101",
+      "course_title": "Differential Equations and Numerical Analysis",
+      "credit": "3",
+      "category": "Mathematics and Statistics",
+      "course_objective": "To provide a thorough understanding the meaning of Differential Equations and Numerical Analysis with real-life applications and the resource requirements. To introduce the various methods of Differential Equations and Numerical Analysis in an investigation. To enable students to apply the techniques for solving differential equations. To emphasize on efficient for solving practical problems through various formulae to be used in the implementations of technical problems. To expose the students to a variety of techniques that have practical applications, while conducting detailed analysis of the requirements.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Understand the fundamental concept of differential equations and Numerical Analysis."
+        },
+        {
+          "code": "CO2",
+          "statement": "Apply various techniques of differential equations to solve egineering problems."
+        },
+        {
+          "code": "CO3",
+          "statement": "Apply various numerical techniques for solving Mathematical problems."
+        }
+      ],
+      "course_content": "Basic Definitions and Terminology: differential equation (de), classifications of de, formation and solution of a de and further terminology, Ordinary de (ode), des of the first order and first degree: variable separable, homogeneous equations, exact equations, linear equations, Linear Equations with constant coefficients: linear and nonlinear de, solution of linear de, 2nd order des, 2nd and higher order homogeneous des, Method of Variation of Parameter; Method of undetermined coefficients; System of Linear de: operator method matrices and system of linear first order equations, homogeneous linear systems, undetermined coefficients, variation of parameters, Solution by Series. Errors in Numerical Calculations: numbers and their accuracy, errors and their computation, a general error formula, error in a series approximation, Solution of Algebraic and Transcendental Equations: bisection, iteration, false position, Newton-Raphson methods, Interpolation: finite difference, forward, backward and central differences, Newton's formula for interpolation, Stirlings formula, Lagrange's interpolation formula, divided differences and their properties, Numerical Differentiation and Integration, Matrices and Linear Systems of Equations, Numerical Solution of Ordinary Differential Equations."
+    },
+    {
+      "course_code": "STA2101",
+      "course_title": "Probability and Statistics",
+      "credit": "3",
+      "category": "Mathematics and Statistics",
+      "course_objective": "To provide a thorough understanding the meaning of Statistics and Probability with real-life applications and the resource requirements. To introduce the various methods of statistical data in an investigation. To enable students to apply the techniques of statistical and probability methods to identify the problems. To emphasize on efficient for solving practical problems through various formulae to be used in the implementations of technical problems. To expose the students to a variety of techniques that have practical applications, while conducting detailed analysis of the requirements.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Analyze a dataset including both categorical and quantitative variables to support or refute a statement."
+        },
+        {
+          "code": "CO2",
+          "statement": "Calculate the probability density function of transformation of random variables."
+        },
+        {
+          "code": "CO3",
+          "statement": "Perform testing and statistical inference in several circumstances and interpret the results in an applied context."
+        }
+      ],
+      "course_content": "Introduction to Statistics: what is statistics, statistical data, statistical methods, scope and limitation of statistics, Populations and Samples, collection and presentation of data, Grouped Data and Histograms, Some Graphical Methods: bar charts, time plots, Pie charts, scatter plots, box and Whisker plots, Measure of Central Tendency: mean, median and mode. Measure of Variations, Measure of Skewness, Moments and Kurtosis, difference between Variation and Skewness. Correlation and Regression Analysis: significance of the study of correlation, types of correlation, difference between correlation and regression Analysis, Sampling and Sampling Distributions, Survey Sampling Methods. Probability: Probability: meaning of probability, classical definition of probability, statistical probability, some theorems in probability, distribution function. Probability distributions: Binomial, normal and exponential distributions."
+    },
+    {
+      "course_code": "PHY1101",
+      "course_title": "Physics I",
+      "credit": "3",
+      "category": "Basic Science",
+      "course_objective": "To impart theoretical techniques to solve analytical and real problems using physical properties of matter. To expose students to varieties of theoretical techniques to solve computational problems. To develop an attitude and ability among students to envision and tackle problems with computational perspectives.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Explain basic laws governing physical properties of matter."
+        },
+        {
+          "code": "CO2",
+          "statement": "Develop analytical thinking in solving various problems."
+        },
+        {
+          "code": "CO3",
+          "statement": "Apply solutions to any real and theoretical problems using nature-inspired modeling."
+        }
+      ],
+      "course_content": "Vectors and motions: The SI units, position, displacement, velocity, acceleration, vectors & scalars, adding vectors, components of vectors, unit vectors, projectile motion. Forces: Newton’s laws of motion, friction, Newton’s gravitation, concepts of work & energy, conservation laws, planets & satellites, concepts of equilibrium. Oscillations: Simple harmonic motion, pendulum, resonance, transverse & longitudinal waves, Lissajous’ figures, musical sounds, beats, Doppler Effect. Thermodynamics: Temperature & heat, Laws of thermodynamics, engines, refrigerators."
+    },
+    {
+      "course_code": "PHY1102",
+      "course_title": "Physics I LAB",
+      "credit": "1",
+      "category": "Basic Science",
+      "course_objective": "In this course students will perform experiments to verify practically the theories and concepts learned in PHY 101",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Demonstration of different principal of physics including waves, thermodynamics and optics."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Write comprehensive reports on the work done in laboratory and/or in a group project, and orally present the project results."
+        }
+      ],
+      "course_content": "Electromagnetism: Coulomb’s law, Gauss’ Law, Ohm’s Law, Ampere’s Law, Maxwell’s equations, magnetic materials, corpuscular & wave properties of light. Special Theory of Relativity, Length Contraction & Time Dilation, Mass-Energy Relation, Photo Electric Effect, Quantum Theory, X-rays and X-ray Diffraction, Compton Effect, Dual Nature of Matter & Radiation, Atomic Structure, Nuclear Dimensions, Electron Orbits, Atomic Spectra, Bohr Atom, Radioactive Decay, half-life, (and Rays, Isotopes, Nuclear Binding Energy), Fundamentals of Solid State Physics, Lasers, Holography."
+    },
+    {
+      "course_code": "PHY1301",
+      "course_title": "Physics II",
+      "credit": "3",
+      "category": "Basic Science",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "EEE1101",
+      "course_title": "Electrical Circuit 1",
+      "credit": "3",
+      "category": "Other Engineering",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "EEE1102",
+      "course_title": "Electrical Circuit 1 LAB",
+      "credit": "1",
+      "category": "Other Engineering",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "EEE1301",
+      "course_title": "Electronic Device and Circuits 1",
+      "credit": "3",
+      "category": "Other Engineering",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "EEE1302",
+      "course_title": "Electronic Device and Circuits 1 LAB",
+      "credit": "1",
+      "category": "Other Engineering",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE1102",
+      "course_title": "Computer Fundamentals & Programming Lab",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To understand the basic building blocks of structured programming. To analyze structured program. To develop structured program for solving problems.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Describe the fundamental concepts of structured programming, basic data structures, functions and their usage."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Develop solutions using basic programming language for technical problems."
+        }
+      ],
+      "course_content": "Definition of computer, History of computing, Computer hardware & software, Components of a computer System, and Generations of computers, Computer Hardware: Peripheral & accessories, and Computer Architecture, different types of software (system, application, entertainment), keyboard layout, overview of different number systems (binary, decimal, octal, and hexadecimal), basic of Boolean algebra, Algorithm, Flowchart, Basic of programming language(variables, datatypes, operators, different types of control statements), scope of computer science and engineering."
+    },
+    {
+      "course_code": "CSE1201",
+      "course_title": "Structured Programming",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "The course aims to understand the basic building blocks of structured programming, analyze structured program, develop structured program for solving computational problems, and design structured program for complex computational applications.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Describe the fundamental concepts of structured programming."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Develop solutions using concepts of structured programming language for real-world problem."
+        }
+      ],
+      "course_content": "Introduction to Basics of Computer and Programming, C Fundamentals. Introduction to C Programming (input, output, variables, data type, operators, and expressions). Structured Program Development in C: Basic of Flow Chart, Control Statements 1(if, if...else, switch, top-down and stepwise refinement). Program Control: Control Statements 2 (for, do…while, switch, break and continue), Nested Loop, Loop Control Statement (break, continue, goto). Introduction to Functions (Math Library Functions, Function Definitions, Function Prototypes and Argument, Recursive functions, References and Reference Parameters, passing arguments to functions and passing arguments by reference. Introduction to Arrays (Arrays, Declaring Arrays, Examples Using Arrays, Passing Arrays to Functions, arrays of strings), Searching Arrays, Sorting Arrays, Multidimensional Arrays, passing multi-dimensional array directly to function. Pointers (Pointer Variable Declarations and Initialization, NULL Pointer, Passing Arguments to Functions by Reference with Pointers, Pointer Expressions and Pointer Arithmetic, Arrays of Pointers, Function Pointers). Characters and Strings (String Input, String Manipulation, Comparison Functions, Search Functions, and Memory Functions). Structure (create, access, update, usage of string in structure, copy structure), Dynamic memory allocation (malloc, calloc, realloc, free). Files (Create, read, write), Different types of data read and write in file."
+    },
+    {
+      "course_code": "CSE1202",
+      "course_title": "Structured Programming LAB",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "The course aims to provide exposure to problem-solving through programming. It aims to train the student to the basic concepts of the C-programming language. This course involves a lab component which is designed to give the student hands-on experience with the concepts that develop problem solving and coding skills.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Demonstrate the fundamental concept of structured programming language."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Apply the techniques of structured programming language for real world problems."
+        }
+      ],
+      "course_content": "The course aims to provide exposure to problem-solving through programming. It aims to train the student to the basic concepts of the C-programming language. This course involves a lab component which is designed to give the student hands-on experience with the concepts that develop problem solving and coding skills."
+    },
+    {
+      "course_code": "CSE1203",
+      "course_title": "Discrete Mathematics",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To provide a thorough understanding of a variety of algorithms with real-life applications and the resource requirements. To introduce several important algorithm design techniques as well as basic algorithms that are interesting both from a theoretical and also practical point of view. To expose the students to a variety of techniques that have practical applications, while conducting detailed analysis of the requirements required by the algorithms.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Describe the fundamental concepts and theories of discrete mathematics."
+        },
+        {
+          "code": "CO2",
+          "statement": "Apply essential logical and mathematical techniques for both a theoretical and practical point of view."
+        }
+      ],
+      "course_content": "Mathematical logic: propositional logic, predicate logic, mathematical reasoning and proof techniques; set theory: sets, relations, partial ordered sets, functions; counting: permutations, combinations, principles of inclusion and exclusion; discrete probability; functions: recurrence relations and recursive algorithms; growth of functions; graph theory: graphs, paths, trees; algebraic structures: rings and groups."
+    },
+    {
+      "course_code": "CSE1301",
+      "course_title": "Data Structures",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To demonstrate understanding of the fundamentals of data structures (e.g. arrays, linked lists, stack, queue, graph, and trees). To utilize data structures in various applications including the ability to implement algorithms for the creation, insertion, deletion, searching, and sorting of each data structure. To analyze and compare algorithms for efficiency using Big-O notation language commands. To create, compile and test data structure operations and algorithms in C programming language.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Explain fundamental concepts of various Data Structures."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Apply the fundamental concepts of various Data Structures."
+        }
+      ],
+      "course_content": "Internal data representation; Abstract data types; elementary data structures: arrays, linked lists, stacks, queues, trees and graphs; basic data structures operations: traversal, insertion, deletion, searching, merging, sorting, tree; tree traversal and graph traversal; recursion and recursive algorithm, pattern matching; advanced data structures: heaps, Fibonacci heaps; search trees: binary search trees, AVL trees, multi-way search trees, sorting, hashing."
+    },
+    {
+      "course_code": "CSE1302",
+      "course_title": "Data Structures LAB",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To introduce the fundamental concept of data structures including link-list To emphasize the importance of data structures in implementing the algorithms To develop effective skills in the implementation of data structures",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Demonstrate various basic data structures and its operations."
+        },
+        {
+          "code": "CO2",
+          "statement": "Apply appropriate data structure for solving real world."
+        },
+        {
+          "code": "CO3",
+          "statement": "Implement new abstract data based on the concept of linked list, stack, queue, tree and graph with the programming implementations."
+        },
+        {
+          "code": "CO4",
+          "statement": "Apply the knowledge of data structure in accomplishing project."
+        },
+        {
+          "code": "CO5",
+          "statement": "Develop skills for team work and technical communication and discussions in accomplishing project work."
+        }
+      ],
+      "course_content": "This course investigates abstract data types (ADTs), recursion, algorithms for searching and sorting, and basic algorithm analysis. ADTs to be covered include lists, stacks, queues, priority queues, trees, sets, and graphs. The emphasis is on the trade-offs associated with implementing alternative data structures for these ADTs."
+    },
+    {
+      "course_code": "CSE2101",
+      "course_title": "Digital Logic Design",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "The fundamental concepts in classical digital design and to demonstrate clearly the way in which digital circuits are designed and analyzed today. Familiar with the modern hierarchy of digital hardware and enlighten them the state-of-the-art computer hardware design methodologies. The basic idea of how to design and simulate logic circuits.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Explain fundamental concepts of digital logic design."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Design combinational and sequential logic circuits applying the fundamental concept of digital logic design."
+        }
+      ],
+      "course_content": "Course conduction on Digital logic, Boolean algebra, De-Morgan’s law, logic gates and their truth tables, canonical forms, Combinational logic circuits, minimization techniques, Arithmetic and data handling logic circuits, decoders and encoders, Multiplexers and demultiplexers, Combinational Circuit design, Flip-flops, race around problems, Counters and their applications, PLA design, Synchronous and asynchronous logic design: state diagram, Mealy and Moore machines, State minimizations and assignments, Pulse mode logic, Fundamental mode design."
+    },
+    {
+      "course_code": "CSE2102",
+      "course_title": "Digital Logic Design Lab",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To verify the theories and concepts taught in CSE 2101. To design different digital systems, simulate and perform experiments and verify results. To analyze the results and come to meaningful conclusions within their understanding, being mindful of the errors and uncertainties in their measurements",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Design the digital logic circuits."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Implement and digital systems using modern experimental and simulation tools."
+        }
+      ],
+      "course_content": "Design and implementation of combinational and sequential logic circuits. Concepts of Boolean algebra, Karnaugh maps, flip-flops, registers, and counters along with various logic families and comparison of their behavior and characteristics"
+    },
+    {
+      "course_code": "CSE2103",
+      "course_title": "Object Oriented Programming",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "Recognize Java in terms of OOP Understand the relationship between Class, Object, Abstraction, Interface and Polymorphism Develop basic problem-solving skills, produce quality code, know best practices Trace code and infer issues to handle exceptions. Interpret and analyze problem to design an Enterprise solution",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Acquire basic Java programming skills for object-oriented programming with problem solving based on encapsulation, inheritance and polymorphism [."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Analyze problems using UML model for designing OO solution and implement using Java."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Design model using unified modeling language for OO solution and implement using Java."
+        }
+      ],
+      "course_content": "Object-Oriented Fundamentals, Encapsulation, Polymorphism, Inheritance, Class, Object, Java Language Introduction, Variable Types and operators, Casting, Arrays, Introducing classes, Adding methods to class, constructor, String Handling, Garbage collection, Inheritance, Inner Class, Abstract Classes, Interfaces and Packages, Exception Handling, Java Input / Output, Multithreaded Programming and Synchronization, Applet, Event Handling, Networking with Java, Introducing the Swing, Utility Classes, Java Generics."
+    },
+    {
+      "course_code": "CSE2104",
+      "course_title": "Object Oriented Programming LAB",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "Recognize Java in terms of OOP Understand the relationship between Class, Object, Abstraction, Interface and Polymorphism Develop basic problem-solving skills, produce quality code, know best practices Trace code and infer issues to handle exceptions. Interpret and analyze problem to design an Enterprise solution",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Demonstrate the fundamental concepts of object oriented programming [PO3]."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Apply the concepts of object oriented programming for solving real world problems [PO2]."
+        }
+      ],
+      "course_content": "Based on theory course."
+    },
+    {
+      "course_code": "CSE2201",
+      "course_title": "Algorithms",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To provide a thorough understanding of a variety of algorithms with real-life applications and the resource requirements; To introduce several important algorithm design techniques as well as basic algorithms that are interesting both from a theoretical and also practical point of view; To enable students to analyze time and space complexities of algorithms; To emphasize on efficient algorithm designing, solving practical problems through algorithmic techniques and data structures to be used in the implementations of algorithms; To expose the students to a variety of techniques that have practical applications, while conducting detailed analysis of the requirements required by the algorithms.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Acquire fundamental concepts of algorithms."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Explain different paradigms of algorithms."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Analyze the complexity and performance of various algorithms."
+        }
+      ],
+      "course_content": "Introduction, Growth of Functions, Techniques for analysis of algorithms; Methods for the design of efficient algorithms: divide and conquer, greedy method, dynamic programming, back tracking, branch and bound; basic search and traversal techniques; topological sorting; connected components, spanning trees, shortest paths; Flow algorithms; Approximation algorithms; Parallel algorithms, Lower bound theory; NP-completeness, NP-hard and NP-complete problems."
+    },
+    {
+      "course_code": "CSE2202",
+      "course_title": "Algorithms LAB",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To emphasize on efficient algorithm designing, solving practical problems through algorithmic techniques and data structures to be used in the implementations of algorithms. To expose the students to a variety of techniques that have practical applications, while conducting detailed analysis of the requirements required by the algorithms.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Apply programming skills and data structures to implement algorithms."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Develop and implement algorithmic solutions to real-life problems."
+        }
+      ],
+      "course_content": "Introduction, Growth of Functions, Techniques for analysis of algorithms; Methods for the design of efficient algorithms: divide and conquer, greedy method, dynamic programming, back tracking, branch and bound; basic search and traversal techniques; topological sorting; connected components, spanning trees, shortest paths; Flow algorithms; Approximation algorithms; Parallel algorithms, Lower bound theory; NP-completeness, NP-hard and NP-complete problems."
+    },
+    {
+      "course_code": "CSE2203",
+      "course_title": "Computer Organization and Architecture",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To provide a thorough understanding computer architectural designs. To expose flow of data and instruction streams in CPU, Memory and I/O devices. To introduce the latest system designs with pros and cons. To emphasis on different memory devices with analysis of cost, size and speed",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Explain performance of modern processor design, memory components and other peripherals."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Design architectural components considering memory and instruction level parallelism."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Analyze comparative performances of different architectural and organizational computing systems."
+        }
+      ],
+      "course_content": "Information representation; Measuring performance; Instructions and data access methods: operations and operands of computer hardware, representing instruction, addressing styles; Arithmetic Logic Unit (ALU) operations, floating point operations, designing ALU; Processor design: datapaths - single cycle and multicycle implementations; Control Unit design - hardwired and microprogrammed; Hazards; Exceptions; Pipeline: pipelined datapath and control, superscalar and dynamic pipelining; Memory organization: cache, virtual memory, channels; Concepts of DMA and Interrupts; Buses: overview of computer BUS standards; Multiprocessors: types of multiprocessors, performance, single bus multiprocessors, multiprocessors connected by network, clusters."
+    },
+    {
+      "course_code": "CSE2200",
+      "course_title": "Design Project-I",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To develop technical specifications for the performance requirements To select and implement the desirable solution and evaluate the results. To organize meetings, teach taking journal notes and maintain teamwork in group environment To writing proposal and complete project reports, presentation and demonstration of project To train how to manage finance and scheduling of time while working in multidisciplinary team",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Develop and Demonstrate problem solution using object-oriented programming based on encapsulation, inheritance and polymorphism [PO3]."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Analyze problems using UML model for designing OO solution and implement [PO2]."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Demonstrate OO solution and implement through course project [PO5, PO9, PO12]."
+        }
+      ],
+      "course_content": "Based on theory course."
+    },
+    {
+      "course_code": "CSE2301",
+      "course_title": "Database Management System",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To introduce the fundamental concept of DBMS To emphasize organizational problems in general and design analytical solution in particular To develop effective skills in the implementation of database driven solutions",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Acquire the fundamental concepts of DBMS."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Apply methodological and analytical problem-solving skills to analyze problems."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Design appropriate database driven solutions to real-life problems."
+        }
+      ],
+      "course_content": "Concepts of database systems; Data Models: Entity-Relationship model, Relational model; Query Languages: Relational algebra, SQL; Constraints and triggers; Functional dependencies and normalization; File organization and data storage; Indexing: primary and secondary indexes, B+ trees, hash tables; Query optimization; Transaction management; Recovery; Concurrency control; Access control and security; Semi-structured database: XML, XPath, XQuery; Object oriented and object relational databases."
+    },
+    {
+      "course_code": "CSE2302",
+      "course_title": "Database Management System Lab",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To provide a thorough understanding of Database Management System (DBMS) concepts and the resource requirements. To introduce several important features of DBMS, those are interesting both from a theoretical and also practical point of view. To make students familiar with designing database systems. To emphasize with structured query language and solving practical problems through SQL. To expose the students on solving real world problems using relevant features of DBMS.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Design database driven solutions to real life problems."
+        },
+        {
+          "code": "CO2",
+          "statement": "Implement the appropriate database schema using state-of-the-arts tools."
+        }
+      ],
+      "course_content": "Concepts of database systems; Data Models: Entity-Relationship model, Relational model; Query Languages: Relational algebra, SQL; Constraints and triggers; Functional dependencies and normalization; File organization and data storage; Indexing: primary and secondary indexes, B+ trees, hash tables; Query optimization; Transaction management; Recovery; Concurrency control; Access control and security; Semi-structured database: XML, XPath, XQuery; Object oriented and object relational databases. Concepts of database systems; Data Models: Entity-Relationship model, Relational model; Query Languages: Relational algebra, SQL; Constraints and triggers; Functional dependencies and normalization; File organization and data storage; Indexing: primary and secondary indexes, B+ trees, hash tables; Query optimization; Transaction management; Recovery; Concurrency control; Access control and security; Semi-structured database: XML, XPath, XQuery; Object oriented and object relational databases. 12"
+    },
+    {
+      "course_code": "CSE2303",
+      "course_title": "Automata and Theory of Computation",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To introduce several important features of computational theory that are interesting both from a theoretical and also practical point of view. To enable students in designing and solving problems using state machines. To emphasize on various languages for designing and solving practical problems.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Explain performance of modern processor design, memory components and other peripherals."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Design architectural components considering memory and instruction level parallelism."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Analyze comparative performances of different architectural and organizational computing systems."
+        }
+      ],
+      "course_content": "Introduction to Automata and Theory of Computation. Finite State Machines. Regular Expressions. Context Free Grammar. Push Down Automata. Turing Machine. Decidable and Undecidable Language."
+    },
+    {
+      "course_code": "CSE2305",
+      "course_title": "Operating Systems",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To understand the services provided by and the design of an operating system; To understand the structure and organization of the file system; To understand what a process is and how processes are synchronized and scheduled; To understand different approaches to memory management; To understand the data structures and algorithms used to implement an OS.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Analyze different algorithms related to operating systems in designing optimal solutions."
+        }
+      ],
+      "course_content": "Introduction: What is operating system? History of operating system, Operating system concepts, Operating system structure, Processes and Threads, Interprocess communication, Scheduling, Classical IPC problems, Memory Management, No memory abstraction, Virtual memory, Page replacement algorithms, Design issues for paging systems, Implementation issues, File Systems, Files, Directories, File system management, Input / Output, Principles of I/O hardware, Principles of I/O software, I/O software layers, Disks, Clocks, Thin clients, Deadlocks, Resources Detection, Recovery, Avoidance, Prevention, Virtualization and Cloud."
+    },
+    {
+      "course_code": "CSE2306",
+      "course_title": "Operating Systems Lab",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To introduce with shell commands and scripts To explain core OS concepts like process scheduling, memory management and multithreading",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Demonstrate basic CLI commands and scripts."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Apply operating systems concepts for solving real world problems."
+        }
+      ],
+      "course_content": "Introduction of Microprocessor and its use, Microprocessor and Memory Basics, Microprocessor: microcontroller & microcomputer, evaluation of microprocessor & application, introduction to 8-bit, 16-bit, and 32-bit microprocessors; addressing modes: absolute addressing, 8086 internal architecture, PIN diagram of 8086, Max-Min mode, register structure; memory read write cycle; Instruction set; pipeline concept: interrupts, programmed I/O, memory mapped I/O, interrupt driven I/O, direct memory access; block transfer; cycle stealing; interleaved; multi-tasking and virtual memory; memory interface; bus interface; arithmetic co-processor; assembly language programming of 8086 microprocessors., serial data transmission, serial communication standards, serial interface implementation. Arduino: Buttons, PWM, and Functions, Arduino: Serial Communication and Processing, I2C, Modbus RTU, TCP/TP Communication and SPI Interfaces, Wireless Communication, Arduino: Interrupts and Hardware Handling, collecting data from external environment via sensors and send/receive data to cloud, learning about python interfacing Program to collect real time, data plotting simultaneously."
+    },
+    {
+      "course_code": "CSE3101",
+      "course_title": "Microprocessor and Microcontroller",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "Describe advanced microprocessor architecture and programming Design, develops, and validates microprocessor-based system software Determine and optimize a design for an input/output (I/O) device Describe the operation and application of computer timer devices, I/O devices and ADCs, DACs Synthesizes and develops microprocessor interfaces for various embedded system",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Analyze different types of microprocessor architectures."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Identifying problems to understand complexities for sustainable development."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Synthesize microprocessor interfaces for various embedded system of real life problems."
+        }
+      ],
+      "course_content": "Introduction of Microprocessor and its use, Microprocessor and Memory Basics, Microprocessor: microcontroller & microcomputer, evaluation of microprocessor & application, introduction to 8-bit, 16-bit, and 32-bit microprocessors; addressing modes: absolute addressing, 8086 internal architecture, PIN diagram of 8086, Max-Min mode, register structure; memory read write cycle; Instruction set; pipeline concept: interrupts, programmed I/O, memory mapped I/O, interrupt driven I/O, direct memory access; block transfer; cycle stealing; interleaved; multi-tasking and virtual memory; memory interface; bus interface; arithmetic co-processor; assembly language programming of 8086 microprocessors., serial data transmission, serial communication standards, serial interface implementation. Arduino: Buttons, PWM, and Functions, Arduino: Serial Communication and Processing, I2C, Modbus RTU, TCP/TP Communication and SPI Interfaces, Wireless Communication, Arduino: Interrupts and Hardware Handling, collecting data from external environment via sensors and send/receive data to cloud, learning about python interfacing Program to collect real time, data plotting simultaneously."
+    },
+    {
+      "course_code": "CSE3102",
+      "course_title": "Microprocessor and Microcontroller Lab",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE3103",
+      "course_title": "System Analysis and Design",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "Discuss the issues and management techniques involved in the planning, analysis and modeling, design, and implementation of information systems. Highlight the different options open to organizations seeking new information systems functionality (including traditional systems analysis and design, rapid application development, Agile system development, CASE System Development, Object Oriented System Development) and the costs and benefits of each. Emphasize on analysis and design of various systems. Provide the techniques and perspectives to a real-world project within which students use the skills and knowledge learned in the course. Also, can prepare different technical reports on system development processes.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Explain various system analysis and design techniques to meet the needs of current information systems."
+        },
+        {
+          "code": "CO2",
+          "statement": "Design a solution for real life problems."
+        },
+        {
+          "code": "CO3",
+          "statement": "Compose comprehensive report and oral presentation."
+        },
+        {
+          "code": "CO4",
+          "statement": "Explain societal impact of the designed system/project."
+        }
+      ],
+      "course_content": "Introduction to information system, IS development life cycle, Requirements-Gathering Techniques, Requirements Analysis Strategies, preliminary planning and investigation, determining IS development requirements, project management, Object Oriented Systems Analysis and Design and depicting system components, sequence of activities and business processes (BPMN) using UML diagrams., analysing requirements, evaluating alternatives, information systems analysis principles, structured information systems design, input design and control, output system design; information systems development, computer-aided software engineering; systems implementation, systems evaluation and optimization, information systems documentation, Costs and benefits of different approaches and critical path analysis to implement new systems."
+    },
+    {
+      "course_code": "CSE3120",
+      "course_title": "Web Programming",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To provide a thorough understanding of Front-End designs & back-end development with code efficiency. To introduce the latest web-development programming languages and tools. To emphasize different languages and their benefits To enable students to write quality enterprise/commercial websites & web-services.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Explain latest practices and performance implications of web technology."
+        },
+        {
+          "code": "CO2",
+          "statement": "Develop web application based on real world problem."
+        }
+      ],
+      "course_content": "Introduction to Web Technologies, Interoperability, Web3, client-side and Server-Side programming, modern testing tools, web security."
+    },
+    {
+      "course_code": "CSE3201",
+      "course_title": "Artificial Intelligence & Machine Learning",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "The primary objective of this course is to introduce the basic principles, techniques, and applications of Artificial Intelligence. Emphasis will be placed on the teaching of these fundamentals, not on providing a mastery of specific software tools or programming environments. The primary objective of this course is to introduce the basic principles, techniques, and applications of Artificial Intelligence. Emphasis will be placed on the teaching of these fundamentals, not on providing a mastery of specific software tools or programming environments. Assigned projects promote a hands-on approach for understanding, as well as a challenging avenue for exploration and creativity. Specifically: Gain a historical perspective of AI and its foundations. Become familiar with basic principles of AI toward problem solving, inference, perception, knowledge representation, and learning. Investigate applications of AI techniques in intelligent agents, expert systems, artificial neural networks and other machine learning models. Experience AI development tools such as an AI language, expert system shell, and/or data mining tool. Explore the current scope, potential, limitations, and implications of intelligent systems Assigned projects promote a hands-on approach for understanding, as well as a challenging avenue for exploration and creativity. Specifically: Gain a historical perspective of AI and its foundations. Become familiar with basic principles of AI toward problem solving, inference, perception, knowledge representation, and learning. Investigate applications of AI techniques in intelligent agents, expert systems, artificial neural networks and other machine learning models. Experience AI development tools such as an AI language, expert system shell, and/or data mining tool. Explore the current scope, potential, limitations, and implications of intelligent systems",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Demonstrate the understanding of the fundamentals of AI, knowledge representation, uncertainty and inferencing."
+        },
+        {
+          "code": "CO2",
+          "statement": "Apply basic concepts of machine learning, and classic algorithms."
+        },
+        {
+          "code": "CO3",
+          "statement": "Analyze the performance of Machine Learning models."
+        }
+      ],
+      "course_content": "Artificial Intelligence and Intelligent Agents, Problem Solving (Solving Problems by Searching, Adversarial Search, Constraint Satisfaction Problems), Knowledge and Reasoning (Logical Agents, First-Order Logic, Inference in First-Order Logic, Classical Planning, Planning and Acting in the Real World, Knowledge Representation), Uncertain Knowledge and Reasoning (Quantifying Uncertainty, Probabilistic Reasoning, Probabilistic Reasoning over Time, Making Simple Decisions, Making Complex Decisions), Learning (Learning from Examples, Knowledge in Learning, Learning, Probabilistic Models, Reinforcement Learning). Introduction to machine learning; Regression analysis: Logistic regression, linear regression; Classification techniques: Supervised and unsupervised classification; Neural networks; Support vector machines; Classification trees; Rule based learning; Instance based learning; Reinforcement learning; Ensemble learning; Negative correlation learning; Evolutionary algorithms; Genetic algorithm, Statistical performance evaluation techniques of learning algorithms: bias-variance tradeoff; Practical applications of machine learning recent applications of machine learning, such as to robotic control, data mining, autonomous navigation, bioinformatics, speech recognition, and text and web data processing"
+    },
+    {
+      "course_code": "CSE3202",
+      "course_title": "Artificial Intelligence & Machine Learning Lab",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "The primary objective of this course is to introduce the basic principles, techniques, and applications of Artificial Intelligence. Emphasis will be placed on the teaching of these fundamentals, not on providing a mastery of specific software tools or programming environments. Assigned projects promote a hands-on approach for understanding, as well as a challenging avenue for exploration and creativity. To understand how to develop AI models from data and information at hand To enable students to apply the various algorithms of data-driven AI solutions. To enables students to implement the AI models in developing self-intelligence agents.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Investigate the knowledge representation and learning mechanisms of different AI algorithms."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Design learning frameworks for efficient prototype development."
+        }
+      ],
+      "course_content": "Artificial Intelligence and Intelligent Agents, Problem Solving (Solving Problems by Searching, Adversarial Search, Constraint Satisfaction Problems), Knowledge and Reasoning (Logical Agents, First-Order Logic, Inference in First-Order Logic, Classical Planning, Planning and Acting in the Real World, Knowledge Representation), Uncertain Knowledge and Reasoning (Quantifying Uncertainty, Probabilistic Reasoning, Probabilistic Reasoning over Time, Making Simple Decisions, Making Complex Decisions), Learning (Learning from Examples, Knowledge in Learning, Learning, Probabilistic Models, Reinforcement Learning). Introduction to machine learning; Regression analysis: Logistic regression, linear regression; Classification techniques: Supervised and unsupervised classification; Neural networks; Support vector machines; Classification trees; Rule based learning; Instance based learning; Reinforcement learning; Ensemble learning; Negative correlation learning; Evolutionary algorithms; Genetic algorithm, Statistical performance evaluation techniques of learning algorithms: bias-variance tradeoff; Practical applications of machine learning recent applications of machine learning, such as to robotic control, data mining, autonomous navigation, bioinformatics, speech recognition, and text and web data processing."
+    },
+    {
+      "course_code": "CSE3203",
+      "course_title": "Software Engineering",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "Introduce basic SW engineering methods and practices, and their appropriate application. Provide a general understanding of software process models. Develop the understanding of software requirements and the SRS documents. Exposure to the role of project management including software documentation. Highlight on software testing approaches.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Explain fundamental concepts of Software Engineering."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Apply software development methodologies to develop software solutions for real life problems."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Formulate a testing strategy for software quality assurances."
+        }
+      ],
+      "course_content": "Introduction to Software Engineering as a Discipline. Software Life Cycles. Software Requirement Specification and Analysis, Object Oriented Analysis and Design, Design patterns, Architectural patterns and scaling concern, Software Quality Assurance, Project management, Testing."
+    },
+    {
+      "course_code": "CSE3200",
+      "course_title": "Design Project-II",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To provide a thorough understanding application designs with code efficiency. To introduce to latest programming style and tools. To emphasis on core processes of an application and debugging. To enable students to write quality enterprise/commercial application/game.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Recognize, recall and understand requirements of a software system."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Understand, outline and apply different software process models to develop a software system."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Design and develop real-life Application/Game/Software."
+        },
+        {
+          "code": "CLO4",
+          "statement": "Use available latest libraries, APIs and functions for efficient coding."
+        },
+        {
+          "code": "CLO5",
+          "statement": "Possess positive approach to adapting and learning new languages/features and apply them to create Mobile Applications/Software."
+        }
+      ],
+      "course_content": "Develop a complete project addressing complex engineering problems using appropriate requirement analysis, design using modern tools such as UML, Project Planning, configuration management tools based on the concept of software engineering."
+    },
+    {
+      "course_code": "CSE3205",
+      "course_title": "Computer Networks",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "The objectives of the course are as follows: be able to explain knowledge within data communications be able to explain reference models for data communications, their layers and corresponding functions, services and protocols be able to describe the protocol techniques, local area networks and how Internet is built.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "provide an in-depth knowledge on basic networking theories."
+        },
+        {
+          "code": "CLO2",
+          "statement": "discuss how to design an internet work and what are the key factors to be considered."
+        },
+        {
+          "code": "CLO3",
+          "statement": "diagnose problems and to build a framework to understand."
+        },
+        {
+          "code": "CLO4",
+          "statement": "be able to analyze networks and subnetworks critically."
+        }
+      ],
+      "course_content": "Introduction to computer networks: protocol layers, network performance Metrics-Delay, loss, throughput, jitter; circuit and packet switching; application layer: protocol overview of HTTP, FTP, SMTP, DNS, SNMP, P2P, client server and hybrid applications of the Internet; transport layer: protocol overview of TCP and UDP, principles of reliable data transfer, flow control, congestion control, TCP Reno, TCP Tahoe, socket programming; network layer: overview of IPv4 and IPv6, IP addressing, components of a router, routing and forwarding functions of a router, routing algorithms: link state and distance vector, OSPF and BGP; wireless networks: definition and types of wireless networks, MAC and routing in wireless networks, mobility and mobile IPv6."
+    },
+    {
+      "course_code": "CSE3206",
+      "course_title": "Computer Networks Lab",
+      "credit": "1",
+      "category": "Major Core",
+      "course_objective": "To emphasize the practical understanding of data communication and networking concepts. To demonstrate the understanding and appropriate use of the OSI reference model for networking protocols, TCP/IP implementation, LANs/WANs, internetworking technologies, Routing and Addressing.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Designing and implementing practical networks and diagnosing and troubleshooting."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Understanding the network protocols using various tools."
+        }
+      ],
+      "course_content": "Introduction to computer networks: protocol layers, network performance Metrics-Delay, loss, throughput, jitter; circuit and packet switching; application layer: protocol overview of HTTP, FTP, SMTP, DNS, SNMP, P2P, client server and hybrid applications of the Internet; transport layer: protocol overview of TCP and UDP, principles of reliable data transfer, flow control, congestion control, TCP Reno, TCP Tahoe, socket programming; network layer: overview of IPv4 and IPv6, IP addressing, components of a router, routing and forwarding functions of a router, routing algorithms: link state and distance vector, OSPF and BGP; wireless networks: definition and types of wireless networks, MAC and routing in wireless networks, mobility and mobile IPv6."
+    },
+    {
+      "course_code": "CSE3301",
+      "course_title": "Cyber Security",
+      "credit": "3",
+      "category": "Major Core",
+      "course_objective": "To introduce basic computer security methods and practices, and their appropriate application. To provide a general understanding of cryptography and network security. To expose the students to the role for security audit. To highlight recent advances in security and privacy.",
+      "course_outcomes": [
+        {
+          "code": "CO1",
+          "statement": "Explain terms related to important computer security and privacy techniques."
+        },
+        {
+          "code": "CO2",
+          "statement": "Understand security threats, apply principles and practices of computer security to solve them."
+        },
+        {
+          "code": "CO3",
+          "statement": "Identify vulnerability of systems, assess relevant risks and propose solutions to solve the problems."
+        },
+        {
+          "code": "CO4",
+          "statement": "Learn to clearly communicate to point out legal and ethical issues in computer security."
+        }
+      ],
+      "course_content": "Introduction to cyber security. Basic concepts: confidentiality, integrity, availability, security policies, security mechanisms, assurance. Basic Cryptography; Secret Key Cryptography, Message Digests, Public Key Cryptography; Authentication; Trusted Intermediaries; Real-time Communication Security; Electronic Mail Security; Firewalls and Web Security. Computer Security Management, Establishing and Managing Information Assurance, Forensics of Cyber Security, Hacking Techniques, Investigation and Response: Systems Forensics."
+    },
+    {
+      "course_code": "CSE4098 A",
+      "course_title": "Capstone Project 1",
+      "credit": "1",
+      "category": "Major Core (Capstone)",
+      "course_objective": "Capstone is a metaphor used to describe a final achievement that builds upon previous works and encapsulates them. This course is intended to provide a culminating experience that allows a student to demonstrate proficiency in several of the learning outcomes that are set forth by students’ degree program. Capstone project will integrate multidisciplinary subjects and professional skills that are difficult to impart in a traditional lectured course.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Identify an appropriate topic that can be designed and verified."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Critically review and analyze the problem to identify possible solutions."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Investigate the feasibility of the different solutions to select the most suitable one."
+        },
+        {
+          "code": "CLO4",
+          "statement": "Plan a project and perform different tasks of project management."
+        },
+        {
+          "code": "CLO5",
+          "statement": "Design a solution that meets the specifications."
+        },
+        {
+          "code": "CLO6",
+          "statement": "Incorporate the use of modern engineering tools in the design, and verification processes."
+        },
+        {
+          "code": "CLO7",
+          "statement": "Work effectively in a team."
+        },
+        {
+          "code": "CLO8",
+          "statement": "Understand ethical and professional responsibilities in the practice of computer science and engineering."
+        },
+        {
+          "code": "CLO9",
+          "statement": "Assess societal, health, safety, legal and cultural issues related to the project."
+        },
+        {
+          "code": "CLO10",
+          "statement": "Demonstrate the understanding of the impact of the project on environment and sustainability."
+        },
+        {
+          "code": "CLO11",
+          "statement": "Write professional technical documents related to the project and orally present project results."
+        }
+      ],
+      "course_content": "Capstone Project Design and Implementation."
+    },
+    {
+      "course_code": "CSE4098 B",
+      "course_title": "Capstone Project 2",
+      "credit": "1",
+      "category": "Major Core (Capstone)",
+      "course_objective": "Capstone is a metaphor used to describe a final achievement that builds upon previous works and encapsulates them. This course is intended to provide a culminating experience that allows a student to demonstrate proficiency in several of the learning outcomes that are set forth by students’ degree program. Capstone project will integrate multidisciplinary subjects and professional skills that are difficult to impart in a traditional lectured course.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Identify an appropriate topic that can be designed and verified."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Critically review and analyze the problem to identify possible solutions."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Investigate the feasibility of the different solutions to select the most suitable one."
+        },
+        {
+          "code": "CLO4",
+          "statement": "Plan a project and perform different tasks of project management."
+        },
+        {
+          "code": "CLO5",
+          "statement": "Design a solution that meets the specifications."
+        },
+        {
+          "code": "CLO6",
+          "statement": "Incorporate the use of modern engineering tools in the design, and verification processes."
+        },
+        {
+          "code": "CLO7",
+          "statement": "Work effectively in a team."
+        },
+        {
+          "code": "CLO8",
+          "statement": "Understand ethical and professional responsibilities in the practice of computer science and engineering."
+        },
+        {
+          "code": "CLO9",
+          "statement": "Assess societal, health, safety, legal and cultural issues related to the project."
+        },
+        {
+          "code": "CLO10",
+          "statement": "Demonstrate the understanding of the impact of the project on environment and sustainability."
+        },
+        {
+          "code": "CLO11",
+          "statement": "Write professional technical documents related to the project and orally present project results."
+        }
+      ],
+      "course_content": "Capstone Project Design and Implementation."
+    },
+    {
+      "course_code": "CSE4098 C",
+      "course_title": "Capstone Project 3",
+      "credit": "2",
+      "category": "Major Core (Capstone)",
+      "course_objective": "Capstone is a metaphor used to describe a final achievement that builds upon previous works and encapsulates them. This course is intended to provide a culminating experience that allows a student to demonstrate proficiency in several of the learning outcomes that are set forth by students’ degree program. Capstone project will integrate multidisciplinary subjects and professional skills that are difficult to impart in a traditional lectured course.",
+      "course_outcomes": [
+        {
+          "code": "CLO1",
+          "statement": "Identify an appropriate topic that can be designed and verified."
+        },
+        {
+          "code": "CLO2",
+          "statement": "Critically review and analyze the problem to identify possible solutions."
+        },
+        {
+          "code": "CLO3",
+          "statement": "Investigate the feasibility of the different solutions to select the most suitable one."
+        },
+        {
+          "code": "CLO4",
+          "statement": "Plan a project and perform different tasks of project management."
+        },
+        {
+          "code": "CLO5",
+          "statement": "Design a solution that meets the specifications."
+        },
+        {
+          "code": "CLO6",
+          "statement": "Incorporate the use of modern engineering tools in the design, and verification processes."
+        },
+        {
+          "code": "CLO7",
+          "statement": "Work effectively in a team."
+        },
+        {
+          "code": "CLO8",
+          "statement": "Understand ethical and professional responsibilities in the practice of computer science and engineering."
+        },
+        {
+          "code": "CLO9",
+          "statement": "Assess societal, health, safety, legal and cultural issues related to the project."
+        },
+        {
+          "code": "CLO10",
+          "statement": "Demonstrate the understanding of the impact of the project on environment and sustainability."
+        },
+        {
+          "code": "CLO11",
+          "statement": "Write professional technical documents related to the project and orally present project results."
+        }
+      ],
+      "course_content": "Capstone Project Design and Implementation."
+    },
+    {
+      "course_code": "CSE4099",
+      "course_title": "Internship / Thesis",
+      "credit": "1",
+      "category": "Major Core (Internship)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4401",
+      "course_title": "Computer Graphics",
+      "credit": "3",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4402",
+      "course_title": "Computer Graphics Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4403",
+      "course_title": "Advanced Algorithm",
+      "credit": "3",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4405",
+      "course_title": "Compiler Design",
+      "credit": "3",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4406",
+      "course_title": "Compiler Design Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4407",
+      "course_title": "Basic Graph Theory",
+      "credit": "3",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4409",
+      "course_title": "Mathematical Analysis for Computer Science",
+      "credit": "3",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4411",
+      "course_title": "Computational Geometry",
+      "credit": "3",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4413",
+      "course_title": "Topics of Current Interest in Computational Theory",
+      "credit": "3",
+      "category": "Concentration Elective (Computational Theory)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4415",
+      "course_title": "Data Communication",
+      "credit": "3",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4416",
+      "course_title": "Data Communication Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4417",
+      "course_title": "Internet of Things",
+      "credit": "3",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4418",
+      "course_title": "Internet of Things Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4419",
+      "course_title": "Network Security",
+      "credit": "3",
+      "category": "Concentration Elective (Network and Communications / Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4420",
+      "course_title": "Network Security Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Network and Communications / Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4421",
+      "course_title": "Wireless and Cellular Communication",
+      "credit": "3",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4423",
+      "course_title": "Digital Signal Processing",
+      "credit": "3",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4425",
+      "course_title": "Advanced Network Services and Management",
+      "credit": "3",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4427",
+      "course_title": "Topics of Current Interest in Network and Communications",
+      "credit": "3",
+      "category": "Concentration Elective (Network and Communications)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4429",
+      "course_title": "Software Security",
+      "credit": "3",
+      "category": "Concentration Elective (Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4430",
+      "course_title": "Software Security Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4431",
+      "course_title": "Blockchain",
+      "credit": "3",
+      "category": "Concentration Elective (Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4433",
+      "course_title": "Cryptography",
+      "credit": "3",
+      "category": "Concentration Elective (Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4435",
+      "course_title": "ICT Law, Policy and Ethics",
+      "credit": "3",
+      "category": "Concentration Elective (Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4437",
+      "course_title": "Digital Forensics and Incident Response",
+      "credit": "3",
+      "category": "Concentration Elective (Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4439",
+      "course_title": "Topics of Current Interest in Security",
+      "credit": "3",
+      "category": "Concentration Elective (Security)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4441",
+      "course_title": "Real-time Embedded Systems",
+      "credit": "3",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4442",
+      "course_title": "Real-time Embedded Systems Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4443",
+      "course_title": "Distributed Systems",
+      "credit": "3",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4445",
+      "course_title": "Simulation and Modeling",
+      "credit": "3",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4446",
+      "course_title": "Simulation and Modeling Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4447",
+      "course_title": "Introduction to Robotics",
+      "credit": "3",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4449",
+      "course_title": "Cloud Computing",
+      "credit": "3",
+      "category": "Concentration Elective (Computer Systems / Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4451",
+      "course_title": "Advanced Database Management Systems",
+      "credit": "3",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4453",
+      "course_title": "Topics of Current Interest in Computer Systems",
+      "credit": "3",
+      "category": "Concentration Elective (Computer Systems)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4455",
+      "course_title": "Data Mining",
+      "credit": "3",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4457",
+      "course_title": "Data Science",
+      "credit": "3",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4458",
+      "course_title": "Data Science Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4459",
+      "course_title": "Big Data Analytics",
+      "credit": "3",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4460",
+      "course_title": "Big Data Analytics Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4461",
+      "course_title": "Digital Image Processing",
+      "credit": "3",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4462",
+      "course_title": "Digital Image Processing Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4463",
+      "course_title": "Introduction to Bioinformatics",
+      "credit": "3",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4465",
+      "course_title": "Natural Language Processing",
+      "credit": "3",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4467",
+      "course_title": "Topics of Current Interest in Data Science",
+      "credit": "3",
+      "category": "Concentration Elective (Data Science)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4469",
+      "course_title": "Software Requirements Specification and Analysis",
+      "credit": "3",
+      "category": "Concentration Elective (Software Engineering)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4471",
+      "course_title": "Design Patterns",
+      "credit": "3",
+      "category": "Concentration Elective (Software Engineering)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4473",
+      "course_title": "Software Testing and Quality Assurance",
+      "credit": "3",
+      "category": "Concentration Elective (Software Engineering / Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4474",
+      "course_title": "Software Testing and Quality Assurance Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Software Engineering / Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4475",
+      "course_title": "Mobile Application Development",
+      "credit": "3",
+      "category": "Concentration Elective (Software Engineering / Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4477",
+      "course_title": "Advanced Programming",
+      "credit": "3",
+      "category": "Concentration Elective (Software Engineering)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4478",
+      "course_title": "Advanced Programming Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Software Engineering)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4479",
+      "course_title": "Human Computer Interaction",
+      "credit": "3",
+      "category": "Concentration Elective (Software Engineering)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4481",
+      "course_title": "Topics of Current Interest in Software Engineering",
+      "credit": "3",
+      "category": "Concentration Elective (Software Engineering)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4483",
+      "course_title": "Enterprise Systems: Concepts and Practice",
+      "credit": "3",
+      "category": "Concentration Elective (Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4484",
+      "course_title": "Enterprise Systems: Concepts and Practice Lab",
+      "credit": "1",
+      "category": "Concentration Elective (Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4485",
+      "course_title": "Electronic Business",
+      "credit": "3",
+      "category": "Concentration Elective (Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4487",
+      "course_title": "UI: Concepts and Design",
+      "credit": "3",
+      "category": "Concentration Elective (Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4489",
+      "course_title": "IT Audit: Concepts and Practice",
+      "credit": "3",
+      "category": "Concentration Elective (Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4491",
+      "course_title": "ICT for Development",
+      "credit": "3",
+      "category": "Concentration Elective (Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4493",
+      "course_title": "Topics of Current Interest in Information and Communication Technology",
+      "credit": "3",
+      "category": "Concentration Elective (Information and Communication Technology)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE1301 & 1302",
+      "course_title": "Data Structure & Lab",
+      "credit": "3+1",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE2103 & 2104",
+      "course_title": "Object Oriented Programming & Lab",
+      "credit": "3+1",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE2009",
+      "course_title": "Database Management System",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4701",
+      "course_title": "E-Commerce",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4703",
+      "course_title": "Management Information System",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4705",
+      "course_title": "Multimedia Design and Development",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4707",
+      "course_title": "Web Application Design",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4709",
+      "course_title": "Social and Professional Issues in Computing",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4711",
+      "course_title": "AI & ML for Social Good",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4713",
+      "course_title": "Tech Startup",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4715",
+      "course_title": "Data Analytics",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4719",
+      "course_title": "IT Project Management",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    },
+    {
+      "course_code": "CSE4721",
+      "course_title": "AR/VR",
+      "credit": "3",
+      "category": "CSE Minor Offering (for other departments)",
+      "course_objective": null,
+      "course_outcomes": [],
+      "course_content": null
+    }
+  ]
+}

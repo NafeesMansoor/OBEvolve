@@ -1,8 +1,8 @@
-# Phase 2 — Course Delivery
+# Phase 2/3 — Course Catalog
 
-Not yet implemented. See `docs/DATABASE_PLAN.md` §C for the planned schema
-(`courses`, `course_versions`, `course_prerequisites`, `course_offerings`,
-`course_sections`, `faculty_assignments`, `student_enrollments`).
+`courses` and `course_versions` are implemented (see `docs/DATABASE_PLAN.md`
+§C) so the ULAB CSE course catalog can be seeded (`app/seed/ulab_cse.py`).
 
-This package exists now only so the module layout under `app/models/tenant/`
-is stable for future phases; it contains no models yet.
+Course *delivery/scheduling* — `course_prerequisites`, `course_offerings`,
+`course_sections`, `faculty_assignments`, `student_enrollments` — is still
+planned; no source data exists for it yet.

@@ -1,8 +1,10 @@
 # Phase 3 — Mappings
 
-Not yet implemented. See `docs/DATABASE_PLAN.md` §E for the planned schema
-(`peo_po_mappings`, `po_pso_mappings`, `co_po_mappings`, `co_pso_mappings`,
-`tlo_co_mappings`, `competency_pi_mappings`, `mapping_scales`).
+`mapping_scales`, `mapping_scale_levels`, `course_outcome_po_mappings`,
+`program_outcome_peo_mappings` are implemented (see `docs/DATABASE_PLAN.md`
+§E) but left EMPTY by the ULAB CSE seed — CO-PO and PEO-PO mapping data was
+deliberately excluded from curriculum-document extraction; mappings must be
+entered/approved through the application itself.
 
-This package exists now only so the module layout under `app/models/tenant/`
-is stable for future phases; it contains no models yet.
+`po_pso_mappings`, `tlo_co_mappings`, `competency_pi_mappings` are still
+planned.

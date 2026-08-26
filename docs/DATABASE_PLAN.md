@@ -115,73 +115,123 @@ institution admins may add custom roles.
 
 ---
 
-## C. Courses (Phase 2 — planned)
+## C. Courses (Phase 2 — catalog implemented now; delivery still planned)
 
-### `courses`
-`id, department_id[FK], code, title, description, credits, contact_hours, course_type(core|elective), is_active`
+Course *catalog* (`courses`/`course_versions`) is implemented in this pass so the
+ULAB CSE course list can be seeded. Course *delivery/scheduling* — offerings,
+sections, faculty assignments, enrollments — has no real data yet (that's a
+per-term operational concern, not a curriculum-catalog one) and stays planned.
 
-### `course_versions`
-`id, course_id[FK], version_label, effective_academic_year_id[FK], status(workflow), created_by[FK], approved_by[FK]`
+### `courses` (Phase 2/3 — implemented)
+`id, department_id[FK], code, title, description nullable, credits(numeric, keeps
+source formatting like "1" or "3.0"), contact_hours nullable, course_type nullable
+(category label as published, e.g. "Major Core Courses" — not yet a constrained
+enum, since the source uses institution-specific category names), is_active`
 
-### `course_prerequisites`
-`course_version_id[FK], prerequisite_course_id[FK]`
+### `course_versions` (Phase 2/3 — implemented)
+`id, course_id[FK], version_label (e.g. "2022"), effective_academic_year_id[FK
+nullable — curriculum year may predate the academic_years seeded for a fresh
+tenant], status(workflow), created_by[FK nullable], approved_by[FK nullable]`
 
-### `course_offerings`
-`id, course_version_id[FK], academic_term_id[FK], program_version_id[FK]`
-
-### `course_sections`
-`id, course_offering_id[FK], section_code, max_students`
-
-### `faculty_assignments`
-`id, course_section_id[FK], faculty_user_id[FK users], role(coordinator|instructor)`
-
-### `student_enrollments`
-`id, student_user_id[FK users], course_section_id[FK], enrollment_status, enrolled_at`
+### `course_prerequisites` / `course_offerings` / `course_sections` /
+### `faculty_assignments` / `student_enrollments` (still planned)
+Unchanged from the original proposal — no source data for these yet.
 
 ---
 
-## D. OBE outcome hierarchy (Phase 3 — planned)
+## D. OBE outcome hierarchy (Phase 3 — implemented, framework-aware)
+
+Extends the original proposal with an explicit accreditation-framework layer,
+per `docs/adr/0002-framework-aware-outcomes.md`: an outcome's *framework*
+definition (BAETE's official PO wording) and a program's *adopted* definition
+(what a specific program actually publishes, which may use older/different
+wording) are separate rows, optionally linked — never merged or overwritten.
 
 ### `bloom_levels`
 `id, name, sequence_order, is_active` — configurable per institution, seeded with
-the 6 default levels (Remember → Create).
+the 6 default levels (Remember → Create). Unchanged from the original proposal.
 
-### `peos` / `pos` / `psos`
-Shared shape: `id, program_version_id[FK], code, short_title, statement,
-description, is_active, version, target_attainment, status(workflow),
-created_by[FK], approved_by[FK], created_at, updated_at`
+### `accreditation_bodies` (implemented)
+`id, name (e.g. "Board of Accreditation for Engineering and Technical
+Education"), code (e.g. "BAETE"), description nullable, is_active`
 
-### `cos`
-`id, course_version_id[FK], code, statement, bloom_target_level_id[FK bloom_levels], target_attainment, status(workflow), created_by[FK], approved_by[FK]`
+### `accreditation_frameworks` (implemented)
+This is the same table Group K's original sketch referenced; defined here
+since a framework's PO/WK/WP/EA catalogue is needed starting Phase 3, well
+before Phase 8's criteria/evidence workflow.
+`id, accreditation_body_id[FK], name (e.g. "BAETE Accreditation Manual"),
+version (e.g. "v3.0"), effective_date, expiry_date nullable, description
+nullable, is_active`
 
-### `tlos`
-`id, course_version_id[FK], code, statement, week nullable`
+### `framework_pos` (implemented)
+The framework's own official PO catalogue — e.g. BAETE v3.0's PO1–PO12, verbatim.
+`id, framework_id[FK], code, statement, sequence, is_active`
 
-### `competencies`
-`id, program_version_id[FK], code, statement`
+### `knowledge_profiles` (WK) / `problem_attributes` (WP) / `engineering_activities` (EA) (implemented)
+Same shape for all three: `id, framework_id[FK], code, title nullable
+(short label, e.g. WP's "Depth of knowledge required"), description, sequence,
+is_active`. Seeded from BAETE v3.0 Tables 6.1/6.2/6.3 (WK1–9, WP1–7, EA1–5).
 
-### `performance_indicators`
-`id, competency_id[FK] OR po_id[FK] (one nullable), code, statement`
+### `peos` (implemented)
+`id, program_version_id[FK], code, statement, description nullable, sequence,
+is_active, status(workflow), effective_from nullable, effective_to nullable,
+created_by[FK nullable], approved_by[FK nullable]`
+
+### `program_outcomes` (implemented — supersedes the earlier generic `pos` sketch)
+The program's *adopted* POs — what the program actually publishes and assesses
+against, which may differ in wording from the framework.
+`id, program_version_id[FK], framework_po_id[FK framework_pos, NULLABLE], code,
+title nullable (short label, e.g. "Engineering Knowledge"), statement, sequence,
+is_active, status(workflow), effective_from nullable, effective_to nullable`
+
+`framework_po_id` is set when a program PO is explicitly derived from a
+framework PO (by outcome "slot," not by text match — e.g. ULAB's PO1 links to
+BAETE v3.0's PO1 despite different wording); it stays `NULL` when a program PO
+has no framework counterpart. This is the concrete mechanism for spec §27 /
+ADR 0002: never assume framework wording and program wording are the same
+string, but keep them traceable to each other.
+
+### `psos` (still planned — not used by the ULAB CSE seed, kept for programs that need them)
+
+### `course_outcomes` (implemented — supersedes the earlier generic `cos` sketch)
+`id, course_version_id[FK], code (source convention: "CLO1".."CLO5"), statement,
+sequence, bloom_target_level_id[FK bloom_levels, nullable], is_active,
+status(workflow)`
+
+### `tlos` / `competencies` / `performance_indicators` (still planned)
+Unchanged — spec §16 explicitly defers PO indicators; no TLO/competency source
+data exists yet either.
 
 ---
 
-## E. Mappings (Phase 3 — planned)
+## E. Mappings (Phase 3 — junction tables implemented, left EMPTY)
 
 All normalized junction tables — **never** comma-separated strings or JSON blobs
-(spec §7).
+(spec §7). The tables below are migrated in this pass so the mapping UI has
+somewhere to write to, but **no mapping rows are seeded** — CO–PO and PEO–PO
+mapping data was deliberately excluded from curriculum-document extraction (the
+source document's mapping tables are not authoritative for OBEvolve; mappings
+must be entered/approved through the application itself).
 
-| table | columns |
-|---|---|
-| `peo_po_mappings` | peo_id[FK], po_id[FK], level(int) |
-| `po_pso_mappings` | po_id[FK], pso_id[FK], level(int) |
-| `co_po_mappings` | co_id[FK], po_id[FK], level(int) |
-| `co_pso_mappings` | co_id[FK], pso_id[FK], level(int) |
-| `tlo_co_mappings` | tlo_id[FK], co_id[FK], level(int) |
-| `competency_pi_mappings` | competency_id[FK], performance_indicator_id[FK], level(int) |
+| table | columns | status |
+|---|---|---|
+| `course_outcome_po_mappings` | course_outcome_id[FK], program_outcome_id[FK], mapping_scale_level_id[FK], remarks nullable | implemented, empty |
+| `program_outcome_peo_mappings` | program_outcome_id[FK], peo_id[FK], mapping_scale_level_id[FK], remarks nullable | implemented, empty |
+| `po_pso_mappings` | po_id[FK], pso_id[FK], level(int) | still planned |
+| `tlo_co_mappings` | tlo_id[FK], co_id[FK], level(int) | still planned |
+| `competency_pi_mappings` | competency_id[FK], performance_indicator_id[FK], level(int) | still planned |
 
-### `mapping_scales`
-`id, value(int), label, description` — configurable per institution
-(default `0=None,1=Low,2=Medium,3=High`).
+### `mapping_scales` / `mapping_scale_levels` (implemented — supersedes the single-table sketch)
+Correlation scales are institution-configurable in both how many levels exist
+and what they're called (spec §14: binary Yes/No, ternary None/Low/High,
+four-level None/Low/Medium/High, etc.), so they're two tables, not one fixed set
+of rows:
+`mapping_scales(id, name, description nullable, is_default)`
+`mapping_scale_levels(id, mapping_scale_id[FK], value(int), label, sequence)`
+
+Seeded default: a four-level scale (`0=None,1=Low,2=Medium,3=High`), matching
+the correlation levels used in `course_outcome_po_mappings` /
+`program_outcome_peo_mappings` above.
 
 ---
 
@@ -280,8 +330,10 @@ Survey results feed the indirect-attainment side of the attainment engine
 
 ## K. Accreditation (Phase 8 — planned)
 
-`accreditation_bodies(id, name, code)`
-`accreditation_frameworks(id, accreditation_body_id[FK], name, version)`
+`accreditation_bodies` and `accreditation_frameworks` are already implemented —
+see Group D above (needed earlier for the PO/WK/WP/EA catalogue). The
+criteria/evidence workflow below is still Phase 8.
+
 `accreditation_criteria(id, framework_id[FK], parent_criterion_id[FK nullable, self-referencing], code, title, description)`
 `evidence_requirements(id, criterion_id[FK], description)`
 `evidence_items(id, evidence_requirement_id[FK], description, file_ref nullable, url nullable, owner_user_id[FK users], academic_year_id[FK], program_version_id[FK nullable], upload_date, verification_status, reviewer_comments, version)`

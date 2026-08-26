@@ -2,8 +2,9 @@
 
 Importing this package registers every implemented model (Phase 1 org/RBAC/
 audit, plus the Phase 2/3 course catalog, OBE outcome hierarchy, mappings,
-and accreditation framework catalogue) on `TenantBase`'s metadata, which is
-what `alembic/tenant/env.py` autogenerates against and what
+and accreditation framework catalogue, plus course delivery/grading and
+assessment definition) on `TenantBase`'s metadata, which is what
+`alembic/tenant/env.py` autogenerates against and what
 `app.services.tenancy.provision_tenant` creates tables from.
 """
 
@@ -15,8 +16,28 @@ from app.models.tenant.accreditation import (
     KnowledgeProfile,
     ProblemAttribute,
 )
+from app.models.tenant.assessments import (
+    Assessment,
+    AssessmentQuestion,
+    AssessmentType,
+    Question,
+    QuestionBloomMapping,
+    QuestionCourseOutcomeMapping,
+    Rubric,
+    RubricCriterion,
+    RubricLevel,
+)
 from app.models.tenant.audit import AuditLog, Notification
-from app.models.tenant.courses import Course, CourseVersion
+from app.models.tenant.courses import (
+    Course,
+    CourseOffering,
+    CourseSection,
+    CourseVersion,
+    FacultyAssignment,
+    GradingBand,
+    GradingPolicy,
+    StudentEnrollment,
+)
 from app.models.tenant.identity import (
     FacultyProfile,
     Permission,
@@ -49,17 +70,25 @@ __all__ = [
     "AcademicYear",
     "AccreditationBody",
     "AccreditationFramework",
+    "Assessment",
+    "AssessmentQuestion",
+    "AssessmentType",
     "AuditLog",
     "BloomLevel",
     "Campus",
     "Course",
+    "CourseOffering",
     "CourseOutcome",
     "CourseOutcomePOMapping",
+    "CourseSection",
     "CourseVersion",
     "Department",
     "EngineeringActivity",
+    "FacultyAssignment",
     "FacultyProfile",
     "FrameworkPO",
+    "GradingBand",
+    "GradingPolicy",
     "KnowledgeProfile",
     "MappingScale",
     "MappingScaleLevel",
@@ -70,9 +99,16 @@ __all__ = [
     "ProgramOutcome",
     "ProgramOutcomePEOMapping",
     "ProgramVersion",
+    "Question",
+    "QuestionBloomMapping",
+    "QuestionCourseOutcomeMapping",
     "Role",
     "RolePermission",
+    "Rubric",
+    "RubricCriterion",
+    "RubricLevel",
     "School",
+    "StudentEnrollment",
     "StudentProfile",
     "User",
     "UserRole",

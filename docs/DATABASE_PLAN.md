@@ -115,12 +115,13 @@ institution admins may add custom roles.
 
 ---
 
-## C. Courses (Phase 2 — catalog implemented now; delivery still planned)
+## C. Courses (Phase 2/4 — catalog, delivery, and grading policy implemented)
 
-Course *catalog* (`courses`/`course_versions`) is implemented in this pass so the
-ULAB CSE course list can be seeded. Course *delivery/scheduling* — offerings,
-sections, faculty assignments, enrollments — has no real data yet (that's a
-per-term operational concern, not a curriculum-catalog one) and stays planned.
+Course *catalog* (`courses`/`course_versions`) was implemented first so the
+ULAB CSE course list could be seeded. Course *delivery/scheduling* —
+offerings, sections, faculty assignments, enrollments — and grading policy
+are implemented in this pass (Phase 4); `course_prerequisites` alone stays
+planned — no source data for it yet.
 
 ### `courses` (Phase 2/3 — implemented)
 `id, department_id[FK], code, title, description nullable, credits(numeric, keeps
@@ -133,9 +134,37 @@ enum, since the source uses institution-specific category names), is_active`
 nullable — curriculum year may predate the academic_years seeded for a fresh
 tenant], status(workflow), created_by[FK nullable], approved_by[FK nullable]`
 
-### `course_prerequisites` / `course_offerings` / `course_sections` /
-### `faculty_assignments` / `student_enrollments` (still planned)
-Unchanged from the original proposal — no source data for these yet.
+### `course_prerequisites` (still planned)
+Unchanged from the original proposal — no source data for it yet.
+
+### `course_offerings` / `course_sections` / `faculty_assignments` /
+### `student_enrollments` (Phase 4 — implemented)
+Course delivery/scheduling, per-term operational data (distinct from the
+curriculum-level catalog above):
+
+`course_offerings(id, course_version_id[FK], academic_term_id[FK org.AcademicTerm],
+program_version_id[FK org.ProgramVersion, nullable — the same offering can
+serve multiple programs' students])`
+
+`course_sections(id, course_offering_id[FK], section_code, max_students nullable)`
+
+`faculty_assignments(id, course_section_id[FK], faculty_user_id[FK identity.User],
+role — "coordinator"|"instructor", free string, not an enum table)`
+
+`student_enrollments(id, student_user_id[FK identity.User], course_section_id[FK],
+enrollment_status(default "enrolled"), enrolled_at)`
+
+### Grading policy (Phase 4 — implemented)
+Letter-grade bands used to convert a percentage into a grade + grade point.
+Not part of the original proposal — added alongside course delivery since a
+policy is scoped the same way an offering is (institution-wide default, or
+program-version-specific):
+
+`grading_policies(id, name, program_version_id[FK org.ProgramVersion, nullable
+— an institution-wide default policy has this null], is_default, description nullable)`
+
+`grading_bands(id, grading_policy_id[FK], letter_grade (e.g. "A", "A-", "B+"),
+min_percentage, max_percentage, grade_point nullable, sequence)`
 
 ---
 
@@ -235,29 +264,39 @@ the correlation levels used in `course_outcome_po_mappings` /
 
 ---
 
-## F. Assessment (Phase 5 — planned)
+## F. Assessment definition (Phase 4 — implemented; `lesson_plans` and marks entry/gradebook stay planned)
 
-### `assessment_types`
-`id, name, is_custom`
+Scope stops at *defining* assessment types/rubrics/questions/assessments —
+recording student scores is a separate, later feature (marks entry/gradebook,
+see §G's `student_performance`), not built here.
 
-### `rubrics` / `rubric_criteria` / `rubric_levels`
-`rubrics(id, name, description, is_reusable)`
+### `assessment_types` (implemented)
+`id, name, is_custom` — seeded with 13 defaults (`app.seed.assessment_defaults`,
+`is_custom=False`): Quiz, Class Test, Assignment, Lab, Project, Presentation,
+Midterm, Final Exam, Viva, Seminar, Practical, Complex Engineering Problem,
+Class Participation. Institutions may add their own (`is_custom=True`).
+
+### `rubrics` / `rubric_criteria` / `rubric_levels` (implemented)
+`rubrics(id, name, description nullable, is_reusable)`
 `rubric_criteria(id, rubric_id[FK], criterion, weight)`
-`rubric_levels(id, rubric_criterion_id[FK], label, score, description)`
+`rubric_levels(id, rubric_criterion_id[FK], label, score, description nullable)`
 
-### `questions`
-`id, course_version_id[FK], text, question_type, difficulty, marks, topic, status(workflow), author_id[FK users], reviewer_id[FK users], created_at`
+### `questions` (implemented)
+`id, course_version_id[FK], text, question_type, difficulty nullable, marks, topic nullable, status(workflow), author_id[FK users, nullable], reviewer_id[FK users, nullable], created_at`
 
-### `question_co_mappings` / `question_pi_mappings` / `question_bloom_mappings`
-Junction tables: `question_id[FK]` + `co_id[FK]` / `performance_indicator_id[FK]` / `bloom_level_id[FK]`.
+### `question_co_mappings` / `question_bloom_mappings` (implemented)
+Junction tables: `question_id[FK]` + `course_outcome_id[FK]` /
+`bloom_level_id[FK]` — no scale needed, a question either targets a CO/Bloom
+level or not. `question_pi_mappings` stays planned — `performance_indicators`
+(§D) doesn't exist yet either.
 
-### `assessments`
-`id, course_section_id[FK], academic_term_id[FK], assessment_type_id[FK], title, max_marks, weight, date, duration_minutes, rubric_id[FK nullable], status(workflow)`
+### `assessments` (implemented)
+`id, course_section_id[FK], academic_term_id[FK], assessment_type_id[FK], title, max_marks, weight nullable, date nullable, duration_minutes nullable, rubric_id[FK nullable], status(workflow)`
 
-### `assessment_questions`
-`assessment_id[FK], question_id[FK], marks_allocated, sequence`
+### `assessment_questions` (implemented)
+`id, assessment_id[FK], question_id[FK], marks_allocated, sequence`
 
-### `lesson_plans`
+### `lesson_plans` (still planned)
 `id, course_offering_id[FK], week, date, topic, subtopic, tlo_id[FK nullable], co_id[FK nullable], bloom_level_id[FK nullable], teaching_method, learning_activity, resource, planned_duration, actual_duration, delivery_status`
 
 ---

@@ -4,7 +4,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, institutions, org, platform_auth, users
+from app.api.v1.endpoints import (
+    academic_ops,
+    assessment,
+    auth,
+    curriculum,
+    grading,
+    institutions,
+    org,
+    platform_auth,
+    users,
+)
 
 api_router = APIRouter()
 
@@ -13,3 +23,7 @@ api_router.include_router(platform_auth.router, prefix="/platform-auth", tags=["
 api_router.include_router(institutions.router, prefix="/institutions", tags=["institutions"])
 api_router.include_router(org.router, prefix="/org", tags=["organization"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
+api_router.include_router(curriculum.router, prefix="/curriculum", tags=["curriculum"])
+api_router.include_router(academic_ops.router, prefix="/academic", tags=["academic"])
+api_router.include_router(grading.router, prefix="/grading", tags=["grading"])
+api_router.include_router(assessment.router, prefix="/assessment", tags=["assessment"])

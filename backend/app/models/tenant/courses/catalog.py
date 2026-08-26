@@ -1,9 +1,9 @@
-"""Course catalog (DATABASE_PLAN.md §C — catalog implemented now, delivery
-still planned).
+"""Course catalog (DATABASE_PLAN.md §C — implemented).
 
-`course_prerequisites` / `course_offerings` / `course_sections` /
-`faculty_assignments` / `student_enrollments` stay planned — no source data
-for them yet.
+Delivery/scheduling (offerings/sections/faculty assignments/enrollment) lives
+in `app.models.tenant.courses.delivery`; grading policy in
+`app.models.tenant.courses.grading`. `course_prerequisites` alone stays
+planned — no source data for it yet.
 """
 
 from __future__ import annotations

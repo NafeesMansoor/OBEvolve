@@ -1,8 +1,9 @@
-# Phase 5 — Assessment
+# Assessment definition — implemented
 
-Not yet implemented. See `docs/DATABASE_PLAN.md` §F (assessment_types,
-rubrics, questions, assessments, lesson_plans) and §G (student_performance —
-immutable raw marks) for the planned schema.
+See `docs/DATABASE_PLAN.md` §F for the schema (`assessment_types`, `rubrics`/
+`rubric_criteria`/`rubric_levels`, `questions` + its CO/Bloom mappings,
+`assessments`, `assessment_questions`).
 
-This package exists now only so the module layout under `app/models/tenant/`
-is stable for future phases; it contains no models yet.
+Scope stops at *defining* assessment types/rubrics/questions/assessments.
+Marks entry/gradebook (`student_performance`, §G — recording actual student
+scores) is a separate, later feature, not built here.

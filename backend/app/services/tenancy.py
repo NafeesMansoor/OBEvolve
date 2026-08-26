@@ -7,7 +7,8 @@ Steps (ARCHITECTURE.md §2):
 2. `CREATE SCHEMA tenant_<slug>` (transactional DDL — Postgres, unlike most
    RDBMSes, rolls this back cleanly on error).
 3. Run the tenant Alembic chain against that schema in-process.
-4. Seed default permissions + roles (and demo data, if requested).
+4. Seed default permissions + roles + assessment types (and demo data, if
+   requested).
 
 Steps 2-4 are not nested inside the step-1 transaction: Alembic manages its
 own transaction per migration and cannot straightforwardly share one with an
@@ -32,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_engine, session_scope
 from app.models.public.institution import Institution
+from app.seed.assessment_defaults import seed_default_assessment_types
 from app.seed.default_permissions import seed_default_permissions
 from app.seed.default_roles import seed_default_roles
 from app.seed.demo_institution import seed_demo_data
@@ -141,6 +143,7 @@ def provision_tenant(
         with session_scope(schema_translate_map={None: schema_name}) as tenant_db:
             permission_map = seed_default_permissions(tenant_db)
             seed_default_roles(tenant_db, permission_map)
+            seed_default_assessment_types(tenant_db)
             if seed_demo:
                 seed_demo_data(tenant_db, institution_id=institution.id)
 

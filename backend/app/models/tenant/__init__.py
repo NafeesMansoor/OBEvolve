@@ -63,6 +63,7 @@ from app.models.tenant.org import (
     ProgramVersion,
     School,
 )
+from app.models.tenant.raw_data import RawDataChangeRequest
 
 __all__ = [
     "PEO",
@@ -102,6 +103,7 @@ __all__ = [
     "Question",
     "QuestionBloomMapping",
     "QuestionCourseOutcomeMapping",
+    "RawDataChangeRequest",
     "Role",
     "RolePermission",
     "Rubric",

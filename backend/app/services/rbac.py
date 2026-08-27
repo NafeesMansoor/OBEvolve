@@ -147,3 +147,35 @@ def require_permission(
         return current_user
 
     return dependency
+
+
+def require_any_grant(*codes: str) -> Callable[..., User]:
+    """FastAPI dependency factory: 403s unless the current user holds AT
+    LEAST ONE grant (scoped or unscoped) for any of `codes` — regardless of
+    scope_type/scope_id.
+
+    Deliberately more lenient than `require_permission`, which only matches
+    an *unscoped* grant when the caller doesn't supply a `scope_type` (see
+    its docstring). That's the right behavior for e.g. `program.approve`,
+    where the endpoint doesn't yet resolve which specific program is being
+    acted on. It's the wrong behavior for the raw-data console
+    (app/services/raw_data.py): a Program Administrator's
+    `raw_data.manage_scoped` grant is *always* scoped (scope_type='program'),
+    and the console does its own fine-grained per-table/per-row scope
+    resolution internally — the endpoint just needs to know "does this user
+    hold *some* raw_data grant at all" before doing that finer-grained work.
+    """
+
+    def dependency(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        grants = get_user_permission_grants(db, current_user.id)
+        if not any(code in codes for code, _scope_type, _scope_id in grants):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing required permission: one of {', '.join(codes)}",
+            )
+        return current_user
+
+    return dependency

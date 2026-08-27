@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -129,6 +129,32 @@ class FacultyProfile(TenantBase):
     designation: Mapped[str | None] = mapped_column(String(100), nullable=True)
     department_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True
+    )
+
+    user: Mapped[User] = relationship()
+
+
+class PasswordResetToken(UUIDPKMixin, TenantBase):
+    """A single-use "forgot password" token.
+
+    The raw token is only ever seen once, at issue time, inside the emailed
+    reset link — this table stores its SHA-256 hash (`token_hash`), never
+    the raw value, mirroring how `users.password_hash` never stores a plain
+    password. `used_at` is set on successful consumption so a token cannot
+    be replayed; expired-or-used rows are left in place (audit trail) rather
+    than deleted.
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     user: Mapped[User] = relationship()

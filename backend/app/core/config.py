@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     # --- CORS ---
     backend_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
+    # --- Frontend ---
+    # Origin the SPA is served from — used only to build absolute links back
+    # to the frontend (e.g. the password-reset link mailed to a user). Not
+    # to be confused with backend_cors_origins above.
+    frontend_origin: str = Field(default="http://localhost:5173")
+
     # --- Tenancy ---
     dev_tenant_header: str = Field(default="X-Institution-Slug")
     tenant_schema_prefix: str = Field(default="tenant_")

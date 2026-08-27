@@ -10,13 +10,16 @@ top of schema isolation itself).
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import secrets
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import (
     InvalidTokenError,
     TokenType,
@@ -28,17 +31,26 @@ from app.core.security import (
 )
 from app.db.tenancy import get_db
 from app.middleware.audit import get_request_context
-from app.models.tenant.identity import Role, User, UserRole
+from app.models.tenant.identity import PasswordResetToken, Role, User, UserRole
 from app.schemas.auth import (
     ChangePasswordRequest,
     CurrentUserRead,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     RefreshRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UpdateMeRequest,
 )
 from app.services.audit import write_audit_log
+from app.services.email import send_email
 from app.services.rbac import get_current_user, get_user_permission_grants
+
+_PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
+_GENERIC_FORGOT_PASSWORD_MESSAGE = (
+    "If that email is registered, a reset link has been sent."
+)
 
 logger = logging.getLogger(__name__)
 
@@ -204,5 +216,107 @@ def change_password(
         action="user.password_changed",
         entity_type="User",
         entity_id=current_user.id,
+        **get_request_context(request),
+    )
+
+
+def _hash_reset_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(
+    payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)
+) -> ForgotPasswordResponse:
+    """Always returns the same generic 200 response, whether or not `email`
+    is registered in this tenant — never reveal account existence to an
+    unauthenticated caller (standard anti-enumeration practice)."""
+    tenant_slug: str = request.state.institution_slug
+    user = db.query(User).filter(User.email == payload.email).one_or_none()
+
+    if user is not None and user.is_active:
+        raw_token = secrets.token_urlsafe(32)
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            token_hash=_hash_reset_token(raw_token),
+            expires_at=datetime.now(UTC) + _PASSWORD_RESET_TOKEN_TTL,
+        )
+        db.add(reset_token)
+        db.flush()
+
+        reset_link = (
+            f"{settings.frontend_origin}/reset-password"
+            f"?token={raw_token}&institution={tenant_slug}"
+        )
+        send_email(
+            to=user.email,
+            subject="Reset your OBEvolve password",
+            body=(
+                "We received a request to reset your OBEvolve password.\n\n"
+                f"Reset it here (valid for 1 hour): {reset_link}\n\n"
+                "If you did not request this, you can safely ignore this email."
+            ),
+        )
+
+    return ForgotPasswordResponse(detail=_GENERIC_FORGOT_PASSWORD_MESSAGE)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+def reset_password(
+    payload: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)
+) -> None:
+    token_hash = _hash_reset_token(payload.token)
+    now = datetime.now(UTC)
+
+    reset_token = (
+        db.query(PasswordResetToken)
+        .filter(PasswordResetToken.token_hash == token_hash)
+        .one_or_none()
+    )
+    if (
+        reset_token is None
+        or reset_token.used_at is not None
+        or reset_token.expires_at < now
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This reset link is invalid, expired, or has already been used.",
+        )
+
+    user = db.get(User, reset_token.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This reset link is invalid, expired, or has already been used.",
+        )
+
+    user.password_hash = hash_password(payload.new_password)
+    db.add(user)
+
+    reset_token.used_at = now
+    db.add(reset_token)
+
+    # Invalidate any other still-usable reset tokens for this user, so an
+    # old leaked link can't be reused after a successful reset.
+    other_tokens = (
+        db.query(PasswordResetToken)
+        .filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.id != reset_token.id,
+            PasswordResetToken.used_at.is_(None),
+        )
+        .all()
+    )
+    for token in other_tokens:
+        token.used_at = now
+        db.add(token)
+
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=user.id,
+        action="user.password_reset",
+        entity_type="User",
+        entity_id=user.id,
         **get_request_context(request),
     )

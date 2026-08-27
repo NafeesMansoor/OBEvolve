@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-client'
@@ -128,6 +128,15 @@ export function LoginPage() {
                       </FormItem>
                     )}
                   />
+
+                  <p className="text-right text-sm">
+                    <Link
+                      to="/forgot-password"
+                      className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    >
+                      Forgot password?
+                    </Link>
+                  </p>
 
                   {serverError ? (
                     <p

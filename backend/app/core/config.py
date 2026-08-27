@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     environment: str = Field(default="development")
     debug: bool = Field(default=True)
     project_name: str = "OBEvolve"
+    # Product version — bump alongside frontend/package.json's "version" and
+    # frontend/src/lib/version.ts's APP_VERSION (no shared build step wires
+    # the three together automatically). Exposed via GET /health and the
+    # OpenAPI spec (see app/main.py).
+    app_version: str = "1.0.1"
     api_v1_prefix: str = "/api/v1"
 
     # --- Database ---

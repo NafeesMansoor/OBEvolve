@@ -74,6 +74,13 @@ export const NAV_SECTION_ROLES: Record<string, string[]> = {
   grading: ['Faculty', 'Course Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
   assessment: ['Faculty', 'Course Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
   organization: ['Institution Administrator', 'Super Administrator'],
+  rawData: [
+    'Institution Administrator',
+    'Super Administrator',
+    'Program Administrator',
+    'Course Administrator',
+    'Program Coordinator',
+  ],
 }
 
 /** Case-insensitive, substring-tolerant match against the roles list above. */

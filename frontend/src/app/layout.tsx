@@ -3,6 +3,7 @@ import {
   BarChart3,
   BookOpen,
   ClipboardCheck,
+  Database,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
@@ -89,6 +90,18 @@ const navItems: NavItem[] = [
     icon: ShieldCheck,
     sectionKey: 'organization',
     anyOfPermissions: ['org.view', 'program.view', 'user.view', 'academic_calendar.view'],
+  },
+  {
+    label: 'Raw Data Console',
+    to: '/raw-data',
+    icon: Database,
+    sectionKey: 'rawData',
+    anyOfPermissions: [
+      'raw_data.manage_all',
+      'raw_data.manage_institution',
+      'raw_data.manage_scoped',
+      'raw_data.propose_scoped',
+    ],
   },
 ]
 

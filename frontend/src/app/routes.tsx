@@ -14,6 +14,8 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { GradingPage } from '@/features/grading/GradingPage'
 import { OrganizationPage } from '@/features/organization/OrganizationPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
+import { PendingChangesPage } from '@/features/raw-data/PendingChangesPage'
+import { RawDataConsolePage } from '@/features/raw-data/RawDataConsolePage'
 
 function LoginRoute() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -43,6 +45,8 @@ export function AppRoutes() {
           <Route path="/grading" element={<GradingPage />} />
           <Route path="/assessment" element={<AssessmentPage />} />
           <Route path="/organization" element={<OrganizationPage />} />
+          <Route path="/raw-data" element={<RawDataConsolePage />} />
+          <Route path="/raw-data/pending-changes" element={<PendingChangesPage />} />
         </Route>
       </Route>
 

@@ -85,6 +85,33 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef("report.generate", "Generate reports", "reporting"),
     # --- Audit (Phase 1) ---
     PermissionDef("audit.view", "View audit logs", "audit"),
+    # --- Raw data console (phpMyAdmin-style table browser/editor) ---
+    PermissionDef(
+        "raw_data.manage_all",
+        "Raw table read/write/delete across every institution",
+        "raw_data",
+    ),
+    PermissionDef(
+        "raw_data.manage_institution",
+        "Raw table read/write/delete within one's own institution",
+        "raw_data",
+    ),
+    PermissionDef(
+        "raw_data.manage_scoped",
+        "Raw table read/write/delete within one's own program or course scope",
+        "raw_data",
+    ),
+    PermissionDef(
+        "raw_data.propose_scoped",
+        "Raw table read + write-by-proposal (pending approval) within one's "
+        "own program's course-level tables; program-level tables are read-only",
+        "raw_data",
+    ),
+    PermissionDef(
+        "raw_data.approve",
+        "Approve or reject pending raw-data change proposals",
+        "raw_data",
+    ),
 ]
 
 PERMISSION_CODES: frozenset[str] = frozenset(p.code for p in PERMISSIONS)

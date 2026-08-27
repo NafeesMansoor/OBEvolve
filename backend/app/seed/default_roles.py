@@ -7,11 +7,16 @@ modules not yet implemented (assessment.*, attainment.*, survey.*,
 accreditation.*, ...) are included where the role will need them once those
 phases ship, since the permission catalogue itself is already fixed
 (app/core/permissions.py) even though nothing enforces those codes yet.
+
+Seven roles are seeded `is_active=False` — disabled for ease of use per an
+explicit request, not removed (existing grants, if any, keep working; they
+just don't show up in the assignable-roles list). Institution admins can
+re-enable any of them the same way they'd enable a custom role.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from sqlalchemy.orm import Session
@@ -27,20 +32,24 @@ class RoleDef:
     name: str
     description: str
     permission_codes: tuple[str, ...] | Literal["ALL"]
+    is_active: bool = field(default=True)
 
 
 DEFAULT_ROLES: list[RoleDef] = [
     RoleDef(
         "Super Administrator",
         "Full control within the institution's tenant (distinct from the "
-        "cross-institution platform_admins in the public schema).",
+        "cross-institution platform_admins in the public schema). Includes "
+        "raw_data.manage_all via the ALL sentinel: the raw-data console can "
+        "reach every institution's every table.",
         _ALL,
     ),
     RoleDef(
         "Institution Administrator",
         "Manages organizational structure, programs, curriculum, course "
         "delivery, and users for the institution — the day-to-day "
-        "administrator a Super Administrator delegates setup to.",
+        "administrator a Super Administrator delegates setup to. Raw-data "
+        "console access is scoped to this institution only.",
         (
             "institution.view",
             "org.manage",
@@ -70,6 +79,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "assessment.view",
             "marks.enter",
             "report.generate",
+            "raw_data.manage_institution",
         ),
     ),
     RoleDef(
@@ -84,6 +94,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "report.generate",
             "audit.view",
         ),
+        is_active=False,
     ),
     RoleDef(
         "Dean",
@@ -98,6 +109,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "user.view",
             "report.generate",
         ),
+        is_active=False,
     ),
     RoleDef(
         "Head of Department",
@@ -116,11 +128,44 @@ DEFAULT_ROLES: list[RoleDef] = [
             "assessment.approve",
             "user.view",
         ),
+        is_active=False,
+    ),
+    RoleDef(
+        "Program Administrator",
+        "Full administrative control over one program's data (typically "
+        "scoped to one program via UserRole.scope_type='program') — the "
+        "raw-data-console peer of Institution Administrator, but scoped to "
+        "a single program instead of the whole institution. Approves "
+        "Program Coordinators' pending course-level raw-data changes.",
+        (
+            "program.view",
+            "curriculum.view",
+            "outcome.create",
+            "outcome.approve",
+            "mapping.create",
+            "section.manage",
+            "section.view",
+            "student.manage",
+            "student.view",
+            "grading.manage",
+            "grading.view",
+            "assessment.create",
+            "assessment.approve",
+            "assessment.view",
+            "marks.enter",
+            "report.generate",
+            "raw_data.manage_scoped",
+            "raw_data.approve",
+        ),
     ),
     RoleDef(
         "Program Coordinator",
         "Coordinates one program's curriculum and outcome definitions "
-        "(typically scoped to one program).",
+        "(typically scoped to one program). Cannot change program-level "
+        "data (PEOs, POs, PO-PEO mappings) — that's Program Administrator "
+        "territory. Raw-data-console writes to course-level tables are "
+        "proposals, not immediate changes: a Program Administrator must "
+        "approve one before it takes effect or becomes visible to others.",
         (
             "program.view",
             "curriculum.view",
@@ -131,6 +176,29 @@ DEFAULT_ROLES: list[RoleDef] = [
             "grading.view",
             "assessment.create",
             "report.generate",
+            "raw_data.propose_scoped",
+        ),
+    ),
+    RoleDef(
+        "Course Administrator",
+        "Full administrative control over one course's data (typically "
+        "scoped to one course via UserRole.scope_type='course') — the "
+        "raw-data-console peer of Program Administrator, but scoped to a "
+        "single course.",
+        (
+            "curriculum.view",
+            "outcome.create",
+            "outcome.approve",
+            "mapping.create",
+            "section.manage",
+            "section.view",
+            "student.view",
+            "grading.view",
+            "assessment.create",
+            "assessment.approve",
+            "assessment.view",
+            "marks.enter",
+            "raw_data.manage_scoped",
         ),
     ),
     RoleDef(
@@ -174,6 +242,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "marks.enter",
             "report.generate",
         ),
+        is_active=False,
     ),
     RoleDef(
         "Quality Assurance Officer",
@@ -186,6 +255,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "report.generate",
             "audit.view",
         ),
+        is_active=False,
     ),
     RoleDef(
         "Accreditation Reviewer",
@@ -195,6 +265,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "evidence.upload",
             "report.generate",
         ),
+        is_active=False,
     ),
     RoleDef(
         "Student",
@@ -206,6 +277,7 @@ DEFAULT_ROLES: list[RoleDef] = [
         "Employers/alumni/advisory-board members — survey participation only (Phase 7+); "
         "no Phase 1 permissions.",
         (),
+        is_active=False,
     ),
 ]
 
@@ -214,6 +286,12 @@ def seed_default_roles(
     db: Session, permission_map: dict[str, Permission]
 ) -> dict[str, Role]:
     """Create default roles + their role_permissions grants. Idempotent.
+
+    Also re-syncs `is_active`/`description` on already-seeded roles against
+    the current `DEFAULT_ROLES` definition, so changing a role's default
+    active state here and re-running this against an existing tenant takes
+    effect (this is how the seven roles get retroactively disabled in
+    already-provisioned tenants, not just new ones).
 
     `permission_map` is the `code -> Permission` map returned by
     `seed_default_permissions` (called first so every code here resolves).
@@ -226,10 +304,19 @@ def seed_default_roles(
     for role_def in DEFAULT_ROLES:
         role = existing_roles.get(role_def.name)
         if role is None:
-            role = Role(name=role_def.name, description=role_def.description, is_system_role=True)
+            role = Role(
+                name=role_def.name,
+                description=role_def.description,
+                is_system_role=True,
+                is_active=role_def.is_active,
+            )
             db.add(role)
             db.flush()
             existing_roles[role_def.name] = role
+        elif role.is_system_role:
+            role.description = role_def.description
+            role.is_active = role_def.is_active
+            db.add(role)
 
         codes = PERMISSION_CODES if role_def.permission_codes == _ALL else role_def.permission_codes
         for code in codes:

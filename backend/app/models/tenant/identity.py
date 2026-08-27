@@ -45,6 +45,10 @@ class Role(UUIDPKMixin, TimestampMixin, TenantBase):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_system_role: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Disabled roles stay in place (existing grants keep working, nothing is
+    # deleted) but are excluded from the assignable-roles list so they stop
+    # cluttering the UI without touching any UserRole history.
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     permissions: Mapped[list[RolePermission]] = relationship(
         back_populates="role", cascade="all, delete-orphan"
@@ -91,8 +95,9 @@ class ScopeType:
     SCHOOL = "school"
     DEPARTMENT = "department"
     PROGRAM = "program"
+    COURSE = "course"
 
-    ALL = (INSTITUTION, CAMPUS, SCHOOL, DEPARTMENT, PROGRAM)
+    ALL = (INSTITUTION, CAMPUS, SCHOOL, DEPARTMENT, PROGRAM, COURSE)
 
 
 class UserRole(UUIDPKMixin, TenantBase):

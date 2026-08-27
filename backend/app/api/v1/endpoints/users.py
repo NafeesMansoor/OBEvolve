@@ -13,6 +13,7 @@ from app.middleware.audit import get_request_context
 from app.models.tenant.identity import Role, User, UserRole
 from app.schemas.identity import (
     RoleRead,
+    RoleUpdate,
     UserCreate,
     UserRead,
     UserRoleCreate,
@@ -108,10 +109,49 @@ def update_user(
 
 @router.get("/roles/all", response_model=list[RoleRead])
 def list_roles(
+    include_inactive: bool = False,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_permission("role.view")),
 ) -> list[Role]:
-    return db.query(Role).order_by(Role.name).all()
+    """Disabled roles (`is_active=False`) are excluded by default so they
+    stop cluttering the assignment picker; pass `?include_inactive=true` to
+    see them too (e.g. to audit who still holds a since-disabled role, or to
+    re-enable one)."""
+    query = db.query(Role)
+    if not include_inactive:
+        query = query.filter(Role.is_active.is_(True))
+    return query.order_by(Role.name).all()
+
+
+@router.patch("/roles/{role_id}", response_model=RoleRead)
+def update_role(
+    role_id: uuid.UUID,
+    payload: RoleUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("role.manage")),
+) -> Role:
+    role = db.get(Role, role_id)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+
+    previous_value = {"is_active": role.is_active, "description": role.description}
+    updates = payload.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(role, field, value)
+    db.add(role)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="role.updated",
+        entity_type="Role",
+        entity_id=role.id,
+        previous_value=previous_value,
+        new_value=updates,
+        **get_request_context(request),
+    )
+    return role
 
 
 @router.post("/user-roles", response_model=UserRoleRead, status_code=status.HTTP_201_CREATED)

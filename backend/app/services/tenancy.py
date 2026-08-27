@@ -37,6 +37,7 @@ from app.seed.assessment_defaults import seed_default_assessment_types
 from app.seed.default_permissions import seed_default_permissions
 from app.seed.default_roles import seed_default_roles
 from app.seed.demo_institution import seed_demo_data
+from app.seed.mapping_defaults import seed_default_mapping_scale
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,7 @@ def provision_tenant(
             permission_map = seed_default_permissions(tenant_db)
             seed_default_roles(tenant_db, permission_map)
             seed_default_assessment_types(tenant_db)
+            seed_default_mapping_scale(tenant_db)
             if seed_demo:
                 seed_demo_data(tenant_db, institution_id=institution.id)
 

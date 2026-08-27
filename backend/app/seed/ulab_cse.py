@@ -31,15 +31,11 @@ from sqlalchemy.orm import Session
 
 from app.models.tenant.accreditation import AccreditationFramework, FrameworkPO
 from app.models.tenant.courses import Course, CourseVersion
-from app.models.tenant.mappings import MappingScale, MappingScaleLevel
 from app.models.tenant.obe import PEO, CourseOutcome, ProgramOutcome
 from app.models.tenant.org import AcademicYear, Campus, Department, Program, ProgramVersion, School
+from app.seed.mapping_defaults import seed_default_mapping_scale
 
 _DATA_PATH = Path(__file__).parent / "data" / "ulab_cse_curriculum.json"
-
-# Generic default scale (DATABASE_PLAN.md §E), not ULAB-specific.
-_DEFAULT_SCALE_NAME = "None/Low/Medium/High"
-_DEFAULT_SCALE_LEVELS = [(0, "None"), (1, "Low"), (2, "Medium"), (3, "High")]
 
 _TITLE_SPLIT_RE = re.compile(r"\s[-–]\s")  # " - " or " – " (en dash)
 _STOPWORDS = {"of", "in", "and", "the", "for", "&"}
@@ -139,25 +135,6 @@ def _get_or_create_academic_year(db: Session, *, label: str) -> AcademicYear:
     return academic_year
 
 
-def _get_or_create_mapping_scale(db: Session) -> MappingScale:
-    existing = db.query(MappingScale).filter(MappingScale.is_default.is_(True)).one_or_none()
-    if existing is not None:
-        return existing
-    scale = MappingScale(
-        name=_DEFAULT_SCALE_NAME,
-        description="Default correlation scale (DATABASE_PLAN.md §E).",
-        is_default=True,
-    )
-    db.add(scale)
-    db.flush()
-    for i, (value, label) in enumerate(_DEFAULT_SCALE_LEVELS, start=1):
-        db.add(
-            MappingScaleLevel(mapping_scale_id=scale.id, value=value, label=label, sequence=i)
-        )
-    db.flush()
-    return scale
-
-
 def seed_ulab_cse_program(
     db: Session, *, institution_id: uuid.UUID, framework: AccreditationFramework | None
 ) -> Program:
@@ -170,7 +147,7 @@ def seed_ulab_cse_program(
 
     # Always ensure the tenant-wide default mapping scale exists, regardless
     # of whether the program itself is new (DATABASE_PLAN.md §E).
-    _get_or_create_mapping_scale(db)
+    seed_default_mapping_scale(db)
 
     campus = _get_or_create_campus(
         db, institution_id=institution_id, name="Main Campus", code="MAIN"

@@ -48,6 +48,17 @@ class RoleRead(BaseModel):
     name: str
     description: str | None
     is_system_role: bool
+    is_active: bool
+
+
+class RoleUpdate(BaseModel):
+    """Only `is_active` is editable for a system-seeded role — name/
+    description/permissions for the built-in roles are defined in
+    app/seed/default_roles.py, not per-tenant. This exists so a disabled
+    role (see that module's docstring) can be re-enabled from the UI."""
+
+    is_active: bool | None = None
+    description: str | None = None
 
 
 class UserRoleCreate(BaseModel):

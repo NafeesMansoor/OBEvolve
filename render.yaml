@@ -7,7 +7,7 @@ databases:
   - name: obevolve-postgres
     plan: free
     databaseName: obevolve
-   user: obevolve
+    user: obevolve
     postgresMajorVersion: "16"
 
 services:

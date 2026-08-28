@@ -37,7 +37,7 @@ from app.schemas.academic import (
     StudentRead,
 )
 from app.services.audit import write_audit_log
-from app.services.rbac import require_permission
+from app.services.rbac import get_program_scoped_db, require_permission
 
 router = APIRouter()
 
@@ -63,6 +63,12 @@ def _student_read(user: User, profile: StudentProfile) -> StudentRead:
     )
 
 
+# Course offerings/sections/faculty assignments/enrollments all live in the
+# per-program schema (docs/adr/0003-schema-per-program.md) — every route in
+# this section needs the `X-Program-Code` header, resolved and authorized by
+# get_program_scoped_db (see app.services.rbac.get_program_context) before a
+# session bound to that program's schema is ever opened. The Students
+# section below (User + StudentProfile) stays institution-shared (get_db).
 # --- Course offerings ---
 @router.post(
     "/course-offerings", response_model=CourseOfferingRead, status_code=status.HTTP_201_CREATED
@@ -70,8 +76,8 @@ def _student_read(user: User, profile: StudentProfile) -> StudentRead:
 def create_course_offering(
     payload: CourseOfferingCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> CourseOffering:
     offering = CourseOffering(**payload.model_dump())
     db.add(offering)
@@ -92,8 +98,8 @@ def create_course_offering(
 def list_course_offerings(
     course_version_id: uuid.UUID | None = Query(default=None),
     academic_term_id: uuid.UUID | None = Query(default=None),
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("section.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> list[CourseOffering]:
     query = db.query(CourseOffering)
     if course_version_id is not None:
@@ -106,8 +112,8 @@ def list_course_offerings(
 @router.get("/course-offerings/{offering_id}", response_model=CourseOfferingRead)
 def get_course_offering(
     offering_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("section.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> CourseOffering:
     return _get_or_404(db, CourseOffering, offering_id, "Course offering")
 
@@ -117,8 +123,8 @@ def update_course_offering(
     offering_id: uuid.UUID,
     payload: CourseOfferingCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> CourseOffering:
     offering = _get_or_404(db, CourseOffering, offering_id, "Course offering")
     previous_value = {
@@ -149,8 +155,8 @@ def update_course_offering(
 def delete_course_offering(
     offering_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> None:
     offering = _get_or_404(db, CourseOffering, offering_id, "Course offering")
     db.delete(offering)
@@ -170,8 +176,8 @@ def delete_course_offering(
 def create_course_section(
     payload: CourseSectionCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> CourseSection:
     _get_or_404(db, CourseOffering, payload.course_offering_id, "Course offering")
     section = CourseSection(**payload.model_dump())
@@ -192,8 +198,8 @@ def create_course_section(
 @router.get("/sections", response_model=list[CourseSectionRead])
 def list_course_sections(
     course_offering_id: uuid.UUID | None = Query(default=None),
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("section.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> list[CourseSection]:
     query = db.query(CourseSection)
     if course_offering_id is not None:
@@ -204,8 +210,8 @@ def list_course_sections(
 @router.get("/sections/{section_id}", response_model=CourseSectionRead)
 def get_course_section(
     section_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("section.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> CourseSection:
     return _get_or_404(db, CourseSection, section_id, "Course section")
 
@@ -215,8 +221,8 @@ def update_course_section(
     section_id: uuid.UUID,
     payload: CourseSectionCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> CourseSection:
     section = _get_or_404(db, CourseSection, section_id, "Course section")
     previous_value = {
@@ -246,8 +252,8 @@ def update_course_section(
 def delete_course_section(
     section_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> None:
     section = _get_or_404(db, CourseSection, section_id, "Course section")
     db.delete(section)
@@ -271,8 +277,8 @@ def delete_course_section(
 def create_faculty_assignment(
     payload: FacultyAssignmentCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> FacultyAssignment:
     _get_or_404(db, CourseSection, payload.course_section_id, "Course section")
     _get_or_404(db, User, payload.faculty_user_id, "Faculty user")
@@ -295,23 +301,44 @@ def create_faculty_assignment(
 def list_faculty_assignments(
     course_section_id: uuid.UUID | None = Query(default=None),
     faculty_user_id: uuid.UUID | None = Query(default=None),
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("section.view")),
-) -> list[FacultyAssignment]:
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+) -> list[FacultyAssignmentRead]:
     query = db.query(FacultyAssignment)
     if course_section_id is not None:
         query = query.filter(FacultyAssignment.course_section_id == course_section_id)
     if faculty_user_id is not None:
         query = query.filter(FacultyAssignment.faculty_user_id == faculty_user_id)
-    return query.order_by(FacultyAssignment.created_at.desc()).all()
+    assignments = query.order_by(FacultyAssignment.created_at.desc()).all()
+
+    # Resolved here rather than requiring the frontend to hold `user.view`
+    # and call `GET /users` itself — see FacultyAssignmentRead.faculty_name.
+    faculty_ids = {a.faculty_user_id for a in assignments}
+    names_by_id = (
+        {u.id: u.full_name for u in db.query(User).filter(User.id.in_(faculty_ids)).all()}
+        if faculty_ids
+        else {}
+    )
+    return [
+        FacultyAssignmentRead(
+            id=a.id,
+            course_section_id=a.course_section_id,
+            faculty_user_id=a.faculty_user_id,
+            faculty_name=names_by_id.get(a.faculty_user_id),
+            role=a.role,
+            created_at=a.created_at,
+            updated_at=a.updated_at,
+        )
+        for a in assignments
+    ]
 
 
 @router.delete("/faculty-assignments/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_faculty_assignment(
     assignment_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("section.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> None:
     assignment = _get_or_404(db, FacultyAssignment, assignment_id, "Faculty assignment")
     db.delete(assignment)
@@ -333,8 +360,8 @@ def delete_faculty_assignment(
 def create_enrollment(
     payload: StudentEnrollmentCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("student.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("student.manage", scope_type="program")),
 ) -> StudentEnrollment:
     _get_or_404(db, User, payload.student_user_id, "Student user")
     _get_or_404(db, CourseSection, payload.course_section_id, "Course section")
@@ -357,8 +384,8 @@ def create_enrollment(
 def list_enrollments(
     course_section_id: uuid.UUID | None = Query(default=None),
     student_user_id: uuid.UUID | None = Query(default=None),
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("student.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("student.view", scope_type="program")),
 ) -> list[StudentEnrollment]:
     query = db.query(StudentEnrollment)
     if course_section_id is not None:
@@ -373,8 +400,8 @@ def update_enrollment_status(
     enrollment_id: uuid.UUID,
     enrollment_status: str,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("student.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("student.manage", scope_type="program")),
 ) -> StudentEnrollment:
     enrollment = _get_or_404(db, StudentEnrollment, enrollment_id, "Enrollment")
     previous_value = {"enrollment_status": enrollment.enrollment_status}
@@ -398,8 +425,8 @@ def update_enrollment_status(
 def delete_enrollment(
     enrollment_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("student.manage")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("student.manage", scope_type="program")),
 ) -> None:
     enrollment = _get_or_404(db, StudentEnrollment, enrollment_id, "Enrollment")
     db.delete(enrollment)

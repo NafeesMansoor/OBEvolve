@@ -8,6 +8,7 @@ import type { AcademicYear, Program, ProgramVersion } from '@/features/organizat
 import { Button } from '@/components/ui/button'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { StatusBadge, WORKFLOW_NEXT, type WorkflowStatus } from '@/components/status-badge'
 import { useEntityAction, useEntityCreate, useEntityList } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
@@ -23,6 +24,7 @@ export function ProgramVersionsTab() {
   const canManage = hasPermission('program.manage')
   const canApprove = hasPermission('program.approve')
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [viewVersion, setViewVersion] = React.useState<ProgramVersion | null>(null)
 
   const { data: programs } = useEntityList<Program>(['org', 'programs'], '/org/programs')
   const { data: years } = useEntityList<AcademicYear>(
@@ -95,6 +97,7 @@ export function ProgramVersionsTab() {
         searchable
         searchPlaceholder="Search versions…"
         emptyMessage="No program versions yet."
+        onRowClick={(r) => setViewVersion(r)}
         actions={(r) => {
           const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
           if (!canApprove || !next) return null
@@ -116,6 +119,24 @@ export function ProgramVersionsTab() {
           )
         }}
       />
+
+      {viewVersion && (
+        <RecordDetailSheet
+          open={Boolean(viewVersion)}
+          onOpenChange={(open) => !open && setViewVersion(null)}
+          title={viewVersion.version_label}
+          subtitle={programById.get(viewVersion.program_id)?.name}
+          badge={<StatusBadge status={viewVersion.status} />}
+          fields={[
+            { label: 'Program', value: programById.get(viewVersion.program_id)?.name ?? '—' },
+            {
+              label: 'Effective year',
+              value: yearById.get(viewVersion.effective_academic_year_id)?.label ?? '—',
+            },
+            { label: 'Status', value: viewVersion.status },
+          ]}
+        />
+      )}
 
       <EntityFormDialog
         open={dialogOpen}

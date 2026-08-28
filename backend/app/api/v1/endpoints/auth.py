@@ -31,12 +31,20 @@ from app.core.security import (
 )
 from app.db.tenancy import get_db
 from app.middleware.audit import get_request_context
-from app.models.tenant.identity import PasswordResetToken, Role, User, UserRole
+from app.models.tenant.identity import (
+    PasswordResetToken,
+    Permission,
+    Role,
+    RolePermission,
+    User,
+    UserRole,
+)
 from app.schemas.auth import (
     ChangePasswordRequest,
     CurrentUserRead,
     ForgotPasswordRequest,
     ForgotPasswordResponse,
+    GoogleLoginRequest,
     LoginRequest,
     RefreshRequest,
     ResetPasswordRequest,
@@ -45,6 +53,7 @@ from app.schemas.auth import (
 )
 from app.services.audit import write_audit_log
 from app.services.email import send_email
+from app.services.google_oauth import GoogleTokenError, verify_google_id_token
 from app.services.rbac import get_current_user, get_user_permission_grants
 
 _PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
@@ -68,6 +77,38 @@ def login(
     if not valid_credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password"
+        )
+
+    tenant_slug: str = request.state.institution_slug
+    user.last_login_at = datetime.now(UTC)
+    db.add(user)
+
+    return TokenResponse(
+        access_token=create_access_token(str(user.id), institution_slug=tenant_slug),
+        refresh_token=create_refresh_token(str(user.id), institution_slug=tenant_slug),
+    )
+
+
+@router.post("/google", response_model=TokenResponse)
+def google_login(
+    payload: GoogleLoginRequest, request: Request, db: Session = Depends(get_db)
+) -> TokenResponse:
+    """Alternate login path alongside `/login` — does not replace or
+    require a password. Any user account whose email Google reports as
+    verified can sign in this way (typically a faculty/institutional Google
+    Workspace account the admin already entered when creating the user);
+    accounts without a matching email keep using password login exactly as
+    before."""
+    try:
+        email = verify_google_id_token(payload.id_token)
+    except GoogleTokenError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+    user = db.query(User).filter(User.email == email).one_or_none()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This Google account is not linked to an active user in this institution.",
         )
 
     tenant_slug: str = request.state.institution_slug
@@ -111,20 +152,32 @@ def refresh(
     )
 
 
-@router.get("/me", response_model=CurrentUserRead)
-def read_me(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-) -> CurrentUserRead:
+def _build_current_user_read(db: Session, current_user: User) -> CurrentUserRead:
     grants = get_user_permission_grants(db, current_user.id)
     permission_codes = sorted({code for code, _scope_type, _scope_id in grants})
 
-    role_names = (
-        db.query(Role.name)
+    # Per-role breakdown (role name -> that role's own permission codes,
+    # ignoring scope like `permissions` above) — see CurrentUserRead's
+    # `role_permissions` docstring for why this exists. LEFT JOINed from
+    # RolePermission/Permission (not inner-joined) so a role the user holds
+    # that happens to grant zero permissions still shows up with an empty
+    # list, instead of silently vanishing from `roles` entirely.
+    role_perm_rows = (
+        db.query(Role.name, Permission.code)
         .join(UserRole, UserRole.role_id == Role.id)
         .filter(UserRole.user_id == current_user.id)
+        .outerjoin(RolePermission, RolePermission.role_id == Role.id)
+        .outerjoin(Permission, Permission.id == RolePermission.permission_id)
         .distinct()
         .all()
     )
+    role_permissions: dict[str, list[str]] = {}
+    for role_name, code in role_perm_rows:
+        codes = role_permissions.setdefault(role_name, [])
+        if code is not None:
+            codes.append(code)
+    for codes in role_permissions.values():
+        codes.sort()
 
     return CurrentUserRead(
         id=current_user.id,
@@ -134,8 +187,16 @@ def read_me(
         is_active=current_user.is_active,
         mfa_enabled=current_user.mfa_enabled,
         permissions=permission_codes,
-        roles=[name for (name,) in role_names],
+        roles=sorted(role_permissions),
+        role_permissions=role_permissions,
     )
+
+
+@router.get("/me", response_model=CurrentUserRead)
+def read_me(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> CurrentUserRead:
+    return _build_current_user_read(db, current_user)
 
 
 @router.patch("/me", response_model=CurrentUserRead)
@@ -175,25 +236,7 @@ def update_me(
         **get_request_context(request),
     )
 
-    grants = get_user_permission_grants(db, current_user.id)
-    permission_codes = sorted({code for code, _scope_type, _scope_id in grants})
-    role_names = (
-        db.query(Role.name)
-        .join(UserRole, UserRole.role_id == Role.id)
-        .filter(UserRole.user_id == current_user.id)
-        .distinct()
-        .all()
-    )
-    return CurrentUserRead(
-        id=current_user.id,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        bio=current_user.bio,
-        is_active=current_user.is_active,
-        mfa_enabled=current_user.mfa_enabled,
-        permissions=permission_codes,
-        roles=[name for (name,) in role_names],
-    )
+    return _build_current_user_read(db, current_user)
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)

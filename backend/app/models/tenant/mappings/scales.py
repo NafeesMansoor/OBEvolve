@@ -47,7 +47,15 @@ class MappingScaleLevel(UUIDPKMixin, TimestampMixin, TenantBase):
 
 
 class CourseOutcomePOMapping(UUIDPKMixin, TimestampMixin, TenantBase):
+    """schema="program": see docs/adr/0003-schema-per-program.md.
+    `course_outcome_id`/`mapping_scale_level_id` point into the
+    institution-shared schema (the `None` translate-map key) and need no
+    schema= override, but `program_outcome_id` points to `program_outcomes`
+    — also schema="program" — and needs the explicit `program.` prefix
+    (see `app.models.tenant.obe.outcomes.PEO`'s docstring for why)."""
+
     __tablename__ = "course_outcome_po_mappings"
+    __table_args__ = {"schema": "program"}
 
     course_outcome_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -57,7 +65,7 @@ class CourseOutcomePOMapping(UUIDPKMixin, TimestampMixin, TenantBase):
     )
     program_outcome_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("program_outcomes.id", ondelete="CASCADE"),
+        ForeignKey("program.program_outcomes.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -71,16 +79,25 @@ class CourseOutcomePOMapping(UUIDPKMixin, TimestampMixin, TenantBase):
 
 
 class ProgramOutcomePEOMapping(UUIDPKMixin, TimestampMixin, TenantBase):
+    """schema="program": see docs/adr/0003-schema-per-program.md. Both
+    `program_outcome_id` and `peo_id` target other schema="program" tables,
+    so both need the explicit `program.` prefix (see
+    `app.models.tenant.obe.outcomes.PEO`'s docstring for why)."""
+
     __tablename__ = "program_outcome_peo_mappings"
+    __table_args__ = {"schema": "program"}
 
     program_outcome_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("program_outcomes.id", ondelete="CASCADE"),
+        ForeignKey("program.program_outcomes.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     peo_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("peos.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("program.peos.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     mapping_scale_level_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

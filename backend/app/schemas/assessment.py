@@ -25,6 +25,8 @@ class AssessmentTypeRead(BaseModel):
     id: uuid.UUID
     name: str
     is_custom: bool
+    requires_documents: bool
+    requires_cep_documents: bool
 
 
 # --- Rubric ---
@@ -165,8 +167,15 @@ class AssessmentRead(BaseModel):
     duration_minutes: int | None
     rubric_id: uuid.UUID | None
     status: WorkflowStatus
+    document_deadline_extended_to: date_type | None
+    document_deadline_extended_by: uuid.UUID | None
+    document_deadline_extended_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class AssessmentDocumentDeadlineExtend(BaseModel):
+    new_deadline: date_type
 
 
 # --- AssessmentQuestion ---
@@ -187,3 +196,39 @@ class AssessmentQuestionRead(BaseModel):
     sequence: int
     created_at: datetime
     updated_at: datetime
+
+
+# --- AssessmentDocument (question paper / moderation form / compliance form) ---
+class AssessmentDocumentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    assessment_id: uuid.UUID
+    document_type: str
+    file_name: str
+    file_size: int
+    content_type: str
+    status: str
+    uploaded_by: uuid.UUID | None
+    uploaded_at: datetime
+    reviewed_by: uuid.UUID | None
+    reviewed_at: datetime | None
+    review_note: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AssessmentDocumentReview(BaseModel):
+    status: str = Field(pattern="^(approved|rejected)$")
+    review_note: str | None = None
+
+
+class PendingAssessmentDocument(BaseModel):
+    """One row of the Course Coordinator / Program Administrator "pending
+    review" aggregation — flattens in the assessment/course context a
+    reviewer needs without a second round-trip per document."""
+
+    document: AssessmentDocumentRead
+    assessment_id: uuid.UUID
+    assessment_title: str
+    course_section_id: uuid.UUID

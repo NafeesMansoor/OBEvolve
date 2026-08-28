@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { useEntityCreate, useEntityList } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
 
@@ -25,6 +26,7 @@ export function ProgramsTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('program.manage')
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [viewProgram, setViewProgram] = React.useState<Program | null>(null)
 
   const { data: departments } = useEntityList<Department>(
     ['org', 'departments'],
@@ -94,7 +96,27 @@ export function ProgramsTab() {
         searchable
         searchPlaceholder="Search programs…"
         emptyMessage="No programs yet."
+        onRowClick={(r) => setViewProgram(r)}
       />
+
+      {viewProgram && (
+        <RecordDetailSheet
+          open={Boolean(viewProgram)}
+          onOpenChange={(open) => !open && setViewProgram(null)}
+          title={viewProgram.name}
+          badge={
+            <Badge variant={viewProgram.is_active ? 'secondary' : 'outline'} className="font-normal">
+              {viewProgram.is_active ? 'Active' : 'Inactive'}
+            </Badge>
+          }
+          fields={[
+            { label: 'Code', value: viewProgram.code },
+            { label: 'Degree level', value: viewProgram.degree_level ?? '—' },
+            { label: 'Department', value: deptById.get(viewProgram.department_id)?.name ?? '—' },
+            { label: 'Status', value: viewProgram.is_active ? 'Active' : 'Inactive' },
+          ]}
+        />
+      )}
 
       <EntityFormDialog
         open={dialogOpen}

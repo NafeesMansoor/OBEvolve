@@ -11,6 +11,7 @@ import { useEntityAction, useEntityCreate, useEntityList, useEntityUpdate } from
 import { Button } from '@/components/ui/button'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StatusBadge, WORKFLOW_NEXT, type WorkflowStatus } from '@/components/status-badge'
 
@@ -30,6 +31,7 @@ export function PEOsTab() {
   const [programVersionId, setProgramVersionId] = React.useState('')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editPeo, setEditPeo] = React.useState<PEO | null>(null)
+  const [viewPeo, setViewPeo] = React.useState<PEO | null>(null)
 
   const {
     data: peos,
@@ -99,7 +101,7 @@ export function PEOsTab() {
           isLoading={isLoading}
           error={error}
           emptyMessage="No PEOs yet for this program version."
-          onRowClick={canManage ? (r) => setEditPeo(r) : undefined}
+          onRowClick={(r) => setViewPeo(r)}
           actions={(r) => {
             const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
             if (!canApprove || !next) return null
@@ -145,6 +147,29 @@ export function PEOsTab() {
           }
         }}
       />
+
+      {viewPeo && (
+        <RecordDetailSheet
+          open={Boolean(viewPeo)}
+          onOpenChange={(open) => !open && setViewPeo(null)}
+          title={viewPeo.code}
+          badge={<StatusBadge status={viewPeo.status} />}
+          fields={[
+            { label: 'Sequence', value: viewPeo.sequence },
+            { label: 'Status', value: viewPeo.status },
+            { label: 'Statement', value: viewPeo.statement, full: true },
+            { label: 'Description', value: viewPeo.description ?? '—', full: true },
+          ]}
+          onEdit={
+            canManage
+              ? () => {
+                  setEditPeo(viewPeo)
+                  setViewPeo(null)
+                }
+              : undefined
+          }
+        />
+      )}
 
       {editPeo && (
         <EntityFormDialog

@@ -21,7 +21,7 @@ from app.core.security import (
 )
 from app.db.tenancy import get_public_db
 from app.models.public.platform_admin import PlatformAdmin
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest, PlatformAdminRead, RefreshRequest, TokenResponse
 
 router = APIRouter()
 
@@ -40,6 +40,31 @@ def platform_login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password"
         )
+
+    extra = {"is_platform_admin": True}
+    return TokenResponse(
+        access_token=create_access_token(str(admin.id), institution_slug=None, extra_claims=extra),
+        refresh_token=create_refresh_token(str(admin.id), institution_slug=None),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def platform_refresh(
+    payload: RefreshRequest, db: Session = Depends(get_public_db)
+) -> TokenResponse:
+    try:
+        token_payload = decode_token(payload.refresh_token)
+    except InvalidTokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token"
+        ) from exc
+
+    if token_payload.type != TokenType.REFRESH:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not a refresh token")
+
+    admin = db.get(PlatformAdmin, uuid.UUID(token_payload.sub))
+    if admin is None or not admin.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Admin not found")
 
     extra = {"is_platform_admin": True}
     return TokenResponse(
@@ -73,4 +98,11 @@ def get_current_platform_admin(
     admin = db.get(PlatformAdmin, uuid.UUID(payload.sub))
     if admin is None or not admin.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Admin not found")
+    return admin
+
+
+@router.get("/me", response_model=PlatformAdminRead)
+def read_current_platform_admin(
+    admin: PlatformAdmin = Depends(get_current_platform_admin),
+) -> PlatformAdmin:
     return admin

@@ -10,9 +10,12 @@ from app.api.v1.endpoints import (
     auth,
     curriculum,
     grading,
+    improvement,
     institutions,
+    marks,
     org,
     platform_auth,
+    platform_raw_data,
     raw_data,
     users,
 )
@@ -28,4 +31,11 @@ api_router.include_router(curriculum.router, prefix="/curriculum", tags=["curric
 api_router.include_router(academic_ops.router, prefix="/academic", tags=["academic"])
 api_router.include_router(grading.router, prefix="/grading", tags=["grading"])
 api_router.include_router(assessment.router, prefix="/assessment", tags=["assessment"])
+api_router.include_router(marks.router, prefix="/marks", tags=["marks"])
+api_router.include_router(
+    improvement.router, prefix="/improvement-plans", tags=["improvement-plans"]
+)
 api_router.include_router(raw_data.router, prefix="/raw-data", tags=["raw-data"])
+api_router.include_router(
+    platform_raw_data.router, prefix="/platform-raw-data", tags=["platform-raw-data"]
+)

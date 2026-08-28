@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Inbox, Search } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { useResetOnChange } from '@/lib/use-reset-on-change'
@@ -150,9 +150,12 @@ export function DataTable<T>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length + (actions ? 1 : 0)}
-                  className="py-8 text-center text-sm text-muted-foreground"
+                  className="py-12 text-center"
                 >
-                  {emptyMessage}
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Inbox className="size-6 opacity-50" />
+                    <span className="text-sm">{emptyMessage}</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

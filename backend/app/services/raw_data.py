@@ -19,6 +19,7 @@ here is a real security question, not a style choice.
 from __future__ import annotations
 
 import contextlib
+import functools
 import uuid
 from dataclasses import dataclass
 from typing import Literal
@@ -27,6 +28,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from app.db.base import TenantBase
+from app.models.tenant.org import Program
 
 PROGRAM_LEVEL_TABLES: frozenset[str] = frozenset(
     {
@@ -61,31 +63,107 @@ COURSE_LEVEL_TABLES: frozenset[str] = frozenset(
     }
 )
 
+# docs/adr/0003-schema-per-program.md moved these 10 tables out of the
+# shared tenant schema into a per-program schema (`__table_args__ =
+# {"schema": "program"}` on the ORM model) — a table is only reachable
+# through this console once the caller's session has a "program" key in its
+# schema_translate_map (see `get_table`'s `allow_program` and
+# `app.api.v1.endpoints.raw_data._resolve_target`), which requires knowing
+# *which* program: a session can only be bound to one program schema at a
+# time (app.services.rbac.get_program_scoped_db), but an institution can
+# have several. See PROGRAM_LEVEL_TABLES/COURSE_LEVEL_TABLES above for which
+# tables these are (membership unchanged by the physical move).
+PROGRAM_SCHEMA_TABLES: frozenset[str] = frozenset(
+    {
+        "program_versions",
+        "peos",
+        "program_outcomes",
+        "program_outcome_peo_mappings",
+        "course_offerings",
+        "course_sections",
+        "faculty_assignments",
+        "student_enrollments",
+        "course_outcome_po_mappings",
+        "assessments",
+        "assessment_questions",
+    }
+)
+
 # Everything else in the tenant schema — Institution Administrator and
 # Super Administrator only, never Program/Course Administrator or Program
 # Coordinator regardless of their scope.
 _PUBLIC_TABLE_NAMES: frozenset[str] = frozenset({"institutions", "platform_admins"})
 
 
+@functools.lru_cache(maxsize=1)
+def _table_registries() -> tuple[dict[str, sa.Table], dict[str, sa.Table], dict[str, sa.Table]]:
+    """(institution-shared, program-schema, public-schema) tables, each
+    keyed by bare table name — NOT `TenantBase.metadata.tables` directly:
+    that dict is keyed by `f"{schema}.{name}"` for any table with an
+    explicit schema (`public.institutions`, `program.peos`, ...), so a
+    bare-name lookup against it silently misses every schema="public" and
+    schema="program" table (this is exactly the bug `_t()`/`get_table()`
+    had before this fix — schema="public" tables were *already* unreachable
+    through this console pre-dating the schema-per-program migration,
+    schema="program" ones became unreachable because of it).
+
+    Lazy + cached (not a module-level constant computed at import time):
+    `TenantBase.metadata` is populated by side-effect imports
+    (`import app.models.tenant`) that may not have run yet when this module
+    itself is first imported — same reasoning as the old `_t()`'s per-call
+    dict lookup, just cached now since building these three dicts is more
+    work than one dict access.
+    """
+    institution_tables: dict[str, sa.Table] = {}
+    program_tables: dict[str, sa.Table] = {}
+    public_tables: dict[str, sa.Table] = {}
+    for table in TenantBase.metadata.tables.values():
+        if table.schema is None:
+            institution_tables[table.name] = table
+        elif table.schema == "program":
+            program_tables[table.name] = table
+        elif table.schema == "public":
+            public_tables[table.name] = table
+    return institution_tables, program_tables, public_tables
+
+
 def _all_tenant_table_names() -> frozenset[str]:
-    return frozenset(
-        name for name, table in TenantBase.metadata.tables.items() if table.schema is None
-    )
+    institution_tables, _program_tables, _public_tables = _table_registries()
+    return frozenset(institution_tables)
 
 
 def institution_only_table_names() -> frozenset[str]:
     return _all_tenant_table_names() - PROGRAM_LEVEL_TABLES - COURSE_LEVEL_TABLES
 
 
-def _t(table_name: str) -> sa.Table:
-    """Look up an already-registered Table object by name — NOT
-    `sa.table()` (a bare, unregistered TableClause). schema_translate_map
-    only reliably applies to real, metadata-registered Table objects; the
-    lightweight sa.table()/sa.column() constructs silently query the
-    unqualified/default schema instead (same class of bug as
-    0003_user_bio.py's op.add_column gotcha, discovered the hard way here
-    via a live 500 against tenant_demo before this fix)."""
-    return TenantBase.metadata.tables[table_name]
+def platform_admin_table_names() -> frozenset[str]:
+    """Every table name the platform-admin raw-data console
+    (app.api.v1.endpoints.platform_raw_data) can list — institution-shared,
+    public, and program-schema tables all together, since a platform admin
+    (unlike a tenant-scoped grant) always has full access to every one of
+    them. PROGRAM_SCHEMA_TABLES names are included even before a specific
+    program is picked, so the console can offer them for selection — the
+    per-request `program_code` requirement is enforced separately, at read/
+    write time, not by hiding the names up front."""
+    institution_tables, _program_tables, public_tables = _table_registries()
+    return frozenset(institution_tables) | frozenset(public_tables) | PROGRAM_SCHEMA_TABLES
+
+
+def _table(table_name: str) -> sa.Table:
+    """Look up a real registered Table object by bare name — institution-
+    shared or program-schema, never public (the FK-chain helpers below only
+    ever touch those two). NOT `sa.table()` (a bare, unregistered
+    TableClause): schema_translate_map only reliably applies to real,
+    metadata-registered Table objects. The caller's session must already
+    have the "program" key set in its schema_translate_map before this
+    resolves to a program-schema table — see `_table_registries`'s
+    docstring."""
+    institution_tables, program_tables, _public_tables = _table_registries()
+    if table_name in institution_tables:
+        return institution_tables[table_name]
+    if table_name in program_tables:
+        return program_tables[table_name]
+    raise LookupError(f"Unknown table {table_name!r}")
 
 
 WriteMode = Literal["immediate", "propose", "denied"]
@@ -118,13 +196,19 @@ def has_cross_institution_access(grants: list[ScopedGrant]) -> bool:
 def accessible_table_names(grants: list[ScopedGrant]) -> set[str]:
     """Union, across every grant the user holds, of tables they can at
     least *see* (read) — write capability is a separate, per-table question,
-    see `resolve_write_mode`."""
+    see `resolve_write_mode`. Includes PROGRAM_SCHEMA_TABLES names for every
+    tier (manage_all/manage_institution implicitly, since they're not tied
+    to one program; manage_scoped/propose_scoped via PROGRAM_LEVEL_TABLES/
+    COURSE_LEVEL_TABLES, which already include them) — actually reading or
+    writing one of those tables still requires the caller to resolve (and,
+    for scoped grants, be authorized for) one specific program first, which
+    happens per-request in the endpoint layer, not here."""
     tables: set[str] = set()
     for g in grants:
         if g.permission_code == "raw_data.manage_all":
-            tables |= _all_tenant_table_names() | _PUBLIC_TABLE_NAMES
+            tables |= _all_tenant_table_names() | _PUBLIC_TABLE_NAMES | PROGRAM_SCHEMA_TABLES
         elif g.permission_code == "raw_data.manage_institution":
-            tables |= _all_tenant_table_names()
+            tables |= _all_tenant_table_names() | PROGRAM_SCHEMA_TABLES
         elif g.permission_code == "raw_data.manage_scoped":
             if g.scope_type == "program":
                 tables |= PROGRAM_LEVEL_TABLES | COURSE_LEVEL_TABLES
@@ -182,8 +266,8 @@ def _course_version_ids_for_programs(db: Session, program_ids: set[uuid.UUID]) -
     all — that's expected, not a bug."""
     if not program_ids:
         return set()
-    program_versions = _t("program_versions")
-    course_offerings = _t("course_offerings")
+    program_versions = _table("program_versions")
+    course_offerings = _table("course_offerings")
     join_cond = program_versions.c.id == course_offerings.c.program_version_id
     stmt = (
         sa.select(course_offerings.c.course_version_id)
@@ -197,8 +281,8 @@ def _course_version_ids_for_programs(db: Session, program_ids: set[uuid.UUID]) -
 def _course_offering_ids_for_programs(db: Session, program_ids: set[uuid.UUID]) -> set[uuid.UUID]:
     if not program_ids:
         return set()
-    program_versions = _t("program_versions")
-    course_offerings = _t("course_offerings")
+    program_versions = _table("program_versions")
+    course_offerings = _table("course_offerings")
     join_cond = program_versions.c.id == course_offerings.c.program_version_id
     stmt = (
         sa.select(course_offerings.c.id)
@@ -211,7 +295,7 @@ def _course_offering_ids_for_programs(db: Session, program_ids: set[uuid.UUID]) 
 def _course_section_ids_for_offerings(db: Session, offering_ids: set[uuid.UUID]) -> set[uuid.UUID]:
     if not offering_ids:
         return set()
-    course_sections = _t("course_sections")
+    course_sections = _table("course_sections")
     stmt = sa.select(course_sections.c.id).where(
         course_sections.c.course_offering_id.in_(offering_ids)
     )
@@ -234,7 +318,7 @@ def _resolve_scope_id_sets(db: Session, grants: list[ScopedGrant]) -> _ScopeIdSe
 
     program_version_ids: set[uuid.UUID] = set()
     if program_ids:
-        program_versions = _t("program_versions")
+        program_versions = _table("program_versions")
         stmt = sa.select(program_versions.c.id).where(
             program_versions.c.program_id.in_(program_ids)
         )
@@ -242,13 +326,13 @@ def _resolve_scope_id_sets(db: Session, grants: list[ScopedGrant]) -> _ScopeIdSe
 
     course_version_ids = _course_version_ids_for_programs(db, program_ids)
     if course_ids:
-        course_versions = _t("course_versions")
+        course_versions = _table("course_versions")
         stmt = sa.select(course_versions.c.id).where(course_versions.c.course_id.in_(course_ids))
         course_version_ids |= {row[0] for row in db.execute(stmt)}
 
     course_offering_ids = _course_offering_ids_for_programs(db, program_ids)
     if course_version_ids:
-        course_offerings = _t("course_offerings")
+        course_offerings = _table("course_offerings")
         stmt = sa.select(course_offerings.c.id).where(
             course_offerings.c.course_version_id.in_(course_version_ids)
         )
@@ -312,7 +396,7 @@ def build_scope_filter(
         return table.c[col].in_(values) if values else sa.false()
     if table_name == "program_outcome_peo_mappings":
         # program_outcome_id -> program_outcomes, already scoped above.
-        program_outcomes = _t("program_outcomes")
+        program_outcomes = _table("program_outcomes")
         if not ids.program_version_ids:
             return sa.false()
         po_ids_stmt = sa.select(program_outcomes.c.id).where(
@@ -322,7 +406,7 @@ def build_scope_filter(
         return table.c.program_outcome_id.in_(po_ids) if po_ids else sa.false()
     if table_name == "courses":
         # A course is in scope if any of its versions are in scope.
-        course_versions = _t("course_versions")
+        course_versions = _table("course_versions")
         if not ids.course_version_ids:
             return sa.false()
         stmt = sa.select(course_versions.c.course_id).where(
@@ -337,7 +421,7 @@ def build_scope_filter(
         values = getattr(ids, attr)
         return table.c[col].in_(values) if values else sa.false()
     if table_name == "course_outcome_po_mappings":
-        course_outcomes = _t("course_outcomes")
+        course_outcomes = _table("course_outcomes")
         if not ids.course_version_ids:
             return sa.false()
         stmt = sa.select(course_outcomes.c.id).where(
@@ -346,7 +430,7 @@ def build_scope_filter(
         co_ids = {row[0] for row in db.execute(stmt)}
         return table.c.course_outcome_id.in_(co_ids) if co_ids else sa.false()
     if table_name in ("question_co_mappings", "question_bloom_mappings"):
-        questions = _t("questions")
+        questions = _table("questions")
         if not ids.course_version_ids:
             return sa.false()
         stmt = sa.select(questions.c.id).where(
@@ -355,7 +439,7 @@ def build_scope_filter(
         q_ids = {row[0] for row in db.execute(stmt)}
         return table.c.question_id.in_(q_ids) if q_ids else sa.false()
     if table_name == "assessment_questions":
-        assessments = _t("assessments")
+        assessments = _table("assessments")
         if not ids.course_section_ids:
             return sa.false()
         stmt = sa.select(assessments.c.id).where(
@@ -371,7 +455,7 @@ def build_scope_filter(
         # unusable for scoped roles. No row-level scoping is possible here.
         return None
     if table_name == "grading_bands":
-        grading_policies = _t("grading_policies")
+        grading_policies = _table("grading_policies")
         if not ids.program_version_ids:
             return sa.false()
         stmt = sa.select(grading_policies.c.id).where(
@@ -410,20 +494,96 @@ def resolve_scope_for_write(
     return None
 
 
+def resolve_active_program(
+    db: Session, grants: list[ScopedGrant], requested_program_code: str | None
+) -> Program | None:
+    """Determine which single program a raw-data request touching a
+    PROGRAM_SCHEMA_TABLES table should bind to. `db` must be bound to the
+    institution schema (the `None` translate-map key) — only the
+    institution-shared `programs` table is read here.
+
+    - A program-scoped grant (manage_scoped/propose_scoped,
+      scope_type="program") always resolves to that grant's own Program —
+      auto-detected, no `requested_program_code` needed. If one *is* given
+      and doesn't match, this is a hard mismatch (not a silent override):
+      a caller should never be confused about which program a response
+      actually came from.
+    - A course-scoped grant (manage_scoped, scope_type="course") has no
+      institution-shared FK from Course to Program (a department can have
+      more than one program, and co-offered courses aren't modeled yet —
+      see the pending Curriculum & Outcomes restructuring), so it always
+      needs an explicit `requested_program_code`. Trusting a wrong one here
+      is still safe: `build_scope_filter` restricts every row to their own
+      course_id regardless of which program schema ends up bound, so a
+      mismatched program_code just yields an empty result set, never
+      another course's rows.
+    - manage_all/manage_institution: not tied to any one program — honors
+      `requested_program_code` verbatim, or returns None (no program
+      bound) if not given, which is fine as long as the request only
+      touches institution-shared tables.
+
+    Raises `LookupError`/`PermissionError` on failure (same convention as
+    `get_table`) so the endpoint layer can turn them into 404/403 the same
+    way for both.
+    """
+    program_grant = next(
+        (
+            g
+            for g in grants
+            if g.scope_type == "program"
+            and g.scope_id is not None
+            and g.permission_code in ("raw_data.manage_scoped", "raw_data.propose_scoped")
+        ),
+        None,
+    )
+    if program_grant is not None:
+        program = db.get(Program, program_grant.scope_id)
+        if program is None:
+            raise LookupError("Your program scope no longer exists.")
+        if requested_program_code is not None and requested_program_code != program.code:
+            raise PermissionError(
+                f"You may only access program {program.code!r}, not "
+                f"{requested_program_code!r}."
+            )
+        return program
+
+    if requested_program_code is None:
+        return None
+
+    program = db.query(Program).filter(Program.code == requested_program_code).one_or_none()
+    if program is None:
+        raise LookupError(f"Unknown program {requested_program_code!r}")
+    return program
+
+
 # --- Table/column metadata + generic row (de)serialization -----------------
 
 _TYPE_TAGS: dict[type, str] = {}
 
 
-def get_table(table_name: str, *, allow_public: bool = False) -> sa.Table:
-    table = TenantBase.metadata.tables.get(table_name)
-    if table is None:
-        raise LookupError(f"Unknown table {table_name!r}")
-    if table.schema == "public" and not allow_public:
-        raise PermissionError(f"Table {table_name!r} requires cross-institution access")
-    if table.schema not in (None, "public"):
-        raise LookupError(f"Unknown table {table_name!r}")
-    return table
+def get_table(
+    table_name: str, *, allow_public: bool = False, allow_program: bool = False
+) -> sa.Table:
+    """`allow_program` must be true only when the caller's session already
+    has a "program" key in its schema_translate_map (see `_table_registries`
+    and `app.api.v1.endpoints.raw_data._resolve_target`) — resolving a
+    schema="program" Table object without that key active would compile a
+    query against a literal schema named "program", which doesn't exist."""
+    institution_tables, program_tables, public_tables = _table_registries()
+    if table_name in institution_tables:
+        return institution_tables[table_name]
+    if table_name in program_tables:
+        if not allow_program:
+            raise PermissionError(
+                f"Table {table_name!r} requires a program to be selected "
+                "(X-Program-Code / program_code)."
+            )
+        return program_tables[table_name]
+    if table_name in public_tables:
+        if not allow_public:
+            raise PermissionError(f"Table {table_name!r} requires cross-institution access")
+        return public_tables[table_name]
+    raise LookupError(f"Unknown table {table_name!r}")
 
 
 def column_type_tag(column: sa.Column) -> str:

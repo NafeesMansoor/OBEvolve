@@ -78,6 +78,29 @@ export function clearTokens(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Active program (X-Program-Code)
+//
+// Program-specific endpoints (program versions, PEOs/POs, CO-PO mappings,
+// course offerings/sections/faculty/enrollments, assessments — see
+// docs/adr/0003-schema-per-program.md) require an X-Program-Code header so
+// the backend knows which program's schema to bind the request to. Set by
+// lib/active-program-context.tsx once the signed-in user's program list is
+// known (and auto-selected when there's exactly one); read here so every
+// request picks it up the same way X-Institution-Slug already does, without
+// threading a program code through every individual API call site.
+// ---------------------------------------------------------------------------
+
+let activeProgramCode: string | null = null
+
+export function getActiveProgramCode(): string | null {
+  return activeProgramCode
+}
+
+export function setActiveProgramCode(code: string | null): void {
+  activeProgramCode = code
+}
+
+// ---------------------------------------------------------------------------
 // Axios instance
 // ---------------------------------------------------------------------------
 
@@ -91,6 +114,9 @@ apiClient.interceptors.request.use((config) => {
   }
   if (INSTITUTION_SLUG) {
     config.headers.set('X-Institution-Slug', INSTITUTION_SLUG)
+  }
+  if (activeProgramCode) {
+    config.headers.set('X-Program-Code', activeProgramCode)
   }
   return config
 })

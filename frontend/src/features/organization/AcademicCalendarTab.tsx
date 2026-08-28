@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { useEntityCreate, useEntityList } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
 
@@ -39,6 +40,8 @@ export function AcademicCalendarTab() {
   const canManage = hasPermission('academic_calendar.manage')
   const [yearDialogOpen, setYearDialogOpen] = React.useState(false)
   const [termDialogOpen, setTermDialogOpen] = React.useState(false)
+  const [viewYear, setViewYear] = React.useState<AcademicYear | null>(null)
+  const [viewTerm, setViewTerm] = React.useState<AcademicTerm | null>(null)
 
   const { data: years, isLoading: yearsLoading, error: yearsError } = useEntityList<AcademicYear>(
     ['org', 'academic-years'],
@@ -105,6 +108,7 @@ export function AcademicCalendarTab() {
             isLoading={yearsLoading}
             error={yearsError}
             emptyMessage="No academic years yet."
+            onRowClick={(r) => setViewYear(r)}
           />
         </CardContent>
       </Card>
@@ -128,9 +132,37 @@ export function AcademicCalendarTab() {
             searchable
             searchPlaceholder="Search terms…"
             emptyMessage="No academic terms yet."
+            onRowClick={(r) => setViewTerm(r)}
           />
         </CardContent>
       </Card>
+
+      {viewYear && (
+        <RecordDetailSheet
+          open={Boolean(viewYear)}
+          onOpenChange={(open) => !open && setViewYear(null)}
+          title={viewYear.label}
+          fields={[
+            { label: 'Start date', value: viewYear.start_date },
+            { label: 'End date', value: viewYear.end_date },
+          ]}
+        />
+      )}
+
+      {viewTerm && (
+        <RecordDetailSheet
+          open={Boolean(viewTerm)}
+          onOpenChange={(open) => !open && setViewTerm(null)}
+          title={viewTerm.name}
+          subtitle={yearById.get(viewTerm.academic_year_id)?.label}
+          fields={[
+            { label: 'Type', value: viewTerm.term_type },
+            { label: 'Academic year', value: yearById.get(viewTerm.academic_year_id)?.label ?? '—' },
+            { label: 'Start date', value: viewTerm.start_date },
+            { label: 'End date', value: viewTerm.end_date },
+          ]}
+        />
+      )}
 
       <EntityFormDialog
         open={yearDialogOpen}

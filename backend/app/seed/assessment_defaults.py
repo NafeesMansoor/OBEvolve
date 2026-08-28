@@ -24,6 +24,17 @@ DEFAULT_ASSESSMENT_TYPE_NAMES: list[str] = [
     "Class Participation",
 ]
 
+# These types require the exam-office document set (question paper,
+# moderation form, compliance form, highest/lowest/median scripts —
+# AssessmentDocument) before they're considered complete. A type-level flag
+# rather than name-matching at query time, so it survives renames and
+# institutions can opt custom types in too.
+DOCUMENT_REQUIRED_TYPE_NAMES: set[str] = {"Midterm", "Final Exam"}
+
+# This type requires the CEP-specific document set (problem definition,
+# marked-rubric sample, project reports).
+CEP_DOCUMENT_REQUIRED_TYPE_NAMES: set[str] = {"Complex Engineering Problem"}
+
 
 def seed_default_assessment_types(db: Session) -> dict[str, AssessmentType]:
     """Insert any catalogue assessment types missing from this schema.
@@ -34,7 +45,12 @@ def seed_default_assessment_types(db: Session) -> dict[str, AssessmentType]:
     for name in DEFAULT_ASSESSMENT_TYPE_NAMES:
         if name in existing:
             continue
-        assessment_type = AssessmentType(name=name, is_custom=False)
+        assessment_type = AssessmentType(
+            name=name,
+            is_custom=False,
+            requires_documents=name in DOCUMENT_REQUIRED_TYPE_NAMES,
+            requires_cep_documents=name in CEP_DOCUMENT_REQUIRED_TYPE_NAMES,
+        )
         db.add(assessment_type)
         existing[name] = assessment_type
     db.flush()

@@ -98,6 +98,7 @@ class CourseCreate(BaseModel):
     credits: Decimal
     contact_hours: int | None = None
     course_type: str | None = None
+    co_offered_with_id: uuid.UUID | None = None
 
 
 class CourseUpdate(BaseModel):
@@ -108,6 +109,7 @@ class CourseUpdate(BaseModel):
     contact_hours: int | None = None
     course_type: str | None = None
     is_active: bool | None = None
+    co_offered_with_id: uuid.UUID | None = None
 
 
 class CourseRead(BaseModel):
@@ -122,6 +124,7 @@ class CourseRead(BaseModel):
     contact_hours: int | None
     course_type: str | None
     is_active: bool
+    co_offered_with_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -224,6 +227,24 @@ class ProgramOutcomeRead(BaseModel):
     status: WorkflowStatus
     effective_from: date | None
     effective_to: date | None
+    created_at: datetime
+    updated_at: datetime
+
+
+# --- Bloom levels (catalogue, seeded with 6 defaults per institution) ---
+class BloomLevelCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    sequence_order: int
+    is_active: bool = True
+
+
+class BloomLevelRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    sequence_order: int
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 

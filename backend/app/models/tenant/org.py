@@ -88,9 +88,21 @@ class Program(UUIDPKMixin, TimestampMixin, TenantBase):
 
 class ProgramVersion(UUIDPKMixin, TimestampMixin, TenantBase):
     """Historical program versions are never edited after `published`; a new
-    curriculum change creates a new row (spec §6, §10)."""
+    curriculum change creates a new row (spec §6, §10).
+
+    schema="program": lives in the per-program schema
+    (tenant_<institution>__<program_code>), not the institution-shared one —
+    see docs/adr/0003-schema-per-program.md. `program_id` still resolves
+    correctly across the schema boundary: schema_translate_map's `None` key
+    (institution schema) and `"program"` key are both active on every
+    program-scoped session, so the plain `ForeignKey("programs.id")` below
+    (no explicit schema=) is translated independently of this table's own
+    schema — same mechanism as any same-schema FK, just spanning two
+    translate-map keys instead of one.
+    """
 
     __tablename__ = "program_versions"
+    __table_args__ = {"schema": "program"}
 
     program_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

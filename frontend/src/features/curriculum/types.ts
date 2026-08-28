@@ -62,6 +62,7 @@ export interface Course {
   contact_hours: number | null
   course_type: string | null
   is_active: boolean
+  co_offered_with_id: string | null
   created_at: string
   updated_at: string
 }

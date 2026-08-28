@@ -8,6 +8,8 @@ import { z } from 'zod'
 
 import { API_BASE_URL, type ApiErrorShape } from '@/lib/api-client'
 import { Footer } from '@/components/footer'
+import { ThemeToggleButton } from '@/components/theme-toggle'
+import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -81,13 +83,16 @@ export function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
+      <div className="flex justify-end p-4">
+        <ThemeToggleButton />
+      </div>
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center gap-2 text-center">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-lg font-semibold text-primary-foreground">
-              OB
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Logo className="size-6" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">OBEvolve</h1>
+            <h1 className="font-display text-xl font-semibold tracking-tight">OBEvolve</h1>
             <p className="text-sm text-muted-foreground">
               Outcome-Based Education &amp; accreditation platform
             </p>

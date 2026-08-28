@@ -15,9 +15,10 @@ import { Button } from '@/components/ui/button'
 import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-const ENROLLMENT_STATUSES = ['enrolled', 'completed', 'withdrawn', 'failed']
+const ENROLLMENT_STATUSES = ['enrolled', 'completed', 'withdrawn', 'incomplete', 'failed']
 
 const schema = z.object({
   student_user_id: z.string().min(1, 'Student is required'),
@@ -51,6 +52,7 @@ export function EnrollmentsTab() {
   )
 
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [viewEnrollment, setViewEnrollment] = React.useState<StudentEnrollment | null>(null)
 
   const {
     data: enrollments,
@@ -123,22 +125,24 @@ export function EnrollmentsTab() {
       key: 'status',
       header: 'Status',
       render: (r) => (
-        <Select
-          value={r.enrollment_status}
-          onValueChange={(v) => updateStatus(r.id, v)}
-          disabled={!canManage}
-        >
-          <SelectTrigger className="h-7 w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ENROLLMENT_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div onClick={(e) => e.stopPropagation()}>
+          <Select
+            value={r.enrollment_status}
+            onValueChange={(v) => updateStatus(r.id, v)}
+            disabled={!canManage}
+          >
+            <SelectTrigger className="h-7 w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ENROLLMENT_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       ),
     },
     {
@@ -196,12 +200,13 @@ export function EnrollmentsTab() {
           isLoading={isLoading}
           error={error}
           emptyMessage="No enrollments yet for this section."
+          onRowClick={(r) => setViewEnrollment(r)}
           actions={
             canManage
               ? (r) => (
                   <ConfirmAction
                     trigger={
-                      <Button size="sm" variant="ghost">
+                      <Button size="sm" variant="ghost" aria-label="Remove enrollment">
                         <Trash2 className="size-4" />
                       </Button>
                     }
@@ -218,6 +223,27 @@ export function EnrollmentsTab() {
                 )
               : undefined
           }
+        />
+      )}
+
+      {viewEnrollment && (
+        <RecordDetailSheet
+          open={Boolean(viewEnrollment)}
+          onOpenChange={(open) => !open && setViewEnrollment(null)}
+          title={studentById.get(viewEnrollment.student_user_id)?.full_name ?? viewEnrollment.student_user_id}
+          badge={
+            <Badge variant="outline" className="font-normal capitalize">
+              {viewEnrollment.enrollment_status}
+            </Badge>
+          }
+          fields={[
+            {
+              label: 'Student code',
+              value: studentById.get(viewEnrollment.student_user_id)?.student_code ?? '—',
+            },
+            { label: 'Status', value: <span className="capitalize">{viewEnrollment.enrollment_status}</span> },
+            { label: 'Enrolled', value: new Date(viewEnrollment.enrolled_at).toLocaleDateString() },
+          ]}
         />
       )}
 

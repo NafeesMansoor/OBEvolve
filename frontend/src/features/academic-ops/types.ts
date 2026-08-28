@@ -20,6 +20,8 @@ export interface FacultyAssignment {
   id: string
   course_section_id: string
   faculty_user_id: string
+  /** Resolved server-side — see backend FacultyAssignmentRead.faculty_name. */
+  faculty_name: string | null
   role: 'coordinator' | 'instructor'
   created_at: string
   updated_at: string

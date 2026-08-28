@@ -1,9 +1,10 @@
 import * as React from 'react'
-import { X } from 'lucide-react'
+import { Grid3x3, X } from 'lucide-react'
 
 import type { MappingScale } from '@/features/curriculum/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -58,96 +59,116 @@ export function MappingMatrix({
   const maxValue = levels.length > 0 ? Math.max(...levels.map((l) => l.value), 1) : 1
 
   if (isLoading) {
-    return <Skeleton className="h-80 w-full" />
+    return (
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4">
+          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-72 w-full" />
+        </CardContent>
+      </Card>
+    )
   }
 
   if (rows.length === 0 || cols.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Need at least one {rowHeader.toLowerCase()} and one {colHeader.toLowerCase()} to build the
-        matrix.
-      </p>
+      <Card>
+        <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+          <Grid3x3 className="size-6 opacity-50" />
+          <p className="text-sm">
+            Need at least one {rowHeader.toLowerCase()} and one {colHeader.toLowerCase()} to build
+            the matrix.
+          </p>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {levels.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span>Legend:</span>
-          {levels.map((l) => (
-            <span key={l.id} className="flex items-center gap-1.5">
-              <span
-                className="inline-block size-3 rounded-sm border"
-                style={{ backgroundColor: heatColor(l.value, maxValue) }}
-              />
-              {l.label} ({l.value})
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="overflow-auto rounded-md border">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-10 min-w-40 border-b border-r bg-muted/50 p-2 text-left font-medium">
-                {rowHeader} \ {colHeader}
-              </th>
-              {cols.map((c) => (
-                <th
-                  key={c.id}
-                  className="min-w-16 border-b p-2 text-center font-medium"
-                  title={c.label}
-                >
-                  {c.code}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <th
-                  className="sticky left-0 z-10 border-r bg-background p-2 text-left font-medium"
-                  title={row.label}
-                >
-                  {row.code}
-                </th>
-                {cols.map((col) => {
-                  const key = `${row.id}:${col.id}`
-                  const cell = cells.get(key)
-                  const level = levels.find((l) => l.id === cell?.levelId)
-                  return (
-                    <td key={col.id} className="border-b border-l p-1 text-center">
-                      <MatrixCellButton
-                        levels={levels}
-                        maxValue={maxValue}
-                        currentLevelId={cell?.levelId ?? null}
-                        currentLevelLabel={level?.label}
-                        readOnly={readOnly}
-                        onPick={(levelId) => onSetCell(row.id, col.id, levelId)}
-                        onClear={cell ? () => onClearCell(row.id, col.id, cell.mappingId) : undefined}
-                      />
-                    </td>
-                  )
-                })}
-              </tr>
+    <Card>
+      <CardContent className="flex flex-col gap-3 p-4">
+        {levels.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Legend</span>
+            {levels.map((l) => (
+              <span key={l.id} className="flex items-center gap-1.5">
+                <span
+                  className="inline-block size-3 rounded-sm border"
+                  style={{ backgroundColor: heatColor(l.value, maxValue) }}
+                />
+                {l.label} <span className="tabular-nums">({l.value})</span>
+              </span>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block size-3 rounded-sm border bg-transparent" />
+              Not mapped
+            </span>
+          </div>
+        )}
+
+        <div className="max-h-[70vh] overflow-auto rounded-md border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th className="sticky left-0 top-0 z-30 min-w-40 border-b border-r bg-muted p-2 text-left font-semibold">
+                  {rowHeader} \ {colHeader}
+                </th>
+                {cols.map((c) => (
+                  <th
+                    key={c.id}
+                    className="sticky top-0 z-20 min-w-16 border-b bg-muted p-2 text-center font-semibold"
+                    title={c.label}
+                  >
+                    {c.code}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <th
+                    className="sticky left-0 z-10 border-r bg-background p-2 text-left font-medium"
+                    title={row.label}
+                  >
+                    {row.code}
+                  </th>
+                  {cols.map((col) => {
+                    const key = `${row.id}:${col.id}`
+                    const cell = cells.get(key)
+                    const level = levels.find((l) => l.id === cell?.levelId)
+                    return (
+                      <td key={col.id} className="border-b border-l p-1 text-center">
+                        <MatrixCellButton
+                          levels={levels}
+                          maxValue={maxValue}
+                          currentLevelId={cell?.levelId ?? null}
+                          currentLevelLabel={level?.label}
+                          readOnly={readOnly}
+                          onPick={(levelId) => onSetCell(row.id, col.id, levelId)}
+                          onClear={cell ? () => onClearCell(row.id, col.id, cell.mappingId) : undefined}
+                        />
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
 function heatColor(value: number, maxValue: number): string {
   if (value <= 0) return 'transparent'
   const ratio = Math.min(1, value / maxValue)
-  // Primary-ish blue ramp, light -> saturated. Works acceptably in both themes
-  // since it's used as an inline background behind dark text.
-  const alpha = 0.18 + ratio * 0.62
-  return `rgba(37, 99, 235, ${alpha.toFixed(2)})`
+  // Tinted with the theme's own --primary token (institutional navy in light
+  // mode, a lighter blue in dark mode) so the ramp tracks the app palette in
+  // both themes. Alpha is capped well short of opaque so the always-visible
+  // numeric value (never color alone) stays legible against the fill.
+  const alpha = 0.15 + ratio * 0.4
+  return `hsl(var(--primary) / ${alpha.toFixed(2)})`
 }
 
 function MatrixCellButton({
@@ -174,7 +195,7 @@ function MatrixCellButton({
   if (readOnly) {
     return (
       <div
-        className="flex size-9 items-center justify-center rounded-sm border text-xs font-medium"
+        className="mx-auto flex size-9 items-center justify-center rounded-sm border text-xs font-semibold tabular-nums text-foreground"
         style={{ backgroundColor: heatColor(currentLevel?.value ?? 0, maxValue) }}
         title={currentLevelLabel ?? 'Not mapped'}
       >
@@ -188,8 +209,9 @@ function MatrixCellButton({
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label={currentLevelLabel ? `${currentLevelLabel} — click to change` : 'Not mapped — click to set'}
           className={cn(
-            'flex size-9 items-center justify-center rounded-sm border text-xs font-medium transition-colors hover:ring-2 hover:ring-ring',
+            'mx-auto flex size-9 cursor-pointer items-center justify-center rounded-sm border text-xs font-semibold tabular-nums text-foreground transition-colors hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           )}
           style={{ backgroundColor: heatColor(currentLevel?.value ?? 0, maxValue) }}
           title={currentLevelLabel ?? 'Not mapped — click to set'}
@@ -208,7 +230,7 @@ function MatrixCellButton({
                 type="button"
                 disabled={pending}
                 className={cn(
-                  'flex items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-accent',
+                  'flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
                   currentLevelId === l.id && 'bg-accent',
                 )}
                 onClick={async () => {
@@ -228,7 +250,7 @@ function MatrixCellButton({
                   />
                   {l.label}
                 </span>
-                <span className="text-muted-foreground">{l.value}</span>
+                <span className="tabular-nums text-muted-foreground">{l.value}</span>
               </button>
             ))
           )}

@@ -100,22 +100,24 @@ export function ProfilePage() {
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <PageHeader title="Your profile" description="Manage your account details and password." />
 
-      <div className="flex items-center gap-4">
-        <Avatar className="size-14">
-          <AvatarFallback className="text-lg">{initials(user?.full_name ?? 'U')}</AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="font-medium">{user?.full_name}</p>
-          <p className="text-sm text-muted-foreground">{user?.email}</p>
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {user?.roles.map((r) => (
-              <Badge key={r} variant="secondary" className="font-normal">
-                {r}
-              </Badge>
-            ))}
+      <Card>
+        <CardContent className="flex items-center gap-4 pt-6">
+          <Avatar className="size-14">
+            <AvatarFallback className="text-lg">{initials(user?.full_name ?? 'U')}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium">{user?.full_name}</p>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {user?.roles.map((r) => (
+                <Badge key={r} variant="secondary" className="font-normal">
+                  {r}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

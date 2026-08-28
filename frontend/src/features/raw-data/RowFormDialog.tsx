@@ -147,20 +147,23 @@ export function RowFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {mode === 'edit' && pkColumn ? (
             <div className="space-y-1.5">
-              <Label>
-                {pkColumn.name} <span className="text-xs text-muted-foreground">(primary key, read-only)</span>
+              <Label className="font-mono text-xs">
+                {pkColumn.name}{' '}
+                <span className="font-sans text-xs font-normal text-muted-foreground">
+                  (primary key, read-only)
+                </span>
               </Label>
-              <Input value={String(initialRow?.[pkColumn.name] ?? '')} disabled />
+              <Input value={String(initialRow?.[pkColumn.name] ?? '')} disabled className="font-mono text-sm" />
             </div>
           ) : null}
 
           {editableColumns(schema).map((col) => (
             <div key={col.name} className="space-y-1.5">
-              <Label htmlFor={`rd-field-${col.name}`}>
+              <Label htmlFor={`rd-field-${col.name}`} className="font-mono text-xs">
                 {col.name}
                 {!col.nullable ? <span className="text-destructive"> *</span> : null}
                 {col.foreign_key ? (
-                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                  <span className="ml-1.5 font-sans text-xs font-normal text-muted-foreground">
                     → {col.foreign_key}
                   </span>
                 ) : null}

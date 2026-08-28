@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 
 const schema = z.object({ name: z.string().min(1, 'Name is required').max(100) })
 const fields: EntityField[] = [{ name: 'name', label: 'Name', type: 'text' }]
@@ -24,6 +25,7 @@ export function TypesTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('assessment.create')
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [viewType, setViewType] = React.useState<AssessmentType | null>(null)
 
   const { data, isLoading, error } = useEntityList<AssessmentType>(
     ['assessment', 'types'],
@@ -65,13 +67,14 @@ export function TypesTab() {
         error={error}
         searchable
         emptyMessage="No assessment types yet."
+        onRowClick={(r) => setViewType(r)}
         actions={
           canManage
             ? (r) => (
                 <ConfirmAction
                   trigger={
-                    <Button size="sm" variant="ghost">
-                      <Trash2 className="size-4" />
+                    <Button size="sm" variant="ghost" aria-label={`Delete assessment type "${r.name}"`}>
+                      <Trash2 className="size-4 text-destructive" />
                     </Button>
                   }
                   title={`Delete assessment type "${r.name}"?`}
@@ -92,6 +95,20 @@ export function TypesTab() {
             : undefined
         }
       />
+
+      {viewType && (
+        <RecordDetailSheet
+          open={Boolean(viewType)}
+          onOpenChange={(open) => !open && setViewType(null)}
+          title={viewType.name}
+          badge={
+            <Badge variant={viewType.is_custom ? 'secondary' : 'outline'} className="font-normal">
+              {viewType.is_custom ? 'Custom' : 'Default'}
+            </Badge>
+          }
+          fields={[{ label: 'Name', value: viewType.name }, { label: 'Origin', value: viewType.is_custom ? 'Custom' : 'Default' }]}
+        />
+      )}
 
       <EntityFormDialog
         open={createOpen}

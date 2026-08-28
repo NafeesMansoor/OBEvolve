@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, Inbox, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ApiError } from '@/lib/api-client'
@@ -150,6 +150,11 @@ function ReviewDialog({
           </Button>
           <Button
             variant={state.decision === 'reject' ? 'destructive' : 'default'}
+            className={
+              state.decision === 'approve'
+                ? 'bg-success text-success-foreground hover:bg-success/90'
+                : undefined
+            }
             disabled={isSubmitting}
             onClick={handleConfirm}
           >
@@ -184,8 +189,9 @@ export function PendingChangesPage() {
         </p>
       ) : (data ?? []).length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            No pending changes to review.
+          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+            <Inbox className="size-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">No pending changes to review.</p>
           </CardContent>
         </Card>
       ) : (
@@ -208,16 +214,19 @@ export function PendingChangesPage() {
 
                 <ChangeDiff change={change} />
 
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-3">
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    className="text-destructive"
                     onClick={() => setReviewState({ change, decision: 'reject' })}
                   >
                     <X className="size-4" /> Reject
                   </Button>
-                  <Button size="sm" onClick={() => setReviewState({ change, decision: 'approve' })}>
+                  <Button
+                    size="sm"
+                    className="bg-success text-success-foreground hover:bg-success/90"
+                    onClick={() => setReviewState({ change, decision: 'approve' })}
+                  >
                     <Check className="size-4" /> Approve
                   </Button>
                 </div>

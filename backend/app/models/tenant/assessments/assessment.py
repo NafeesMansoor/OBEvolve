@@ -8,10 +8,10 @@ separate, later feature (marks entry/gradebook), not built here.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +26,16 @@ class AssessmentType(UUIDPKMixin, TimestampMixin, TenantBase):
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Gates the question-paper/moderation-form/compliance-form/scripts upload
+    # requirement (AssessmentDocument below) — a *type-level* flag rather
+    # than name-matching "Midterm"/"Final Exam" strings, so it survives
+    # renames and lets an institution opt a custom type in too. Seeded true
+    # for Midterm/Final Exam by app.seed.assessment_defaults.
+    requires_documents: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Gates the CEP-specific document set (problem definition, marked-rubric
+    # sample, project reports). Seeded true only for "Complex Engineering
+    # Problem" — same type-level-flag reasoning as requires_documents.
+    requires_cep_documents: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class Rubric(UUIDPKMixin, TimestampMixin, TenantBase):
@@ -131,11 +141,20 @@ class QuestionBloomMapping(UUIDPKMixin, TimestampMixin, TenantBase):
 
 
 class Assessment(UUIDPKMixin, TimestampMixin, TenantBase):
+    """schema="program": see docs/adr/0003-schema-per-program.md.
+    `academic_term_id`/`assessment_type_id`/`rubric_id` point into the
+    institution-shared schema (the `None` translate-map key) and need no
+    schema= override, but `course_section_id` targets `course_sections` —
+    also schema="program" — and needs the explicit `program.` prefix (see
+    `app.models.tenant.obe.outcomes.PEO`'s docstring for why).
+    """
+
     __tablename__ = "assessments"
+    __table_args__ = {"schema": "program"}
 
     course_section_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("course_sections.id", ondelete="CASCADE"),
+        ForeignKey("program.course_sections.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -162,16 +181,36 @@ class Assessment(UUIDPKMixin, TimestampMixin, TenantBase):
     status: Mapped[WorkflowStatus] = mapped_column(
         String(20), nullable=False, default=WorkflowStatus.DRAFT
     )
+    # Document uploads (AssessmentDocument) are due by the academic term's
+    # end_date unless a Program Administrator extends it here — the
+    # effective deadline is `document_deadline_extended_to or
+    # academic_term.end_date`, computed by callers (frontend already has
+    # both values loaded), not stored redundantly.
+    document_deadline_extended_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    document_deadline_extended_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    document_deadline_extended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     questions: Mapped[list[AssessmentQuestion]] = relationship(back_populates="assessment")
 
 
 class AssessmentQuestion(UUIDPKMixin, TimestampMixin, TenantBase):
+    """schema="program": see docs/adr/0003-schema-per-program.md.
+    `question_id` points into the institution-shared schema (the `None`
+    translate-map key) and needs no schema= override, but `assessment_id`
+    targets `assessments` — also schema="program" — and needs the explicit
+    `program.` prefix (see `app.models.tenant.obe.outcomes.PEO`'s docstring
+    for why)."""
+
     __tablename__ = "assessment_questions"
+    __table_args__ = {"schema": "program"}
 
     assessment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("assessments.id", ondelete="CASCADE"),
+        ForeignKey("program.assessments.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -185,3 +224,65 @@ class AssessmentQuestion(UUIDPKMixin, TimestampMixin, TenantBase):
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
 
     assessment: Mapped[Assessment] = relationship(back_populates="questions")
+
+
+class AssessmentDocument(UUIDPKMixin, TimestampMixin, TenantBase):
+    """A supporting document an assessment needs before it's considered
+    complete. Which `document_type`s are required (and how many) depends on
+    `AssessmentType.requires_documents`/`requires_cep_documents` — see
+    `app.api.v1.endpoints.assessment._REQUIRED_DOCUMENT_TYPES`, the single
+    place that maps a type flag to its required `(document_type, min_count)`
+    set. Two upload shapes coexist here, both in this one table:
+
+    - **Singleton slots** (question_paper, moderation_form, compliance_form,
+      script_highest, script_lowest, script_median, problem_definition):
+      at most one row per (assessment_id, document_type) — re-uploading
+      REPLACES the row in place and resets it to "pending" (no version
+      history, deliberately, to keep this simple).
+    - **Repeatable slots** (marked_rubric_sample, project_report): any
+      number of rows per (assessment_id, document_type) are allowed —
+      uploading always ADDS a new row; each is reviewed independently and
+      deleted individually rather than replaced.
+
+    There is deliberately no DB-level uniqueness constraint on
+    (assessment_id, document_type) — the singleton/repeatable distinction is
+    enforced in the upload endpoint, not the schema, since which behavior
+    applies depends on `document_type`.
+
+    `status` is a small purpose-built pending/approved/rejected flag — NOT
+    `app.db.base.WorkflowStatus` — mirroring
+    `app.models.tenant.raw_data.RawDataChangeRequest`'s precedent: a
+    lightweight approval flag is a different shape than a multi-stage
+    draft-to-published document lifecycle.
+
+    schema="program": see docs/adr/0003-schema-per-program.md — lives
+    alongside `assessments`.
+    """
+
+    __tablename__ = "assessment_documents"
+    __table_args__ = {"schema": "program"}
+
+    assessment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("program.assessments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # question_paper | moderation_form | compliance_form | script_highest |
+    # script_lowest | script_median | problem_definition |
+    # marked_rubric_sample | project_report
+    document_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    file_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="pending")
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)

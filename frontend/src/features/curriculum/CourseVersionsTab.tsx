@@ -11,6 +11,7 @@ import { useEntityAction, useEntityCreate, useEntityList } from '@/lib/crud-hook
 import { Button } from '@/components/ui/button'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StatusBadge, WORKFLOW_NEXT, type WorkflowStatus } from '@/components/status-badge'
 
@@ -20,6 +21,7 @@ export function CourseVersionsTab() {
   const canApprove = hasPermission('outcome.approve')
   const [courseId, setCourseId] = React.useState<string>('')
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [viewVersion, setViewVersion] = React.useState<CourseVersion | null>(null)
 
   const { data: courses } = useEntityList<Course>(['curriculum', 'courses'], '/curriculum/courses')
   const { data: years } = useEntityList<AcademicYear>(
@@ -44,6 +46,11 @@ export function CourseVersionsTab() {
     (id) => `/curriculum/course-versions/${id}/advance`,
     [['curriculum', 'course-versions', courseId]],
   )
+  const yearById = React.useMemo(
+    () => new Map((years ?? []).map((y) => [y.id, y])),
+    [years],
+  )
+  const course = React.useMemo(() => (courses ?? []).find((c) => c.id === courseId), [courses, courseId])
 
   const fields: EntityField[] = [
     { name: 'version_label', label: 'Version label', type: 'text', placeholder: 'e.g. 2025-A' },
@@ -94,6 +101,7 @@ export function CourseVersionsTab() {
           isLoading={isLoading}
           error={error}
           emptyMessage="No versions yet for this course."
+          onRowClick={(r) => setViewVersion(r)}
           actions={(r) => {
             const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
             if (!canApprove || !next) return null
@@ -140,6 +148,27 @@ export function CourseVersionsTab() {
           }
         }}
       />
+
+      {viewVersion && (
+        <RecordDetailSheet
+          open={Boolean(viewVersion)}
+          onOpenChange={(open) => !open && setViewVersion(null)}
+          title={viewVersion.version_label}
+          subtitle={course ? `${course.code} — ${course.title}` : undefined}
+          badge={<StatusBadge status={viewVersion.status} />}
+          fields={[
+            {
+              label: 'Effective academic year',
+              value: viewVersion.effective_academic_year_id
+                ? (yearById.get(viewVersion.effective_academic_year_id)?.label ?? '—')
+                : '—',
+            },
+            { label: 'Status', value: viewVersion.status },
+            { label: 'Created', value: new Date(viewVersion.created_at).toLocaleDateString() },
+            { label: 'Last updated', value: new Date(viewVersion.updated_at).toLocaleDateString() },
+          ]}
+        />
+      )}
     </div>
   )
 }

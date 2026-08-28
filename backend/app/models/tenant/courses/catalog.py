@@ -37,8 +37,26 @@ class Course(UUIDPKMixin, TimestampMixin, TenantBase):
     # since institution-specific category naming varies (DATABASE_PLAN.md §C).
     course_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Self-referential, nullable, one-directional: "this course is also
+    # offered as/with that course" (e.g. a cross-listed course taught
+    # jointly for two department-specific codes, or two labs bundled under
+    # one lecture). Deliberately a single link, not a many-to-many junction
+    # table — the source curriculum data models co-offering as a single pair
+    # ("CSE2103 & 2104" appearing as one catalog row), and a richer network
+    # of >2 co-offered courses hasn't come up; revisit if it does. SET NULL
+    # on delete rather than CASCADE: deleting one side of a co-offered pair
+    # should not take the other course down with it.
+    co_offered_with_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("courses.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     versions: Mapped[list[CourseVersion]] = relationship(back_populates="course")
+    co_offered_with: Mapped[Course | None] = relationship(
+        remote_side="Course.id", foreign_keys=[co_offered_with_id]
+    )
 
 
 class CourseVersion(UUIDPKMixin, TimestampMixin, TenantBase):

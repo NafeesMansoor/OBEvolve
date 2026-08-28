@@ -10,8 +10,21 @@ shared workflow shape used elsewhere (ARCHITECTURE.md §4).
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.db.base import WorkflowStatus
@@ -19,6 +32,7 @@ from app.db.tenancy import get_db
 from app.middleware.audit import get_request_context
 from app.models.tenant.assessments import (
     Assessment,
+    AssessmentDocument,
     AssessmentQuestion,
     AssessmentType,
     Question,
@@ -31,11 +45,15 @@ from app.models.tenant.assessments import (
 from app.models.tenant.identity import User
 from app.schemas.assessment import (
     AssessmentCreate,
+    AssessmentDocumentDeadlineExtend,
+    AssessmentDocumentRead,
+    AssessmentDocumentReview,
     AssessmentQuestionCreate,
     AssessmentQuestionRead,
     AssessmentRead,
     AssessmentTypeCreate,
     AssessmentTypeRead,
+    PendingAssessmentDocument,
     QuestionBloomMappingCreate,
     QuestionBloomMappingRead,
     QuestionCourseOutcomeMappingCreate,
@@ -49,8 +67,44 @@ from app.schemas.assessment import (
     RubricLevelRead,
     RubricRead,
 )
+from app.schemas.attainment import AssessmentWeightSummary
 from app.services.audit import write_audit_log
-from app.services.rbac import require_permission
+from app.services.rbac import get_program_scoped_db, require_permission
+from app.services.storage import delete_upload, read_upload, save_upload
+
+# Singleton slots: at most one row per (assessment_id, document_type) —
+# re-uploading replaces it in place. Repeatable slots (_MULTI_DOCUMENT_TYPES):
+# any number of rows — uploading always adds a new one, reviewed/deleted
+# individually. See AssessmentDocument's docstring.
+_SINGLETON_DOCUMENT_TYPES = {
+    "question_paper",
+    "moderation_form",
+    "compliance_form",
+    "script_highest",
+    "script_lowest",
+    "script_median",
+    "problem_definition",
+}
+_MULTI_DOCUMENT_TYPES = {"marked_rubric_sample", "project_report"}
+_DOCUMENT_TYPES = _SINGLETON_DOCUMENT_TYPES | _MULTI_DOCUMENT_TYPES
+
+# document_type -> minimum count required, keyed by which AssessmentType flag
+# gates it. Not enforced server-side as a hard block (a Program Administrator
+# can always see + extend an incomplete assessment); exposed via
+# GET .../documents so the frontend can render completeness/deadline banners.
+_EXAM_REQUIRED_DOCUMENT_TYPES: dict[str, int] = {
+    "question_paper": 1,
+    "moderation_form": 1,
+    "compliance_form": 1,
+    "script_highest": 1,
+    "script_lowest": 1,
+    "script_median": 1,
+}
+_CEP_REQUIRED_DOCUMENT_TYPES: dict[str, int] = {
+    "problem_definition": 1,
+    "marked_rubric_sample": 1,
+    "project_report": 3,
+}
 
 router = APIRouter()
 
@@ -555,13 +609,19 @@ def delete_question_bloom_mapping(
     )
 
 
+# Assessments/assessment_questions (the graded instances) live in the
+# per-program schema (docs/adr/0003-schema-per-program.md) — every route in
+# this section and the next needs the `X-Program-Code` header, resolved and
+# authorized by get_program_scoped_db (see app.services.rbac.get_program_context)
+# before a session bound to that program's schema is ever opened. Assessment
+# types/rubrics/questions above stay institution-shared (get_db).
 # --- Assessments ---
 @router.post("/assessments", response_model=AssessmentRead, status_code=status.HTTP_201_CREATED)
 def create_assessment(
     payload: AssessmentCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("assessment.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> Assessment:
     assessment = Assessment(**payload.model_dump(), status=WorkflowStatus.DRAFT)
     db.add(assessment)
@@ -581,8 +641,8 @@ def create_assessment(
 @router.get("/assessments", response_model=list[AssessmentRead])
 def list_assessments(
     course_section_id: uuid.UUID | None = Query(default=None),
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("assessment.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
 ) -> list[Assessment]:
     query = db.query(Assessment)
     if course_section_id is not None:
@@ -590,11 +650,35 @@ def list_assessments(
     return query.order_by(Assessment.created_at.desc()).all()
 
 
+@router.get("/assessments/weight-summary", response_model=AssessmentWeightSummary)
+def get_assessment_weight_summary(
+    course_section_id: uuid.UUID = Query(...),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
+) -> AssessmentWeightSummary:
+    """Surfaced to the UI as a non-blocking banner, not enforced at
+    create/update time: assessments for a section are typically added one at
+    a time, so a hard "must sum to 100%" check on every write would make it
+    impossible to build up to 100% incrementally."""
+    assessments = (
+        db.query(Assessment).filter(Assessment.course_section_id == course_section_id).all()
+    )
+    weighted = [a for a in assessments if a.weight is not None]
+    total_weight = sum((a.weight for a in weighted), Decimal(0))
+    return AssessmentWeightSummary(
+        course_section_id=course_section_id,
+        assessment_count=len(assessments),
+        weighted_count=len(weighted),
+        total_weight=total_weight,
+        is_complete=len(weighted) == len(assessments) and total_weight == Decimal(100),
+    )
+
+
 @router.get("/assessments/{assessment_id}", response_model=AssessmentRead)
 def get_assessment(
     assessment_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("assessment.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
 ) -> Assessment:
     return _get_or_404(db, Assessment, assessment_id, "Assessment")
 
@@ -604,8 +688,8 @@ def update_assessment(
     assessment_id: uuid.UUID,
     payload: AssessmentCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("assessment.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> Assessment:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
     previous_value = {
@@ -634,8 +718,8 @@ def update_assessment(
 def delete_assessment(
     assessment_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("assessment.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> None:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
     db.delete(assessment)
@@ -654,8 +738,8 @@ def delete_assessment(
 def advance_assessment(
     assessment_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("assessment.approve")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.approve", scope_type="program")),
 ) -> Assessment:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
     current_status = WorkflowStatus(assessment.status)
@@ -691,8 +775,8 @@ def advance_assessment(
 def create_assessment_question(
     payload: AssessmentQuestionCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("assessment.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> AssessmentQuestion:
     _get_or_404(db, Assessment, payload.assessment_id, "Assessment")
     _get_or_404(db, Question, payload.question_id, "Question")
@@ -714,8 +798,8 @@ def create_assessment_question(
 @router.get("/assessment-questions", response_model=list[AssessmentQuestionRead])
 def list_assessment_questions(
     assessment_id: uuid.UUID | None = Query(default=None),
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("assessment.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
 ) -> list[AssessmentQuestion]:
     query = db.query(AssessmentQuestion)
     if assessment_id is not None:
@@ -730,8 +814,8 @@ def update_assessment_question(
     assessment_question_id: uuid.UUID,
     payload: AssessmentQuestionCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("assessment.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> AssessmentQuestion:
     assessment_question = _get_or_404(
         db, AssessmentQuestion, assessment_question_id, "Assessment question"
@@ -764,8 +848,8 @@ def update_assessment_question(
 def delete_assessment_question(
     assessment_question_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("assessment.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> None:
     assessment_question = _get_or_404(
         db, AssessmentQuestion, assessment_question_id, "Assessment question"
@@ -780,3 +864,250 @@ def delete_assessment_question(
         entity_id=assessment_question_id,
         **get_request_context(request),
     )
+
+
+# --- Assessment documents (question paper / moderation form / compliance
+# form) — only meaningful for assessments whose AssessmentType.requires_
+# documents is true, but upload/list/review don't hard-enforce that (a UI
+# concern, not a data-integrity one); "pending" is intentionally NOT
+# WorkflowStatus — see AssessmentDocument's docstring. ---
+@router.get("/documents/pending", response_model=list[PendingAssessmentDocument])
+def list_pending_assessment_documents(
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.approve", scope_type="program")),
+) -> list[PendingAssessmentDocument]:
+    """Everything a Course Coordinator / Program Administrator needs to
+    review, across this program (the active program is already resolved by
+    get_program_scoped_db from the X-Program-Code header — no cross-program
+    scope_id filtering needed, unlike raw_data.py's pending-changes list,
+    since a program-scoped session only ever sees one program's rows)."""
+    rows = (
+        db.query(AssessmentDocument, Assessment)
+        .join(Assessment, AssessmentDocument.assessment_id == Assessment.id)
+        .filter(AssessmentDocument.status == "pending")
+        .order_by(AssessmentDocument.uploaded_at)
+        .all()
+    )
+    return [
+        PendingAssessmentDocument(
+            document=AssessmentDocumentRead.model_validate(doc),
+            assessment_id=assessment.id,
+            assessment_title=assessment.title,
+            course_section_id=assessment.course_section_id,
+        )
+        for doc, assessment in rows
+    ]
+
+
+@router.get("/assessments/{assessment_id}/documents", response_model=list[AssessmentDocumentRead])
+def list_assessment_documents(
+    assessment_id: uuid.UUID,
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
+) -> list[AssessmentDocument]:
+    _get_or_404(db, Assessment, assessment_id, "Assessment")
+    return (
+        db.query(AssessmentDocument)
+        .filter(AssessmentDocument.assessment_id == assessment_id)
+        .order_by(AssessmentDocument.document_type)
+        .all()
+    )
+
+
+@router.post(
+    "/assessments/{assessment_id}/documents",
+    response_model=AssessmentDocumentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_assessment_document(
+    assessment_id: uuid.UUID,
+    request: Request,
+    document_type: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
+) -> AssessmentDocument:
+    if document_type not in _DOCUMENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"document_type must be one of {sorted(_DOCUMENT_TYPES)}",
+        )
+    _get_or_404(db, Assessment, assessment_id, "Assessment")
+
+    key, size = save_upload(file, key_prefix=f"assessments/{assessment_id}/{document_type}")
+
+    existing = None
+    if document_type in _SINGLETON_DOCUMENT_TYPES:
+        existing = (
+            db.query(AssessmentDocument)
+            .filter(
+                AssessmentDocument.assessment_id == assessment_id,
+                AssessmentDocument.document_type == document_type,
+            )
+            .one_or_none()
+        )
+    now = datetime.now(UTC)
+    if existing is not None:
+        # Re-upload replaces the slot in place and resets it to pending —
+        # see AssessmentDocument's docstring for why there's no version history.
+        old_key = existing.file_key
+        existing.file_key = key
+        existing.file_name = file.filename or "document"
+        existing.file_size = size
+        existing.content_type = file.content_type or "application/octet-stream"
+        existing.status = "pending"
+        existing.uploaded_by = current_user.id
+        existing.uploaded_at = now
+        existing.reviewed_by = None
+        existing.reviewed_at = None
+        existing.review_note = None
+        db.add(existing)
+        db.flush()
+        delete_upload(old_key)
+        document = existing
+        action = "assessment_document.replaced"
+    else:
+        # Repeatable slots (_MULTI_DOCUMENT_TYPES) always land here too —
+        # there's simply never an `existing` row to find for them.
+        document = AssessmentDocument(
+            assessment_id=assessment_id,
+            document_type=document_type,
+            file_key=key,
+            file_name=file.filename or "document",
+            file_size=size,
+            content_type=file.content_type or "application/octet-stream",
+            status="pending",
+            uploaded_by=current_user.id,
+            uploaded_at=now,
+        )
+        db.add(document)
+        db.flush()
+        action = "assessment_document.uploaded"
+
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action=action,
+        entity_type="AssessmentDocument",
+        entity_id=document.id,
+        new_value={"document_type": document_type, "file_name": document.file_name},
+        **get_request_context(request),
+    )
+    return document
+
+
+@router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_assessment_document(
+    document_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
+) -> None:
+    """Only for repeatable slots (marked_rubric_sample, project_report) —
+    singleton slots are replaced via re-upload, never deleted outright, so
+    an assessment can't be left with zero rows for a required singleton type
+    through this endpoint."""
+    document = _get_or_404(db, AssessmentDocument, document_id, "Document")
+    if document.document_type not in _MULTI_DOCUMENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This document type is replaced by re-uploading, not deleted. "
+            "Upload a new file for this slot instead.",
+        )
+    delete_upload(document.file_key)
+    db.delete(document)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="assessment_document.deleted",
+        entity_type="AssessmentDocument",
+        entity_id=document_id,
+        **get_request_context(request),
+    )
+
+
+@router.get("/documents/{document_id}/download")
+def download_assessment_document(
+    document_id: uuid.UUID,
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
+) -> Response:
+    document = _get_or_404(db, AssessmentDocument, document_id, "Document")
+    contents = read_upload(document.file_key)
+    return Response(
+        content=contents,
+        media_type=document.content_type,
+        headers={"Content-Disposition": f'attachment; filename="{document.file_name}"'},
+    )
+
+
+@router.post("/documents/{document_id}/review", response_model=AssessmentDocumentRead)
+def review_assessment_document(
+    document_id: uuid.UUID,
+    payload: AssessmentDocumentReview,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.approve", scope_type="program")),
+) -> AssessmentDocument:
+    document = _get_or_404(db, AssessmentDocument, document_id, "Document")
+    if document.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Document is already {document.status!r}.",
+        )
+    document.status = payload.status
+    document.reviewed_by = current_user.id
+    document.reviewed_at = datetime.now(UTC)
+    document.review_note = payload.review_note
+    db.add(document)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action=f"assessment_document.{payload.status}",
+        entity_type="AssessmentDocument",
+        entity_id=document.id,
+        new_value={"status": payload.status, "review_note": payload.review_note},
+        **get_request_context(request),
+    )
+    return document
+
+
+@router.post(
+    "/assessments/{assessment_id}/extend-document-deadline", response_model=AssessmentRead
+)
+def extend_document_deadline(
+    assessment_id: uuid.UUID,
+    payload: AssessmentDocumentDeadlineExtend,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.approve", scope_type="program")),
+) -> Assessment:
+    """The default document-upload deadline is the assessment's academic
+    term end_date (computed client-side, not stored) — a Program
+    Administrator (assessment.approve) can push it later here."""
+    assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
+    previous_value = {
+        "document_deadline_extended_to": (
+            assessment.document_deadline_extended_to.isoformat()
+            if assessment.document_deadline_extended_to
+            else None
+        )
+    }
+    assessment.document_deadline_extended_to = payload.new_deadline
+    assessment.document_deadline_extended_by = current_user.id
+    assessment.document_deadline_extended_at = datetime.now(UTC)
+    db.add(assessment)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="assessment.document_deadline_extended",
+        entity_type="Assessment",
+        entity_id=assessment.id,
+        previous_value=previous_value,
+        new_value={"document_deadline_extended_to": payload.new_deadline.isoformat()},
+        **get_request_context(request),
+    )
+    return assessment

@@ -1,63 +1,19 @@
-import * as React from 'react'
-
 import { useAuth } from '@/features/auth/useAuth'
 
-const STORAGE_KEY = 'obevolve.active_role'
-
-interface ActiveRoleContextValue {
-  /** The role currently selected in the top-bar switcher, or null if none
-   * selected (or the user only holds one role) — in which case every nav
-   * section the user has permission for is shown, same as before this
-   * feature existed. This is presentational only: it never restricts which
-   * API calls succeed, only which sidebar sections are emphasized. */
-  activeRole: string | null
-  setActiveRole: (role: string | null) => void
-}
-
-const ActiveRoleContext = React.createContext<ActiveRoleContextValue | undefined>(undefined)
-
-export function ActiveRoleProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
-  const [activeRole, setActiveRoleState] = React.useState<string | null>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY)
-    } catch {
-      return null
-    }
-  })
-
-  // If the stored role is no longer one the user holds (different account,
-  // role revoked, etc.), drop it rather than filtering everything out.
-  // Adjusted directly during render rather than in an effect — this only
-  // fires once per invalidation since activeRole becomes null immediately.
-  if (activeRole && user && !user.roles.includes(activeRole)) {
-    setActiveRoleState(null)
-  }
-
-  const setActiveRole = React.useCallback((role: string | null) => {
-    setActiveRoleState(role)
-    try {
-      if (role) {
-        localStorage.setItem(STORAGE_KEY, role)
-      } else {
-        localStorage.removeItem(STORAGE_KEY)
-      }
-    } catch {
-      // localStorage unavailable (private browsing etc.) — in-memory state still works.
-    }
-  }, [])
-
-  const value = React.useMemo(() => ({ activeRole, setActiveRole }), [activeRole, setActiveRole])
-
-  return <ActiveRoleContext.Provider value={value}>{children}</ActiveRoleContext.Provider>
-}
-
-export function useActiveRole(): ActiveRoleContextValue {
-  const ctx = React.useContext(ActiveRoleContext)
-  if (!ctx) {
-    throw new Error('useActiveRole must be used within an ActiveRoleProvider')
-  }
-  return ctx
+/**
+ * Thin compatibility wrapper: the actual `activeRole`/`setActiveRole` state
+ * now lives in lib/auth-context.tsx (it restricts `hasPermission` there,
+ * not just this file's presentational nav-dimming — a real permission
+ * effect needs to live where `hasPermission` itself is computed, since
+ * dozens of components call `useAuth().hasPermission(...)` directly and
+ * would never see a separately-tracked "active role" otherwise). Kept as
+ * its own hook so the three existing call sites (app/layout.tsx,
+ * components/role-switcher.tsx) don't need to import from auth-context
+ * directly.
+ */
+export function useActiveRole() {
+  const { activeRole, setActiveRole } = useAuth()
+  return { activeRole, setActiveRole }
 }
 
 /**
@@ -69,10 +25,12 @@ export function useActiveRole(): ActiveRoleContextValue {
  */
 export const NAV_SECTION_ROLES: Record<string, string[]> = {
   dashboard: [],
-  curriculum: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  courseSettings: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  programSettings: ['Program Coordinator', 'Institution Administrator', 'Super Administrator'],
   academic: ['Faculty', 'Course Coordinator', 'Registrar', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
   grading: ['Faculty', 'Course Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
   assessment: ['Faculty', 'Course Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
+  analytics: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
   organization: ['Institution Administrator', 'Super Administrator'],
   rawData: [
     'Institution Administrator',
@@ -81,6 +39,7 @@ export const NAV_SECTION_ROLES: Record<string, string[]> = {
     'Course Administrator',
     'Program Coordinator',
   ],
+  about: [],
 }
 
 /** Case-insensitive, substring-tolerant match against the roles list above. */

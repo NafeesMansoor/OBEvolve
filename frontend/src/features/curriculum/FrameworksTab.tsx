@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Inbox, Layers } from 'lucide-react'
 
 import type {
   AccreditationFramework,
@@ -57,11 +58,22 @@ export function FrameworksTab() {
   )
 
   if (isLoading) {
-    return <Skeleton className="h-64 w-full" />
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-9 w-full max-w-sm" />
+        <Skeleton className="h-9 w-full max-w-md" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
   }
 
   if (!frameworks || frameworks.length === 0) {
-    return <p className="text-sm text-muted-foreground">No accreditation frameworks configured.</p>
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-md border border-dashed py-12 text-muted-foreground">
+        <Layers className="size-6 opacity-50" />
+        <span className="text-sm">No accreditation frameworks configured.</span>
+      </div>
+    )
   }
 
   return (
@@ -156,8 +168,11 @@ function FrameworkTable({ rows }: { rows: { key: string; code: string; text: str
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={2} className="py-6 text-center text-sm text-muted-foreground">
-                  Nothing to show.
+                <TableCell colSpan={2} className="py-8 text-center">
+                  <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                    <Inbox className="size-5 opacity-50" />
+                    <span className="text-sm">Nothing to show.</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

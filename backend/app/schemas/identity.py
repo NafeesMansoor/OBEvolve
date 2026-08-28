@@ -76,3 +76,11 @@ class UserRoleRead(BaseModel):
     role_id: uuid.UUID
     scope_type: str | None
     scope_id: uuid.UUID | None
+
+
+class FacultyDirectoryEntry(BaseModel):
+    """Minimal, non-sensitive shape (no email) for `GET /users/faculty-directory`
+    — deliberately not the full `UserRead`."""
+
+    id: uuid.UUID
+    full_name: str

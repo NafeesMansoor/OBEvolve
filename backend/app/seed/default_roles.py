@@ -160,17 +160,21 @@ DEFAULT_ROLES: list[RoleDef] = [
     ),
     RoleDef(
         "Program Coordinator",
-        "Coordinates one program's curriculum and outcome definitions "
-        "(typically scoped to one program). Cannot change program-level "
-        "data (PEOs, POs, PO-PEO mappings) — that's Program Administrator "
-        "territory. Raw-data-console writes to course-level tables are "
-        "proposals, not immediate changes: a Program Administrator must "
-        "approve one before it takes effect or becomes visible to others.",
+        "Manages semester-level course offerings for one program (spec §6:"
+        " define course offerings, create sections, assign faculty,"
+        " designate course coordinator) and its curriculum/outcome"
+        " definitions (typically scoped to one program). Cannot change"
+        " program-level data (PEOs, POs, PO-PEO mappings) — that's Program"
+        " Administrator territory. Raw-data-console writes to course-level"
+        " tables are proposals, not immediate changes: a Program"
+        " Administrator must approve one before it takes effect or becomes"
+        " visible to others.",
         (
             "program.view",
             "curriculum.view",
             "outcome.create",
             "mapping.create",
+            "section.manage",
             "section.view",
             "student.view",
             "grading.view",

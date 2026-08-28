@@ -11,6 +11,7 @@ import { useResetOnChange } from '@/lib/use-reset-on-change'
 import { Button } from '@/components/ui/button'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StatusBadge, WORKFLOW_NEXT, type WorkflowStatus } from '@/components/status-badge'
 
@@ -33,6 +34,7 @@ export function CourseOutcomesTab() {
   const [courseId, setCourseId] = React.useState('')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editCO, setEditCO] = React.useState<CourseOutcome | null>(null)
+  const [viewCO, setViewCO] = React.useState<CourseOutcome | null>(null)
 
   const { data: courses } = useEntityList<Course>(['curriculum', 'courses'], '/curriculum/courses')
   const { data: versions } = useEntityList<CourseVersion>(
@@ -133,7 +135,7 @@ export function CourseOutcomesTab() {
           isLoading={isLoading}
           error={error}
           emptyMessage="No course outcomes yet for this version."
-          onRowClick={canManage ? (r) => setEditCO(r) : undefined}
+          onRowClick={(r) => setViewCO(r)}
           actions={(r) => {
             const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
             if (!canApprove || !next) return null
@@ -179,6 +181,28 @@ export function CourseOutcomesTab() {
           }
         }}
       />
+
+      {viewCO && (
+        <RecordDetailSheet
+          open={Boolean(viewCO)}
+          onOpenChange={(open) => !open && setViewCO(null)}
+          title={viewCO.code}
+          badge={<StatusBadge status={viewCO.status} />}
+          fields={[
+            { label: 'Sequence', value: viewCO.sequence },
+            { label: 'Status', value: viewCO.status },
+            { label: 'Statement', value: viewCO.statement, full: true },
+          ]}
+          onEdit={
+            canManage
+              ? () => {
+                  setEditCO(viewCO)
+                  setViewCO(null)
+                }
+              : undefined
+          }
+        />
+      )}
 
       {editCO && (
         <EntityFormDialog

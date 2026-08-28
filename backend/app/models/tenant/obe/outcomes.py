@@ -29,11 +29,25 @@ class BloomLevel(UUIDPKMixin, TimestampMixin, TenantBase):
 
 
 class PEO(UUIDPKMixin, TimestampMixin, TenantBase):
+    """schema="program": see docs/adr/0003-schema-per-program.md.
+
+    The FK to `program_versions` (also schema="program") MUST spell out the
+    `program.` prefix (`ForeignKey("program.program_versions.id")`) even
+    though both tables share the "program" marker schema — unlike the
+    `None` (institution) schema, SQLAlchemy does not infer a FK target's
+    schema from the referencing table's schema, so an unqualified
+    `ForeignKey("program_versions.id")` would resolve against a phantom
+    schema=None "program_versions" table instead of the real one. Same
+    dotted-prefix convention already used for `Campus.institution_id`'s
+    `ForeignKey("public.institutions.id")`.
+    """
+
     __tablename__ = "peos"
+    __table_args__ = {"schema": "program"}
 
     program_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("program_versions.id", ondelete="CASCADE"),
+        ForeignKey("program.program_versions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -58,13 +72,22 @@ class PEO(UUIDPKMixin, TimestampMixin, TenantBase):
 class ProgramOutcome(UUIDPKMixin, TimestampMixin, TenantBase):
     """The program's *adopted* POs — what the program actually publishes and
     assesses against, which may differ in wording from the framework
-    (docs/adr/0002-framework-aware-outcomes.md)."""
+    (docs/adr/0002-framework-aware-outcomes.md).
+
+    schema="program": see docs/adr/0003-schema-per-program.md.
+    `framework_po_id` below points to `framework_pos` (institution-shared,
+    the `None` translate-map key) and needs no schema= override, but
+    `program_version_id` points to `program_versions` — also schema="program"
+    — and DOES need the explicit `program.` prefix; see `PEO`'s docstring for
+    why SQLAlchemy can't infer it from the referencing table's own schema.
+    """
 
     __tablename__ = "program_outcomes"
+    __table_args__ = {"schema": "program"}
 
     program_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("program_versions.id", ondelete="CASCADE"),
+        ForeignKey("program.program_versions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.db.tenancy import get_db
 from app.middleware.audit import get_request_context
-from app.models.tenant.identity import Role, User, UserRole
+from app.models.tenant.identity import FacultyProfile, Role, User, UserRole
 from app.schemas.identity import (
+    FacultyDirectoryEntry,
     RoleRead,
     RoleUpdate,
     UserCreate,
@@ -21,7 +22,7 @@ from app.schemas.identity import (
     UserUpdate,
 )
 from app.services.audit import write_audit_log
-from app.services.rbac import require_permission
+from app.services.rbac import get_current_user, require_permission
 
 router = APIRouter()
 
@@ -62,6 +63,52 @@ def list_users(
     _current_user: User = Depends(require_permission("user.view")),
 ) -> list[User]:
     return db.query(User).order_by(User.full_name).all()
+
+
+@router.get("/user-roles", response_model=list[UserRoleRead])
+def list_user_roles(
+    user_id: uuid.UUID | None = None,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("role.view")),
+) -> list[UserRole]:
+    """Was missing entirely until now — the console could POST/DELETE role
+    grants but had no way to list existing ones, so the frontend fell back
+    to a localStorage-only cache of grants made in that same browser (now
+    removed — see frontend/src/features/organization/UsersTab.tsx).
+    `user_id` narrows to one user's grants; omitted, returns every grant in
+    the tenant (small enough — grants are one row per user/role/scope, not
+    a high-cardinality table — to not need pagination yet).
+
+    MUST be registered before `GET /{user_id}` below: both are single path
+    segments, and Starlette matches routes in registration order — with
+    this route later in the file, `GET /user-roles` was being swallowed by
+    `/{user_id}` first (tried to parse "user-roles" as a UUID, 422'd)."""
+    query = db.query(UserRole)
+    if user_id is not None:
+        query = query.filter(UserRole.user_id == user_id)
+    return query.all()
+
+
+@router.get("/faculty-directory", response_model=list[FacultyDirectoryEntry])
+def list_faculty_directory(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+) -> list[FacultyDirectoryEntry]:
+    """Open to any authenticated tenant user, not gated behind `user.view`
+    (the full user-directory permission) — Faculty/Course Coordinator/
+    Program Coordinator hold `section.manage` and legitimately need to pick
+    a colleague when assigning faculty to a section, without holding
+    `user.view`. Deliberately narrower than `UserRead` (id + name only, no
+    email) and filtered to users with a `FacultyProfile`, so this isn't a
+    backdoor around the real user directory — just enough to populate that
+    one picker (and resolve names for already-assigned faculty)."""
+    rows = (
+        db.query(User.id, User.full_name)
+        .join(FacultyProfile, FacultyProfile.user_id == User.id)
+        .order_by(User.full_name)
+        .all()
+    )
+    return [FacultyDirectoryEntry(id=row.id, full_name=row.full_name) for row in rows]
 
 
 @router.get("/{user_id}", response_model=UserRead)

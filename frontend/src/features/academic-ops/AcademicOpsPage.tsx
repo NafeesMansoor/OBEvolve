@@ -1,4 +1,5 @@
 import { useAuth } from '@/features/auth/useAuth'
+import { AcademicCalendarTab } from '@/features/organization/AcademicCalendarTab'
 import { EnrollmentsTab } from '@/features/academic-ops/EnrollmentsTab'
 import { FacultyAssignmentsTab } from '@/features/academic-ops/FacultyAssignmentsTab'
 import { OfferingsTab } from '@/features/academic-ops/OfferingsTab'
@@ -22,13 +23,19 @@ export function AcademicOpsPage() {
     },
     { value: 'enrollments', label: 'Enrollments', show: hasPermission('student.view'), content: <EnrollmentsTab /> },
     { value: 'students', label: 'Students', show: hasPermission('student.view'), content: <StudentsTab /> },
+    {
+      value: 'calendar',
+      label: 'Academic calendar',
+      show: hasPermission('academic_calendar.view'),
+      content: <AcademicCalendarTab />,
+    },
   ].filter((t) => t.show)
 
   return (
-    <RequirePermission anyOf={['section.view', 'student.view']}>
+    <RequirePermission anyOf={['section.view', 'student.view', 'academic_calendar.view']}>
       <PageHeader
         title="Academic Operations"
-        description="Course offerings, sections, faculty assignments, enrollments, and students."
+        description="Course offerings, sections, faculty assignments, enrollments, students, and the academic calendar."
       />
       {tabs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No academic operations sections available.</p>

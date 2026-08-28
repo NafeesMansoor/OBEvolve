@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Download, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
 import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
+import { ImportFromTermDialog } from '@/features/academic-ops/ImportFromTermDialog'
 
 const schema = z.object({
   course_version_id: z.string().min(1, 'Course version is required'),
@@ -24,11 +26,17 @@ export function OfferingsTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('section.manage')
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [importOpen, setImportOpen] = React.useState(false)
   const [editOffering, setEditOffering] = React.useState<CourseOffering | null>(null)
+  const [viewOffering, setViewOffering] = React.useState<CourseOffering | null>(null)
 
   const { options: cvOptions, labelFor } = useCourseVersionLookup()
   const { options: termOptions, termById } = useAcademicTermLookup()
   const { options: pvOptions } = useProgramVersionOptions()
+  const pvLabelById = React.useMemo(
+    () => new Map(pvOptions.map((o) => [o.value, o.label])),
+    [pvOptions],
+  )
 
   const { data, isLoading, error } = useEntityList<CourseOffering>(
     ['academic', 'course-offerings'],
@@ -64,7 +72,12 @@ export function OfferingsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {canManage && (
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+            <Download className="size-4" /> Import from term
+          </Button>
+        )}
         {canManage && (
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> New offering
@@ -80,13 +93,13 @@ export function OfferingsTab() {
         error={error}
         searchable
         emptyMessage="No course offerings yet."
-        onRowClick={canManage ? (r) => setEditOffering(r) : undefined}
+        onRowClick={(r) => setViewOffering(r)}
         actions={
           canManage
             ? (r) => (
                 <ConfirmAction
                   trigger={
-                    <Button size="sm" variant="ghost">
+                    <Button size="sm" variant="ghost" aria-label="Delete offering">
                       <Trash2 className="size-4" />
                     </Button>
                   }
@@ -127,6 +140,33 @@ export function OfferingsTab() {
         }}
       />
 
+      {viewOffering && (
+        <RecordDetailSheet
+          open={Boolean(viewOffering)}
+          onOpenChange={(open) => !open && setViewOffering(null)}
+          title={labelFor(viewOffering.course_version_id)}
+          subtitle={termById.get(viewOffering.academic_term_id)?.name}
+          fields={[
+            { label: 'Course', value: labelFor(viewOffering.course_version_id) },
+            { label: 'Term', value: termById.get(viewOffering.academic_term_id)?.name ?? '—' },
+            {
+              label: 'Program version',
+              value: viewOffering.program_version_id
+                ? (pvLabelById.get(viewOffering.program_version_id) ?? '—')
+                : 'Institution-wide',
+            },
+          ]}
+          onEdit={
+            canManage
+              ? () => {
+                  setEditOffering(viewOffering)
+                  setViewOffering(null)
+                }
+              : undefined
+          }
+        />
+      )}
+
       {editOffering && (
         <EntityFormDialog
           open={Boolean(editOffering)}
@@ -156,6 +196,40 @@ export function OfferingsTab() {
           }}
         />
       )}
+
+      <ImportFromTermDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        termOptions={termOptions}
+        onImport={async (sourceTermId, targetTermId) => {
+          const source = (data ?? []).filter((o) => o.academic_term_id === sourceTermId)
+          const alreadyInTarget = new Set(
+            (data ?? [])
+              .filter((o) => o.academic_term_id === targetTermId)
+              .map((o) => o.course_version_id),
+          )
+          const toImport = source.filter((o) => !alreadyInTarget.has(o.course_version_id))
+
+          let imported = 0
+          for (const offering of toImport) {
+            try {
+              await create.mutateAsync({
+                course_version_id: offering.course_version_id,
+                academic_term_id: targetTermId,
+                program_version_id: offering.program_version_id ?? null,
+              })
+              imported += 1
+            } catch {
+              // Best-effort: one failure doesn't abort the rest of the batch.
+            }
+          }
+          const skipped = source.length - toImport.length
+          toast.success(
+            `Imported ${imported} offering${imported === 1 ? '' : 's'}` +
+              (skipped > 0 ? ` (${skipped} already existed in the target term)` : ''),
+          )
+        }}
+      />
     </div>
   )
 }

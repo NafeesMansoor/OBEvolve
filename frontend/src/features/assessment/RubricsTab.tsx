@@ -189,7 +189,8 @@ function RubricItem({
                   className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                 >
                   <span>
-                    {c.criterion} <span className="text-muted-foreground">(weight {c.weight})</span>
+                    {c.criterion}{' '}
+                    <span className="text-muted-foreground tabular-nums">(weight {c.weight})</span>
                   </span>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline" onClick={() => setLevelsForCriterion(c)}>
@@ -198,8 +199,8 @@ function RubricItem({
                     {canManage && (
                       <ConfirmAction
                         trigger={
-                          <Button size="sm" variant="ghost">
-                            <Trash2 className="size-4" />
+                          <Button size="sm" variant="ghost" aria-label={`Delete criterion "${c.criterion}"`}>
+                            <Trash2 className="size-4 text-destructive" />
                           </Button>
                         }
                         title={`Delete criterion "${c.criterion}"?`}
@@ -304,13 +305,13 @@ function LevelsDialog({
               .map((l) => (
                 <div key={l.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
                   <span>
-                    {l.label} <span className="text-muted-foreground">({l.score} pts)</span>
+                    {l.label} <span className="text-muted-foreground tabular-nums">({l.score} pts)</span>
                   </span>
                   {canManage && (
                     <ConfirmAction
                       trigger={
-                        <Button size="sm" variant="ghost">
-                          <Trash2 className="size-4" />
+                        <Button size="sm" variant="ghost" aria-label={`Delete level "${l.label}"`}>
+                          <Trash2 className="size-4 text-destructive" />
                         </Button>
                       }
                       title={`Delete level "${l.label}"?`}

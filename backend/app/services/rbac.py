@@ -12,15 +12,18 @@ accessed".
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.security import InvalidTokenError, TokenType, decode_token
-from app.db.tenancy import get_db
+from app.db.tenancy import get_db, get_program_db
 from app.models.tenant.identity import Permission, Role, RolePermission, User, UserRole
+from app.models.tenant.org import Program
+
+PROGRAM_CODE_HEADER = "X-Program-Code"
 
 # tokenUrl is documentational only (schema-per-tenant login is tenant-scoped,
 # not a single global endpoint) — the actual token is validated against the
@@ -127,13 +130,45 @@ def require_permission(
 ) -> Callable[..., User]:
     """FastAPI dependency factory: 403s unless the current user holds `code`.
 
-    `scope_type`, when given, is matched against unscoped or same-type scoped
-    grants only; resolving the concrete `scope_id` of the resource being
-    accessed is left to the endpoint (pass it via a wrapping dependency) —
-    Phase 1 endpoints operate at institution scope, so this parameter exists
-    for later phases to opt into resource-scoped checks without changing the
-    dependency's shape.
+    `scope_type="program"` matches an unscoped grant *or* a
+    `scope_type="program"` grant scoped to the exact program the request's
+    `X-Program-Code` header already resolved and authorized
+    (`get_program_context`) — the same program a sibling
+    `Depends(get_program_scoped_db)` on the same endpoint is bound to.
+    `get_program_context` is itself cached per-request by FastAPI, so
+    declaring it here doesn't re-run the header/grant resolution it already
+    did for `get_program_scoped_db`.
+
+    Historically this parameter was accepted but never actually resolved a
+    concrete `scope_id` to compare against — `grants_satisfy_permission`
+    requires an *exact* `(scope_type, scope_id)` match for a scoped grant,
+    so passing `scope_type="program"` alone could never match any real
+    scoped grant (`scope_id` stayed `None` on both sides only by
+    coincidence-proof, never on purpose). That silently rejected every
+    correctly *scoped* Program Coordinator/Administrator/Course
+    Administrator grant on every program-scoped endpoint using this
+    parameter — the intended, realistic way those roles get assigned — data
+    that looked missing (COs, mappings, "Add" actions failing/hidden)
+    was actually just permission checks that could never pass. Found live
+    against a real Program Coordinator account.
     """
+    if scope_type == "program":
+
+        def program_scoped_dependency(
+            current_user: User = Depends(get_current_user),
+            db: Session = Depends(get_db),
+            program: Program = Depends(get_program_context),
+        ) -> User:
+            if not user_has_permission(
+                db, current_user.id, code, scope_type="program", scope_id=program.id
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Missing required permission: {code}",
+                )
+            return current_user
+
+        return program_scoped_dependency
 
     def dependency(
         current_user: User = Depends(get_current_user),
@@ -147,6 +182,68 @@ def require_permission(
         return current_user
 
     return dependency
+
+
+def get_program_context(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Program:
+    """Resolves the `X-Program-Code` header to a `Program` row and 403s
+    unless the caller holds either an institution-wide grant (any permission,
+    unscoped) or a grant scoped to this exact program
+    (`scope_type="program"`, `scope_id==program.id`) — see
+    docs/adr/0003-schema-per-program.md. This runs BEFORE any program-schema
+    session is opened (`get_program_scoped_db` below depends on it), so an
+    unauthorized caller never gets a query bound to a program schema they
+    don't have a grant for, regardless of what specific permission the
+    endpoint itself goes on to check.
+    """
+    program_code = request.headers.get(PROGRAM_CODE_HEADER)
+    if not program_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{PROGRAM_CODE_HEADER} header is required",
+        )
+
+    program = (
+        db.query(Program)
+        .filter(Program.code == program_code, Program.is_active.is_(True))
+        .one_or_none()
+    )
+    if program is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Unknown or inactive program"
+        )
+
+    grants = get_user_permission_grants(db, current_user.id)
+    authorized = any(scope_type is None for _code, scope_type, _scope_id in grants) or any(
+        scope_type == "program" and scope_id == program.id
+        for _code, scope_type, scope_id in grants
+    )
+    if not authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No grant for this program",
+        )
+
+    # Stashed on request.state so endpoints can cross-check a payload's own
+    # program_id/scope against the header-authorized program without
+    # re-querying (see app.api.v1.endpoints.org.create_program_version).
+    request.state.program_id = program.id
+    request.state.program_code = program.code
+    return program
+
+
+def get_program_scoped_db(
+    request: Request,
+    program: Program = Depends(get_program_context),
+) -> Generator[Session]:
+    """FastAPI dependency: a session bound to both the institution schema and
+    `program`'s schema. Use in place of `get_db` for endpoints touching
+    program-specific tables (see docs/adr/0003-schema-per-program.md for the
+    full table list)."""
+    yield from get_program_db(request, program.code)
 
 
 def require_any_grant(*codes: str) -> Callable[..., User]:

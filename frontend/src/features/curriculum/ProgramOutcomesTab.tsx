@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StatusBadge, WORKFLOW_NEXT, type WorkflowStatus } from '@/components/status-badge'
 
@@ -27,10 +28,16 @@ export function ProgramOutcomesTab() {
   const [programVersionId, setProgramVersionId] = React.useState('')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editPO, setEditPO] = React.useState<ProgramOutcome | null>(null)
+  const [viewPO, setViewPO] = React.useState<ProgramOutcome | null>(null)
 
   const { data: frameworks } = useEntityList<AccreditationFramework>(
     ['curriculum', 'frameworks'],
     '/curriculum/frameworks',
+  )
+  const frameworkPoOptions = useAllFrameworkPOOptions(frameworks ?? [])
+  const frameworkPoLabelById = React.useMemo(
+    () => new Map(frameworkPoOptions.map((o) => [o.value, o.label])),
+    [frameworkPoOptions],
   )
 
   const {
@@ -110,7 +117,7 @@ export function ProgramOutcomesTab() {
           isLoading={isLoading}
           error={error}
           emptyMessage="No program outcomes yet for this program version."
-          onRowClick={canManage ? (r) => setEditPO(r) : undefined}
+          onRowClick={(r) => setViewPO(r)}
           actions={(r) => {
             const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
             if (!canApprove || !next) return null
@@ -149,6 +156,34 @@ export function ProgramOutcomesTab() {
               throw err instanceof ApiError ? err : new ApiError('Unable to create program outcome.')
             }
           }}
+        />
+      )}
+
+      {viewPO && (
+        <RecordDetailSheet
+          open={Boolean(viewPO)}
+          onOpenChange={(open) => !open && setViewPO(null)}
+          title={viewPO.title ? `${viewPO.code} — ${viewPO.title}` : viewPO.code}
+          badge={<StatusBadge status={viewPO.status} />}
+          fields={[
+            { label: 'Sequence', value: viewPO.sequence },
+            { label: 'Status', value: viewPO.status },
+            {
+              label: 'Linked framework PO',
+              value: viewPO.framework_po_id
+                ? (frameworkPoLabelById.get(viewPO.framework_po_id) ?? 'Linked')
+                : 'Unlinked',
+            },
+            { label: 'Statement', value: viewPO.statement, full: true },
+          ]}
+          onEdit={
+            canManage
+              ? () => {
+                  setEditPO(viewPO)
+                  setViewPO(null)
+                }
+              : undefined
+          }
         />
       )}
 

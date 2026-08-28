@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { useEntityCreate, useEntityList } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
 
@@ -28,6 +29,7 @@ export function CampusesTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('org.manage')
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [viewCampus, setViewCampus] = React.useState<Campus | null>(null)
 
   const { data, isLoading, error } = useEntityList<Campus>(['org', 'campuses'], '/org/campuses')
   const create = useEntityCreate<Record<string, unknown>, Campus>('/org/campuses', [
@@ -68,7 +70,26 @@ export function CampusesTab() {
         searchable
         searchPlaceholder="Search campuses…"
         emptyMessage="No campuses yet."
+        onRowClick={(r) => setViewCampus(r)}
       />
+
+      {viewCampus && (
+        <RecordDetailSheet
+          open={Boolean(viewCampus)}
+          onOpenChange={(open) => !open && setViewCampus(null)}
+          title={viewCampus.name}
+          badge={
+            <Badge variant={viewCampus.is_active ? 'secondary' : 'outline'} className="font-normal">
+              {viewCampus.is_active ? 'Active' : 'Inactive'}
+            </Badge>
+          }
+          fields={[
+            { label: 'Code', value: viewCampus.code },
+            { label: 'Status', value: viewCampus.is_active ? 'Active' : 'Inactive' },
+            { label: 'Address', value: viewCampus.address ?? '—', full: true },
+          ]}
+        />
+      )}
 
       <EntityFormDialog
         open={dialogOpen}

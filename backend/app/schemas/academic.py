@@ -60,6 +60,13 @@ class FacultyAssignmentRead(BaseModel):
     id: uuid.UUID
     course_section_id: uuid.UUID
     faculty_user_id: uuid.UUID
+    # Resolved server-side (not auto-mapped from the ORM row) so the
+    # frontend can render a name without a separate `GET /users` call —
+    # Faculty/Course Coordinator/Program Coordinator legitimately need to
+    # see who's assigned via `section.view` without holding `user.view`
+    # (the full user-directory permission), which previously left this
+    # blank/showing a raw UUID for those roles.
+    faculty_name: str | None = None
     role: str
     created_at: datetime
     updated_at: datetime

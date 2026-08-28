@@ -18,14 +18,18 @@ from app.models.tenant.accreditation import (
 )
 from app.models.tenant.assessments import (
     Assessment,
+    AssessmentDocument,
     AssessmentQuestion,
     AssessmentType,
+    CourseAttainmentConfig,
+    ProgramAttainmentConfig,
     Question,
     QuestionBloomMapping,
     QuestionCourseOutcomeMapping,
     Rubric,
     RubricCriterion,
     RubricLevel,
+    StudentMark,
 )
 from app.models.tenant.audit import AuditLog, Notification
 from app.models.tenant.courses import (
@@ -53,7 +57,7 @@ from app.models.tenant.mappings import (
     MappingScaleLevel,
     ProgramOutcomePEOMapping,
 )
-from app.models.tenant.obe import PEO, BloomLevel, CourseOutcome, ProgramOutcome
+from app.models.tenant.obe import PEO, BloomLevel, CourseOutcome, ImprovementPlan, ProgramOutcome
 from app.models.tenant.org import (
     AcademicTerm,
     AcademicYear,
@@ -72,12 +76,14 @@ __all__ = [
     "AccreditationBody",
     "AccreditationFramework",
     "Assessment",
+    "AssessmentDocument",
     "AssessmentQuestion",
     "AssessmentType",
     "AuditLog",
     "BloomLevel",
     "Campus",
     "Course",
+    "CourseAttainmentConfig",
     "CourseOffering",
     "CourseOutcome",
     "CourseOutcomePOMapping",
@@ -90,6 +96,7 @@ __all__ = [
     "FrameworkPO",
     "GradingBand",
     "GradingPolicy",
+    "ImprovementPlan",
     "KnowledgeProfile",
     "MappingScale",
     "MappingScaleLevel",
@@ -97,6 +104,7 @@ __all__ = [
     "Permission",
     "ProblemAttribute",
     "Program",
+    "ProgramAttainmentConfig",
     "ProgramOutcome",
     "ProgramOutcomePEOMapping",
     "ProgramVersion",
@@ -111,6 +119,7 @@ __all__ = [
     "RubricLevel",
     "School",
     "StudentEnrollment",
+    "StudentMark",
     "StudentProfile",
     "User",
     "UserRole",

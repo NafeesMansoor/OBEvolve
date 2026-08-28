@@ -101,7 +101,7 @@ export function PeoPoMatrixTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm rounded-md border bg-muted/30 p-3">
         <Select value={programVersionId} onValueChange={setProgramVersionId}>
           <SelectTrigger>
             <SelectValue placeholder="Select a program version" />

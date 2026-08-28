@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Database, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -201,7 +201,7 @@ export function RawDataConsolePage() {
                     type="button"
                     onClick={() => selectTable(name)}
                     className={cn(
-                      'rounded-md px-2 py-1.5 text-left text-sm font-mono transition-colors',
+                      'cursor-pointer rounded-md px-2 py-1.5 text-left text-sm font-mono transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                       selectedTable === name
                         ? 'bg-primary/10 text-primary'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
@@ -222,6 +222,7 @@ export function RawDataConsolePage() {
           {!selectedTable ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+                <Database className="size-8 text-muted-foreground" />
                 <p className="font-medium">Select a table to browse its rows</p>
                 <p className="max-w-sm text-sm text-muted-foreground">
                   {tables.data?.length ?? 0} tables are available to you based on your current
@@ -317,18 +318,24 @@ export function RawDataConsolePage() {
                               </TableCell>
                             ))}
                             <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
+                              <div className="flex justify-end gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   className="size-8"
+                                  aria-label={`Edit row${pk ? ` ${pk}` : ''}`}
                                   onClick={() => setEditRow(row)}
                                 >
                                   <Pencil className="size-4" />
                                 </Button>
                                 <ConfirmAction
                                   trigger={
-                                    <Button variant="ghost" size="icon" className="size-8 text-destructive">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                      aria-label={`Delete row${pk ? ` ${pk}` : ''}`}
+                                    >
                                       <Trash2 className="size-4" />
                                     </Button>
                                   }

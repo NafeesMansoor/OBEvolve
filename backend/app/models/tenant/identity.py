@@ -161,6 +161,20 @@ class PasswordResetToken(UUIDPKMixin, TenantBase):
 
 
 class StudentProfile(TenantBase):
+    """`program_version_id` is a plain UUID with NO database-level foreign
+    key (unlike a same-schema program_version_id reference): this table
+    stays institution-shared with `users`
+    (docs/adr/0003-schema-per-program.md), but `program_versions` now lives
+    in a per-program schema, and an institution can have more than one
+    program — a single FK constraint can only target one fixed schema, so a
+    real constraint here would be architecturally unsound the moment a
+    second program exists. Referential integrity for this column is
+    enforced at the application layer instead. The tenant-schema
+    `student_profiles_program_version_id_fkey` constraint from before the
+    schema-per-program migration is dropped in
+    alembic/tenant/versions/0008_program_schema_split.py.
+    """
+
     __tablename__ = "student_profiles"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -171,7 +185,7 @@ class StudentProfile(TenantBase):
         UUID(as_uuid=True), ForeignKey("programs.id", ondelete="SET NULL"), nullable=True
     )
     program_version_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("program_versions.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), nullable=True
     )
     batch_year: Mapped[int | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")

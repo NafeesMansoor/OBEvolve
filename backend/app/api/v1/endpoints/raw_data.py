@@ -20,10 +20,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_engine, get_sessionmaker, session_scope
-from app.db.tenancy import get_db
+from app.db.tenancy import get_db, program_schema_name
 from app.middleware.audit import get_request_context
 from app.models.public.institution import Institution
 from app.models.tenant.identity import User
+from app.models.tenant.org import Program
 from app.models.tenant.raw_data import RawDataChangeRequest
 from app.schemas.raw_data import (
     ChangeRequestRead,
@@ -63,23 +64,22 @@ def list_institutions(
         return public_db.query(Institution).order_by(Institution.slug).all()
 
 
-def _target_session(
+def _resolve_institution_schema(
     request: Request, current_user: User, db: Session, institution_slug: str | None
-) -> tuple[Session, bool]:
-    """Resolve which tenant schema this request actually operates against.
-
-    Same institution as the caller logged into (the common case): reuse the
-    request's own tenant-bound `db`. A *different* institution: only valid
-    for a Super Administrator (raw_data.manage_all), opens a fresh session
-    bound to that institution's schema. Returns (session, is_cross_institution)
-    — the latter matters for audit logging, see the callers below: writing
-    to another institution's audit_logs with *this* user's id would violate
-    that schema's users FK (the user doesn't exist there), so cross-
-    institution actions are logged to the structured app logger instead.
+) -> tuple[str, bool]:
+    """Resolve which tenant SCHEMA NAME this request actually operates
+    against — same institution as the caller logged into (the common case)
+    returns the request's own schema; a *different* institution is Super
+    Administrator (raw_data.manage_all) only. Returns
+    (schema_name, is_cross_institution) — the latter matters for audit
+    logging, see `_resolve_target`'s callers below: writing to another
+    institution's audit_logs with *this* user's id would violate that
+    schema's users FK (the user doesn't exist there), so cross-institution
+    actions are logged to the structured app logger instead.
     """
     home_slug = getattr(request.state, "institution_slug", None)
     if not institution_slug or institution_slug == home_slug:
-        return db, False
+        return request.state.schema_name, False
 
     grants = get_user_permission_grants(db, current_user.id)
     if not any(code == "raw_data.manage_all" for code, _st, _sid in grants):
@@ -95,11 +95,80 @@ def _target_session(
     if institution is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Institution not found")
 
+    return institution.schema_name, True
+
+
+def _resolve_program(
+    institution_schema: str,
+    is_cross_institution: bool,
+    db: Session,
+    grants: list[rd.ScopedGrant],
+    program_code: str | None,
+) -> Program | None:
+    """`rd.resolve_active_program` needs a session bound to the TARGET
+    institution's schema (the `None` key) — the request's own `db` already
+    is that, unless we're crossing institutions, in which case a throwaway
+    institution-only session is opened just for this lookup."""
+    if not is_cross_institution:
+        try:
+            return rd.resolve_active_program(db, grants, program_code)
+        except LookupError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
     SessionLocal = get_sessionmaker()
-    connectable = get_engine().execution_options(
-        schema_translate_map={None: institution.schema_name}
+    inst_only_db = SessionLocal(
+        bind=get_engine().execution_options(schema_translate_map={None: institution_schema})
     )
-    return SessionLocal(bind=connectable), True
+    try:
+        return rd.resolve_active_program(inst_only_db, grants, program_code)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    finally:
+        inst_only_db.close()
+
+
+def _resolve_target(
+    request: Request,
+    current_user: User,
+    db: Session,
+    grants: list[rd.ScopedGrant],
+    institution_slug: str | None,
+    program_code: str | None,
+) -> tuple[Session, bool, bool, Program | None]:
+    """Resolve which schema(s) this request actually operates against.
+    Returns (session, is_cross_institution, is_new_session, active_program).
+
+    `is_cross_institution` (audit-logging: tenant `audit_logs` vs the
+    structured app logger — see `_resolve_institution_schema`) and
+    `is_new_session` (session-lifecycle: whether the caller must
+    `commit()`/`close()` it, vs FastAPI's `get_db` already owning that for
+    the request's own `db`) are DIFFERENT questions now: resolving a
+    program requires a freshly-opened session (its schema_translate_map
+    needs a "program" key `db` was never built with — see
+    `app.services.rbac.get_program_scoped_db`) even when staying in the
+    caller's own institution, so `is_new_session` can be true while
+    `is_cross_institution` is false.
+    """
+    institution_schema, is_cross = _resolve_institution_schema(
+        request, current_user, db, institution_slug
+    )
+    active_program = _resolve_program(institution_schema, is_cross, db, grants, program_code)
+
+    if not is_cross and active_program is None:
+        return db, False, False, None
+
+    translate_map: dict[str | None, str] = {None: institution_schema}
+    if active_program is not None:
+        translate_map["program"] = program_schema_name(institution_schema, active_program.code)
+
+    SessionLocal = get_sessionmaker()
+    connectable = get_engine().execution_options(schema_translate_map=translate_map)
+    target_db = SessionLocal(bind=connectable)
+    return target_db, is_cross, True, active_program
 
 
 def _grants(db: Session, current_user: User) -> list[rd.ScopedGrant]:
@@ -107,9 +176,11 @@ def _grants(db: Session, current_user: User) -> list[rd.ScopedGrant]:
     return rd.raw_data_grants(all_grants)
 
 
-def _get_table_or_404(table_name: str, *, allow_public: bool) -> sa.Table:
+def _get_table_or_404(
+    table_name: str, *, allow_public: bool, allow_program: bool = False
+) -> sa.Table:
     try:
-        return rd.get_table(table_name, allow_public=allow_public)
+        return rd.get_table(table_name, allow_public=allow_public, allow_program=allow_program)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except PermissionError as exc:
@@ -171,21 +242,20 @@ def list_tables(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_grant(*_ANY_RAW_DATA_CODE)),
 ) -> list[str]:
-    target_db, is_cross = _target_session(request, current_user, db, institution_slug)
-    try:
-        grants = _grants(db, current_user)  # permission grants always come from the home tenant
-        if is_cross:
-            # Cross-institution access is Super Admin only (enforced in
-            # _target_session) — that grant already implies "every table".
-            names = rd.accessible_table_names(
-                [g for g in grants if g.permission_code == "raw_data.manage_all"]
-            )
-        else:
-            names = rd.accessible_table_names(grants)
-        return sorted(names)
-    finally:
-        if is_cross:
-            target_db.close()
+    grants = _grants(db, current_user)  # permission grants always come from the home tenant
+    _institution_schema, is_cross = _resolve_institution_schema(
+        request, current_user, db, institution_slug
+    )
+    if is_cross:
+        # Cross-institution access is Super Admin only (enforced in
+        # _resolve_institution_schema) — that grant already implies "every
+        # table". Pure name-listing, no session needed for either branch.
+        names = rd.accessible_table_names(
+            [g for g in grants if g.permission_code == "raw_data.manage_all"]
+        )
+    else:
+        names = rd.accessible_table_names(grants)
+    return sorted(names)
 
 
 @router.get("/tables/{table_name}/schema", response_model=TableSchema)
@@ -196,9 +266,14 @@ def get_table_schema(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_grant(*_ANY_RAW_DATA_CODE)),
 ) -> TableSchema:
+    del request  # unused: schema introspection never opens a schema-bound session
     grants = _grants(db, current_user)
     allow_public = rd.has_cross_institution_access(grants)
-    table = _get_table_or_404(table_name, allow_public=allow_public)
+    # allow_program=True unconditionally: this only introspects the Table
+    # object's Python-side column metadata, never compiles/executes a query
+    # against it, so the "no program schema_translate_map key active" risk
+    # get_table's allow_program gate exists for doesn't apply here.
+    table = _get_table_or_404(table_name, allow_public=allow_public, allow_program=True)
     _ensure_table_visible(grants, table_name)
 
     columns = [
@@ -219,16 +294,28 @@ def list_rows(
     table_name: str,
     request: Request,
     institution_slug: str | None = Query(default=None),
+    program_code: str | None = Query(
+        default=None,
+        description=(
+            "Required for a PROGRAM_SCHEMA_TABLES table unless the caller "
+            "holds a program-scoped grant (Program Administrator/Coordinator), "
+            "which auto-resolves their own program."
+        ),
+    ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_grant(*_ANY_RAW_DATA_CODE)),
 ) -> RowsPage:
     grants = _grants(db, current_user)
-    target_db, is_cross = _target_session(request, current_user, db, institution_slug)
+    target_db, is_cross, is_new_session, active_program = _resolve_target(
+        request, current_user, db, grants, institution_slug, program_code
+    )
     try:
         allow_public = rd.has_cross_institution_access(grants)
-        table = _get_table_or_404(table_name, allow_public=allow_public)
+        table = _get_table_or_404(
+            table_name, allow_public=allow_public, allow_program=active_program is not None
+        )
         _ensure_table_visible(grants, table_name)
 
         row_filter = None if is_cross else rd.build_scope_filter(target_db, table, grants)
@@ -247,13 +334,13 @@ def list_rows(
             page_size=page_size,
         )
     finally:
-        if is_cross:
+        if is_new_session:
             target_db.close()
 
 
 def _write_mode_for(grants: list[rd.ScopedGrant], is_cross: bool, table_name: str) -> str:
     if is_cross:
-        return "immediate"  # already gated to raw_data.manage_all in _target_session
+        return "immediate"  # already gated to raw_data.manage_all in _resolve_institution_schema
     return rd.resolve_write_mode(grants, table_name)
 
 
@@ -267,14 +354,19 @@ def insert_row(
     payload: dict[str, Any],
     request: Request,
     institution_slug: str | None = Query(default=None),
+    program_code: str | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_grant(*_ANY_RAW_DATA_CODE)),
 ) -> RowMutationResult:
     grants = _grants(db, current_user)
-    target_db, is_cross = _target_session(request, current_user, db, institution_slug)
+    target_db, is_cross, is_new_session, active_program = _resolve_target(
+        request, current_user, db, grants, institution_slug, program_code
+    )
     try:
         allow_public = rd.has_cross_institution_access(grants)
-        table = _get_table_or_404(table_name, allow_public=allow_public)
+        table = _get_table_or_404(
+            table_name, allow_public=allow_public, allow_program=active_program is not None
+        )
         _ensure_table_visible(grants, table_name)
         mode = _write_mode_for(grants, is_cross, table_name)
         if mode == "denied":
@@ -329,7 +421,7 @@ def insert_row(
         )
         return RowMutationResult(mode="immediate", row=row_dict)
     finally:
-        if is_cross:
+        if is_new_session:
             target_db.commit()
             target_db.close()
 
@@ -341,14 +433,19 @@ def update_row(
     payload: dict[str, Any],
     request: Request,
     institution_slug: str | None = Query(default=None),
+    program_code: str | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_grant(*_ANY_RAW_DATA_CODE)),
 ) -> RowMutationResult:
     grants = _grants(db, current_user)
-    target_db, is_cross = _target_session(request, current_user, db, institution_slug)
+    target_db, is_cross, is_new_session, active_program = _resolve_target(
+        request, current_user, db, grants, institution_slug, program_code
+    )
     try:
         allow_public = rd.has_cross_institution_access(grants)
-        table = _get_table_or_404(table_name, allow_public=allow_public)
+        table = _get_table_or_404(
+            table_name, allow_public=allow_public, allow_program=active_program is not None
+        )
         _ensure_table_visible(grants, table_name)
         mode = _write_mode_for(grants, is_cross, table_name)
         if mode == "denied":
@@ -427,7 +524,7 @@ def update_row(
         )
         return RowMutationResult(mode="immediate", row=row_dict)
     finally:
-        if is_cross:
+        if is_new_session:
             target_db.commit()
             target_db.close()
 
@@ -438,14 +535,19 @@ def delete_row(
     pk: str,
     request: Request,
     institution_slug: str | None = Query(default=None),
+    program_code: str | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_grant(*_ANY_RAW_DATA_CODE)),
 ) -> RowMutationResult:
     grants = _grants(db, current_user)
-    target_db, is_cross = _target_session(request, current_user, db, institution_slug)
+    target_db, is_cross, is_new_session, active_program = _resolve_target(
+        request, current_user, db, grants, institution_slug, program_code
+    )
     try:
         allow_public = rd.has_cross_institution_access(grants)
-        table = _get_table_or_404(table_name, allow_public=allow_public)
+        table = _get_table_or_404(
+            table_name, allow_public=allow_public, allow_program=active_program is not None
+        )
         _ensure_table_visible(grants, table_name)
         mode = _write_mode_for(grants, is_cross, table_name)
         if mode == "denied":
@@ -513,7 +615,7 @@ def delete_row(
         )
         return RowMutationResult(mode="immediate", row=None)
     finally:
-        if is_cross:
+        if is_new_session:
             target_db.commit()
             target_db.close()
 
@@ -580,31 +682,64 @@ def approve_pending_change(
     current_user: User = Depends(require_any_grant("raw_data.approve")),
 ) -> RawDataChangeRequest:
     change = _get_reviewable_request(db, current_user, change_id)
-    allow_public = False
-    table = _get_table_or_404(change.table_name, allow_public=allow_public)
-    pk_col = rd.primary_key_column(table)
+    # `_get_reviewable_request` already confirmed change.scope_type ==
+    # "program" and change.scope_id is a program this approver administers
+    # — if the change's table is a PROGRAM_SCHEMA_TABLES member, applying it
+    # needs a session bound to that specific program's schema (`db` only
+    # has the institution schema); resolved directly from the change's own
+    # scope_id rather than re-deriving it, since it's already validated.
+    is_program_table = change.table_name in rd.PROGRAM_SCHEMA_TABLES
+    apply_db = db
+    if is_program_table:
+        program = db.get(Program, change.scope_id)
+        if program is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Program no longer exists"
+            )
+        institution_schema: str = request.state.schema_name
+        SessionLocal = get_sessionmaker()
+        apply_db = SessionLocal(
+            bind=get_engine().execution_options(
+                schema_translate_map={
+                    None: institution_schema,
+                    "program": program_schema_name(institution_schema, program.code),
+                }
+            )
+        )
 
-    if change.operation == "insert":
-        coerced = {
-            col.name: rd.coerce_input_value(col, change.payload_json[col.name])
-            for col in table.columns
-            if change.payload_json and col.name in change.payload_json
-        }
-        applied_row = db.execute(sa.insert(table).values(**coerced).returning(table)).one()
-    else:
-        pk_value = rd.coerce_input_value(pk_col, change.row_pk)
-        if change.operation == "update":
+    try:
+        table = _get_table_or_404(change.table_name, allow_public=False, allow_program=True)
+        pk_col = rd.primary_key_column(table)
+
+        if change.operation == "insert":
             coerced = {
                 col.name: rd.coerce_input_value(col, change.payload_json[col.name])
                 for col in table.columns
                 if change.payload_json and col.name in change.payload_json
             }
-            applied_row = db.execute(
-                sa.update(table).where(pk_col == pk_value).values(**coerced).returning(table)
+            applied_row = apply_db.execute(
+                sa.insert(table).values(**coerced).returning(table)
             ).one()
-        else:  # delete
-            db.execute(sa.delete(table).where(pk_col == pk_value))
-            applied_row = None
+        else:
+            pk_value = rd.coerce_input_value(pk_col, change.row_pk)
+            if change.operation == "update":
+                coerced = {
+                    col.name: rd.coerce_input_value(col, change.payload_json[col.name])
+                    for col in table.columns
+                    if change.payload_json and col.name in change.payload_json
+                }
+                applied_row = apply_db.execute(
+                    sa.update(table).where(pk_col == pk_value).values(**coerced).returning(table)
+                ).one()
+            else:  # delete
+                apply_db.execute(sa.delete(table).where(pk_col == pk_value))
+                applied_row = None
+
+        if is_program_table:
+            apply_db.commit()
+    finally:
+        if is_program_table:
+            apply_db.close()
 
     change.status = "approved"
     change.reviewed_by = current_user.id

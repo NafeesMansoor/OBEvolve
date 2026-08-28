@@ -17,6 +17,10 @@ frontend/.vite/
 .env.local
 backend/.env
 
+# Local file uploads (dev fallback when S3 isn't configured — see
+# backend/app/services/storage.py)
+backend/uploads/
+
 # Editors / OS
 .DS_Store
 .vscode/
@@ -27,3 +31,11 @@ backend/.env
 
 # Docker
 docker-compose.override.yml
+
+# Local DB dumps/backups (e.g. pre-migration safety snapshots) — never
+# version-controlled, may contain real tenant data.
+backups/
+
+# CodeCortex (codebase-mapping tool, cloned locally for indexing this repo —
+# not an OBEvolve source dependency, kept out of version control)
+tools/codecortex/

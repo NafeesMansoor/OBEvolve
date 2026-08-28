@@ -1,9 +1,10 @@
 import * as React from 'react'
-import { GraduationCap, Plus } from 'lucide-react'
+import { GraduationCap, Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
+import { ImportStudentsDialog } from '@/features/academic-ops/ImportStudentsDialog'
 import type { Student } from '@/features/academic-ops/types'
 import type { Program, ProgramVersion } from '@/features/organization/types'
 import { ApiError } from '@/lib/api-client'
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 
 const createSchema = z.object({
   full_name: z.string().min(1, 'Name is required').max(255),
@@ -40,7 +42,9 @@ export function StudentsTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('student.manage')
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [importOpen, setImportOpen] = React.useState(false)
   const [alignStudent, setAlignStudent] = React.useState<Student | null>(null)
+  const [viewStudent, setViewStudent] = React.useState<Student | null>(null)
 
   const { data: programs } = useEntityList<Program>(['org', 'programs'], '/org/programs')
   const { data: versions } = useEntityList<ProgramVersion>(
@@ -143,7 +147,12 @@ export function StudentsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {canManage && (
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="size-4" /> Import students
+          </Button>
+        )}
         {canManage && (
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> Add student
@@ -160,6 +169,7 @@ export function StudentsTab() {
         searchable
         searchPlaceholder="Search students…"
         emptyMessage="No students yet."
+        onRowClick={(r) => setViewStudent(r)}
         actions={
           canManage
             ? (r) => (
@@ -205,6 +215,45 @@ export function StudentsTab() {
         }}
       />
 
+      {viewStudent && (
+        <RecordDetailSheet
+          open={Boolean(viewStudent)}
+          onOpenChange={(open) => !open && setViewStudent(null)}
+          title={viewStudent.full_name}
+          subtitle={viewStudent.email}
+          badge={
+            <Badge variant="secondary" className="font-normal capitalize">
+              {viewStudent.status}
+            </Badge>
+          }
+          fields={[
+            { label: 'Student code', value: viewStudent.student_code },
+            { label: 'Email', value: viewStudent.email },
+            {
+              label: 'Program',
+              value: viewStudent.program_id ? (programById.get(viewStudent.program_id)?.name ?? '—') : '—',
+            },
+            {
+              label: 'Curriculum (version)',
+              value: viewStudent.program_version_id
+                ? (versionById.get(viewStudent.program_version_id)?.version_label ?? '—')
+                : '—',
+            },
+            { label: 'Batch year', value: viewStudent.batch_year ?? '—' },
+            { label: 'Status', value: <span className="capitalize">{viewStudent.status}</span> },
+          ]}
+          onEdit={
+            canManage
+              ? () => {
+                  setAlignStudent(viewStudent)
+                  setViewStudent(null)
+                }
+              : undefined
+          }
+          editLabel="Align curriculum"
+        />
+      )}
+
       {alignStudent && (
         <EntityFormDialog
           open={Boolean(alignStudent)}
@@ -238,6 +287,19 @@ export function StudentsTab() {
           }}
         />
       )}
+
+      <ImportStudentsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        programOptions={(programs ?? []).map((p) => ({ label: p.name, value: p.id }))}
+        programVersionOptions={(versions ?? []).map((v) => ({
+          label: `${programById.get(v.program_id)?.name ?? '?'} — ${v.version_label}`,
+          value: v.id,
+        }))}
+        onImportRow={async (row) => {
+          await create.mutateAsync(row)
+        }}
+      />
     </div>
   )
 }

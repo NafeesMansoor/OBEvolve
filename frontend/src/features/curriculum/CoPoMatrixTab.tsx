@@ -3,6 +3,7 @@ import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import { useAuth } from '@/features/auth/useAuth'
+import { useCourseVersionLookup } from '@/features/academic-ops/useLookups'
 import type {
   Course,
   CourseOutcome,
@@ -26,6 +27,7 @@ export function CoPoMatrixTab() {
   const [courseId, setCourseId] = React.useState('')
   const { options: pvOptions } = useProgramVersionOptions()
   const [programVersionId, setProgramVersionId] = React.useState('')
+  const { labelFor: courseVersionLabelFor } = useCourseVersionLookup()
 
   const { data: courses } = useEntityList<Course>(['curriculum', 'courses'], '/curriculum/courses')
   const { data: versions } = useEntityList<CourseVersion>(
@@ -36,12 +38,26 @@ export function CoPoMatrixTab() {
   )
   const [courseVersionId, setCourseVersionId] = useResetOnChange(courseId, '')
 
-  const { data: cos, isLoading: cosLoading } = useEntityList<CourseOutcome>(
+  // No course picked: the "complete mapping" default view — every CO across
+  // every course, read-only. Picking a course narrows to just that course's
+  // COs, editable — the two-request-param split below (course_version_id vs.
+  // none) matches list_course_outcomes' own filter.
+  const { data: allCos, isLoading: allCosLoading } = useEntityList<CourseOutcome>(
+    ['curriculum', 'course-outcomes', 'all'],
+    '/curriculum/course-outcomes',
+    undefined,
+    { enabled: !courseVersionId },
+  )
+  const { data: courseCos, isLoading: courseCosLoading } = useEntityList<CourseOutcome>(
     ['curriculum', 'course-outcomes', courseVersionId],
     '/curriculum/course-outcomes',
     { course_version_id: courseVersionId || undefined },
     { enabled: Boolean(courseVersionId) },
   )
+  const cos = courseVersionId ? courseCos : allCos
+  const cosLoading = courseVersionId ? courseCosLoading : allCosLoading
+  const isCompleteView = !courseVersionId
+
   const { data: pos, isLoading: posLoading } = useEntityList<ProgramOutcome>(
     ['curriculum', 'program-outcomes', programVersionId],
     '/curriculum/program-outcomes',
@@ -57,17 +73,21 @@ export function CoPoMatrixTab() {
     [scales],
   )
 
+  // Complete view: fetch mappings per PO (few) rather than per CO (many —
+  // every course's COs) — far fewer requests for the same coverage.
+  const poIds = React.useMemo(() => (pos ?? []).map((p) => p.id), [pos])
   const coIds = React.useMemo(() => (cos ?? []).map((c) => c.id), [cos])
+  const byCourseQueryKeys = isCompleteView ? poIds : coIds
   const mappingQueries = useQueries({
-    queries: coIds.map((coId) => ({
-      queryKey: ['curriculum', 'co-po-mappings', coId],
+    queries: byCourseQueryKeys.map((id) => ({
+      queryKey: ['curriculum', 'co-po-mappings', isCompleteView ? 'by-po' : 'by-co', id],
       queryFn: async () =>
         (
           await apiClient.get<CourseOutcomePOMapping[]>('/curriculum/course-outcome-po-mappings', {
-            params: { course_outcome_id: coId },
+            params: isCompleteView ? { program_outcome_id: id } : { course_outcome_id: id },
           })
         ).data,
-      enabled: coIds.length > 0,
+      enabled: byCourseQueryKeys.length > 0,
     })),
   })
   const mappingsLoading = mappingQueries.some((q) => q.isLoading)
@@ -86,10 +106,22 @@ export function CoPoMatrixTab() {
   }, [mappingQueries])
 
   function invalidateAll() {
-    coIds.forEach((coId) =>
-      void queryClient.invalidateQueries({ queryKey: ['curriculum', 'co-po-mappings', coId] }),
+    byCourseQueryKeys.forEach((id) =>
+      void queryClient.invalidateQueries({
+        queryKey: ['curriculum', 'co-po-mappings', isCompleteView ? 'by-po' : 'by-co', id],
+      }),
     )
   }
+
+  const coRows = React.useMemo(
+    () =>
+      (cos ?? []).map((c) => ({
+        id: c.id,
+        code: isCompleteView ? `${courseVersionLabelFor(c.course_version_id)} · ${c.code}` : c.code,
+        label: c.statement,
+      })),
+    [cos, isCompleteView, courseVersionLabelFor],
+  )
 
   async function handleSet(rowId: string, colId: string, levelId: string) {
     const existing = cells.get(`${rowId}:${colId}`)
@@ -119,7 +151,7 @@ export function CoPoMatrixTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 rounded-md border bg-muted/30 p-3">
         <div className="w-64">
           <Select value={courseId} onValueChange={setCourseId}>
             <SelectTrigger>
@@ -164,27 +196,32 @@ export function CoPoMatrixTab() {
         </div>
       </div>
 
-      {!courseVersionId || !programVersionId ? (
+      {!programVersionId ? (
         <p className="text-sm text-muted-foreground">
-          Select a course version and a program version to build the CO-PO mapping matrix.
+          Select a program version to see the CO-PO mapping matrix.
+        </p>
+      ) : isCompleteView ? (
+        <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          Showing every course&apos;s outcomes mapped against this program&apos;s outcomes. Select a
+          course above to switch to that course&apos;s editable mapping.
         </p>
       ) : !canEdit ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           You have read access to mappings, but not the mapping.create permission needed to edit
           this matrix.
         </p>
       ) : null}
 
-      {courseVersionId && programVersionId && (
+      {programVersionId && (
         <MappingMatrix
-          rows={(cos ?? []).map((c) => ({ id: c.id, code: c.code, label: c.statement }))}
+          rows={coRows}
           cols={(pos ?? []).map((p) => ({ id: p.id, code: p.code, label: p.statement }))}
           rowHeader="Course Outcome"
           colHeader="Program Outcome"
           scale={defaultScale}
           cells={cells}
           isLoading={cosLoading || posLoading || mappingsLoading}
-          readOnly={!canEdit}
+          readOnly={!canEdit || isCompleteView}
           onSetCell={handleSet}
           onClearCell={handleClear}
         />

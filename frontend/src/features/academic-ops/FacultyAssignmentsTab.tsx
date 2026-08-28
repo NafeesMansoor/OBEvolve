@@ -1,13 +1,13 @@
 import * as React from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Download, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
 import { useAcademicTermLookup, useCourseVersionLookup } from '@/features/academic-ops/useLookups'
+import { ImportFromOfferingDialog } from '@/features/academic-ops/ImportFromOfferingDialog'
 import type { CourseOffering, CourseSection, FacultyAssignment } from '@/features/academic-ops/types'
-import type { AppUser } from '@/features/organization/types'
-import { ApiError } from '@/lib/api-client'
+import { apiClient, ApiError } from '@/lib/api-client'
 import { useEntityCreate, useEntityDelete, useEntityList } from '@/lib/crud-hooks'
 import { useResetOnChange } from '@/lib/use-reset-on-change'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const schema = z.object({
@@ -22,10 +23,11 @@ const schema = z.object({
   role: z.enum(['coordinator', 'instructor']),
 })
 
-/** faculty_user_id lists every tenant user (not filtered to a "Faculty"
- * role) — a deliberate simplification noted in the task brief, since the
- * backend has no way to filter users by role membership without the
- * missing user-roles list endpoint (see role-grants-cache.ts). */
+interface FacultyDirectoryEntry {
+  id: string
+  full_name: string
+}
+
 export function FacultyAssignmentsTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('section.manage')
@@ -44,10 +46,34 @@ export function FacultyAssignmentsTab() {
   )
   const [sectionId, setSectionId] = useResetOnChange(offeringId, '')
 
-  const { data: users } = useEntityList<AppUser>(['users'], '/users')
-  const userById = React.useMemo(() => new Map((users ?? []).map((u) => [u.id, u])), [users])
+  const { data: faculty } = useEntityList<FacultyDirectoryEntry>(
+    ['users', 'faculty-directory'],
+    '/users/faculty-directory',
+  )
 
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [importOpen, setImportOpen] = React.useState(false)
+  const [viewAssignment, setViewAssignment] = React.useState<FacultyAssignment | null>(null)
+
+  const currentOffering = React.useMemo(
+    () => (offerings ?? []).find((o) => o.id === offeringId),
+    [offerings, offeringId],
+  )
+  const currentSection = React.useMemo(
+    () => (sections ?? []).find((s) => s.id === sectionId),
+    [sections, sectionId],
+  )
+  // Other offerings of the SAME course (different term) — a faculty
+  // assignment is only importable if that term's offering has a section
+  // with the same section_code, checked at import time (a matching
+  // offering doesn't guarantee a matching section — sections aren't linked
+  // across terms any other way).
+  const importCandidates = React.useMemo(() => {
+    if (!currentOffering) return []
+    return (offerings ?? [])
+      .filter((o) => o.id !== offeringId && o.course_version_id === currentOffering.course_version_id)
+      .map((o) => ({ label: termById.get(o.academic_term_id)?.name ?? 'Unknown term', value: o.id }))
+  }, [offerings, offeringId, currentOffering, termById])
 
   const {
     data: assignments,
@@ -81,7 +107,7 @@ export function FacultyAssignmentsTab() {
       name: 'faculty_user_id',
       label: 'Faculty member',
       type: 'select',
-      options: (users ?? []).map((u) => ({ label: `${u.full_name} (${u.email})`, value: u.id })),
+      options: (faculty ?? []).map((f) => ({ label: f.full_name, value: f.id })),
     },
     {
       name: 'role',
@@ -95,7 +121,7 @@ export function FacultyAssignmentsTab() {
   ]
 
   const columns: DataTableColumn<FacultyAssignment>[] = [
-    { key: 'faculty', header: 'Faculty', render: (r) => userById.get(r.faculty_user_id)?.full_name ?? r.faculty_user_id },
+    { key: 'faculty', header: 'Faculty', render: (r) => r.faculty_name ?? r.faculty_user_id },
     {
       key: 'role',
       header: 'Role',
@@ -139,9 +165,14 @@ export function FacultyAssignmentsTab() {
           </Select>
         </div>
         {canManage && sectionId && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> Assign faculty
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+              <Download className="size-4" /> Import from term
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" /> Assign faculty
+            </Button>
+          </>
         )}
       </div>
 
@@ -155,12 +186,13 @@ export function FacultyAssignmentsTab() {
           isLoading={isLoading}
           error={error}
           emptyMessage="No faculty assigned to this section yet."
+          onRowClick={(r) => setViewAssignment(r)}
           actions={
             canManage
               ? (r) => (
                   <ConfirmAction
                     trigger={
-                      <Button size="sm" variant="ghost">
+                      <Button size="sm" variant="ghost" aria-label="Remove assignment">
                         <Trash2 className="size-4" />
                       </Button>
                     }
@@ -177,6 +209,19 @@ export function FacultyAssignmentsTab() {
                 )
               : undefined
           }
+        />
+      )}
+
+      {viewAssignment && (
+        <RecordDetailSheet
+          open={Boolean(viewAssignment)}
+          onOpenChange={(open) => !open && setViewAssignment(null)}
+          title={viewAssignment.faculty_name ?? viewAssignment.faculty_user_id}
+          subtitle={currentSection ? `Section ${currentSection.section_code}` : undefined}
+          fields={[
+            { label: 'Faculty', value: viewAssignment.faculty_name ?? viewAssignment.faculty_user_id },
+            { label: 'Role', value: <span className="capitalize">{viewAssignment.role}</span> },
+          ]}
         />
       )}
 
@@ -198,6 +243,57 @@ export function FacultyAssignmentsTab() {
           } catch (err) {
             throw err instanceof ApiError ? err : new ApiError('Unable to assign faculty.')
           }
+        }}
+      />
+
+      <ImportFromOfferingDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        entityLabel="Faculty assignments"
+        candidateOfferings={importCandidates}
+        onImport={async (sourceOfferingId) => {
+          if (!currentSection) return
+          const sourceSections = (
+            await apiClient.get<CourseSection[]>('/academic/sections', {
+              params: { course_offering_id: sourceOfferingId },
+            })
+          ).data
+          const sourceSection = sourceSections.find(
+            (s) => s.section_code === currentSection.section_code,
+          )
+          if (!sourceSection) {
+            toast.error(
+              `That term has no section "${currentSection.section_code}" for this course to import from.`,
+            )
+            return
+          }
+
+          const sourceAssignments = (
+            await apiClient.get<FacultyAssignment[]>('/academic/faculty-assignments', {
+              params: { course_section_id: sourceSection.id },
+            })
+          ).data
+          const existing = new Set((assignments ?? []).map((a) => a.faculty_user_id))
+          const toImport = sourceAssignments.filter((a) => !existing.has(a.faculty_user_id))
+
+          let imported = 0
+          for (const assignment of toImport) {
+            try {
+              await create.mutateAsync({
+                course_section_id: sectionId,
+                faculty_user_id: assignment.faculty_user_id,
+                role: assignment.role,
+              })
+              imported += 1
+            } catch {
+              // Best-effort: one failure doesn't abort the rest of the batch.
+            }
+          }
+          const skipped = sourceAssignments.length - toImport.length
+          toast.success(
+            `Imported ${imported} assignment${imported === 1 ? '' : 's'}` +
+              (skipped > 0 ? ` (${skipped} already existed)` : ''),
+          )
         }}
       />
     </div>

@@ -1,17 +1,19 @@
 import * as React from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Download, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
 import { useAcademicTermLookup, useCourseVersionLookup } from '@/features/academic-ops/useLookups'
+import { ImportFromOfferingDialog } from '@/features/academic-ops/ImportFromOfferingDialog'
 import type { CourseOffering, CourseSection } from '@/features/academic-ops/types'
-import { ApiError } from '@/lib/api-client'
+import { apiClient, ApiError } from '@/lib/api-client'
 import { useEntityCreate, useEntityDelete, useEntityList, useEntityUpdate } from '@/lib/crud-hooks'
 import { Button } from '@/components/ui/button'
 import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
+import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 export function SectionsTab() {
@@ -25,7 +27,9 @@ export function SectionsTab() {
   )
   const [offeringId, setOfferingId] = React.useState('')
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [importOpen, setImportOpen] = React.useState(false)
   const [editSection, setEditSection] = React.useState<CourseSection | null>(null)
+  const [viewSection, setViewSection] = React.useState<CourseSection | null>(null)
 
   const offeringOptions = React.useMemo(
     () =>
@@ -35,6 +39,19 @@ export function SectionsTab() {
       })),
     [offerings, labelFor, termById],
   )
+
+  const currentOffering = React.useMemo(
+    () => (offerings ?? []).find((o) => o.id === offeringId),
+    [offerings, offeringId],
+  )
+  // Other offerings of the SAME course (different term) — the only sources
+  // it makes sense to import sections from.
+  const importCandidates = React.useMemo(() => {
+    if (!currentOffering) return []
+    return (offerings ?? [])
+      .filter((o) => o.id !== offeringId && o.course_version_id === currentOffering.course_version_id)
+      .map((o) => ({ label: termById.get(o.academic_term_id)?.name ?? 'Unknown term', value: o.id }))
+  }, [offerings, offeringId, currentOffering, termById])
 
   const {
     data: sections,
@@ -89,9 +106,14 @@ export function SectionsTab() {
           </Select>
         </div>
         {canManage && offeringId && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New section
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+              <Download className="size-4" /> Import from term
+            </Button>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" /> New section
+            </Button>
+          </div>
         )}
       </div>
 
@@ -105,13 +127,13 @@ export function SectionsTab() {
           isLoading={isLoading}
           error={error}
           emptyMessage="No sections yet for this offering."
-          onRowClick={canManage ? (r) => setEditSection(r) : undefined}
+          onRowClick={(r) => setViewSection(r)}
           actions={
             canManage
               ? (r) => (
                   <ConfirmAction
                     trigger={
-                      <Button size="sm" variant="ghost">
+                      <Button size="sm" variant="ghost" aria-label="Delete section">
                         <Trash2 className="size-4" />
                       </Button>
                     }
@@ -152,6 +174,27 @@ export function SectionsTab() {
         }}
       />
 
+      {viewSection && (
+        <RecordDetailSheet
+          open={Boolean(viewSection)}
+          onOpenChange={(open) => !open && setViewSection(null)}
+          title={`Section ${viewSection.section_code}`}
+          subtitle={currentOffering ? labelFor(currentOffering.course_version_id) : undefined}
+          fields={[
+            { label: 'Section code', value: viewSection.section_code },
+            { label: 'Max students', value: viewSection.max_students ?? 'Unlimited' },
+          ]}
+          onEdit={
+            canManage
+              ? () => {
+                  setEditSection(viewSection)
+                  setViewSection(null)
+                }
+              : undefined
+          }
+        />
+      )}
+
       {editSection && (
         <EntityFormDialog
           open={Boolean(editSection)}
@@ -180,6 +223,41 @@ export function SectionsTab() {
           }}
         />
       )}
+
+      <ImportFromOfferingDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        entityLabel="Sections"
+        candidateOfferings={importCandidates}
+        onImport={async (sourceOfferingId) => {
+          const sourceSections = (
+            await apiClient.get<CourseSection[]>('/academic/sections', {
+              params: { course_offering_id: sourceOfferingId },
+            })
+          ).data
+          const existingCodes = new Set((sections ?? []).map((s) => s.section_code))
+          const toImport = sourceSections.filter((s) => !existingCodes.has(s.section_code))
+
+          let imported = 0
+          for (const section of toImport) {
+            try {
+              await create.mutateAsync({
+                course_offering_id: offeringId,
+                section_code: section.section_code,
+                max_students: section.max_students,
+              })
+              imported += 1
+            } catch {
+              // Best-effort: one failure doesn't abort the rest of the batch.
+            }
+          }
+          const skipped = sourceSections.length - toImport.length
+          toast.success(
+            `Imported ${imported} section${imported === 1 ? '' : 's'}` +
+              (skipped > 0 ? ` (${skipped} already existed)` : ''),
+          )
+        }}
+      />
     </div>
   )
 }

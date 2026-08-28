@@ -35,10 +35,11 @@ from app.models.tenant.mappings import (
     MappingScaleLevel,
     ProgramOutcomePEOMapping,
 )
-from app.models.tenant.obe import PEO, CourseOutcome, ProgramOutcome
+from app.models.tenant.obe import PEO, BloomLevel, CourseOutcome, ProgramOutcome
 from app.schemas.curriculum import (
     AccreditationFrameworkDetailRead,
     AccreditationFrameworkRead,
+    BloomLevelRead,
     CourseCreate,
     CourseOutcomeCreate,
     CourseOutcomePOMappingCreate,
@@ -65,7 +66,7 @@ from app.schemas.curriculum import (
     ProgramOutcomeUpdate,
 )
 from app.services.audit import write_audit_log
-from app.services.rbac import require_permission
+from app.services.rbac import get_program_scoped_db, require_permission
 
 router = APIRouter()
 
@@ -350,13 +351,18 @@ def advance_course_version(
     )
 
 
-# --- PEOs ---
+# --- PEOs, program outcomes, and the mapping junctions between them all live
+# in the per-program schema (docs/adr/0003-schema-per-program.md) — every
+# route below needs the `X-Program-Code` header, resolved and authorized by
+# get_program_scoped_db (see app.services.rbac.get_program_context) before a
+# session bound to that program's schema is ever opened. Course/CourseVersion/
+# CourseOutcome/MappingScale routes above stay institution-shared (get_db).
 @router.post("/peos", response_model=PEORead, status_code=status.HTTP_201_CREATED)
 def create_peo(
     payload: PEOCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("outcome.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
 ) -> PEO:
     peo = PEO(**payload.model_dump(), status=WorkflowStatus.DRAFT, created_by=current_user.id)
     db.add(peo)
@@ -376,8 +382,8 @@ def create_peo(
 @router.get("/peos", response_model=list[PEORead])
 def list_peos(
     program_version_id: uuid.UUID | None = None,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("curriculum.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("curriculum.view", scope_type="program")),
 ) -> list[PEO]:
     query = db.query(PEO)
     if program_version_id is not None:
@@ -388,8 +394,8 @@ def list_peos(
 @router.get("/peos/{peo_id}", response_model=PEORead)
 def get_peo(
     peo_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("curriculum.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("curriculum.view", scope_type="program")),
 ) -> PEO:
     return _get_or_404(db, PEO, peo_id, "PEO")
 
@@ -399,8 +405,8 @@ def update_peo(
     peo_id: uuid.UUID,
     payload: PEOUpdate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("outcome.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
 ) -> PEO:
     peo = _get_or_404(db, PEO, peo_id, "PEO")
     changes = payload.model_dump(exclude_unset=True)
@@ -426,8 +432,8 @@ def update_peo(
 def advance_peo(
     peo_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("outcome.approve")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("outcome.approve", scope_type="program")),
 ) -> PEO:
     peo = _get_or_404(db, PEO, peo_id, "PEO")
     return _advance(
@@ -448,8 +454,8 @@ def advance_peo(
 def create_program_outcome(
     payload: ProgramOutcomeCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("outcome.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
 ) -> ProgramOutcome:
     if payload.framework_po_id is not None:
         _get_or_404(db, FrameworkPO, payload.framework_po_id, "Framework PO")
@@ -471,8 +477,8 @@ def create_program_outcome(
 @router.get("/program-outcomes", response_model=list[ProgramOutcomeRead])
 def list_program_outcomes(
     program_version_id: uuid.UUID | None = None,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("curriculum.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("curriculum.view", scope_type="program")),
 ) -> list[ProgramOutcome]:
     query = db.query(ProgramOutcome)
     if program_version_id is not None:
@@ -483,8 +489,8 @@ def list_program_outcomes(
 @router.get("/program-outcomes/{program_outcome_id}", response_model=ProgramOutcomeRead)
 def get_program_outcome(
     program_outcome_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("curriculum.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("curriculum.view", scope_type="program")),
 ) -> ProgramOutcome:
     return _get_or_404(db, ProgramOutcome, program_outcome_id, "Program outcome")
 
@@ -494,8 +500,8 @@ def update_program_outcome(
     program_outcome_id: uuid.UUID,
     payload: ProgramOutcomeUpdate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("outcome.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
 ) -> ProgramOutcome:
     outcome = _get_or_404(db, ProgramOutcome, program_outcome_id, "Program outcome")
     changes = payload.model_dump(exclude_unset=True)
@@ -523,8 +529,8 @@ def update_program_outcome(
 def advance_program_outcome(
     program_outcome_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("outcome.approve")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("outcome.approve", scope_type="program")),
 ) -> ProgramOutcome:
     outcome = _get_or_404(db, ProgramOutcome, program_outcome_id, "Program outcome")
     return _advance(
@@ -534,6 +540,21 @@ def advance_program_outcome(
         outcome,
         entity_type="ProgramOutcome",
         action="program_outcome.status_changed",
+    )
+
+
+# --- Bloom levels (read-only catalogue; seeded per institution at creation
+# time by app.seed.bloom_defaults — see app/services/tenancy.py) ---
+@router.get("/bloom-levels", response_model=list[BloomLevelRead])
+def list_bloom_levels(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("curriculum.view")),
+) -> list[BloomLevel]:
+    return (
+        db.query(BloomLevel)
+        .filter(BloomLevel.is_active.is_(True))
+        .order_by(BloomLevel.sequence_order)
+        .all()
     )
 
 
@@ -680,8 +701,8 @@ def create_mapping_scale(
 def list_course_outcome_po_mappings(
     course_outcome_id: uuid.UUID | None = None,
     program_outcome_id: uuid.UUID | None = None,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("curriculum.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("curriculum.view", scope_type="program")),
 ) -> list[CourseOutcomePOMapping]:
     if course_outcome_id is None and program_outcome_id is None:
         raise HTTPException(
@@ -704,8 +725,8 @@ def list_course_outcome_po_mappings(
 def create_course_outcome_po_mapping(
     payload: CourseOutcomePOMappingCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("mapping.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("mapping.create", scope_type="program")),
 ) -> CourseOutcomePOMapping:
     _get_or_404(db, CourseOutcome, payload.course_outcome_id, "Course outcome")
     _get_or_404(db, ProgramOutcome, payload.program_outcome_id, "Program outcome")
@@ -749,8 +770,8 @@ def create_course_outcome_po_mapping(
 def delete_course_outcome_po_mapping(
     mapping_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("mapping.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("mapping.create", scope_type="program")),
 ) -> None:
     mapping = _get_or_404(db, CourseOutcomePOMapping, mapping_id, "CO-PO mapping")
     previous_value = {
@@ -776,8 +797,8 @@ def delete_course_outcome_po_mapping(
 def list_program_outcome_peo_mappings(
     program_outcome_id: uuid.UUID | None = None,
     peo_id: uuid.UUID | None = None,
-    db: Session = Depends(get_db),
-    _current_user: User = Depends(require_permission("curriculum.view")),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("curriculum.view", scope_type="program")),
 ) -> list[ProgramOutcomePEOMapping]:
     if program_outcome_id is None and peo_id is None:
         raise HTTPException(
@@ -800,8 +821,8 @@ def list_program_outcome_peo_mappings(
 def create_program_outcome_peo_mapping(
     payload: ProgramOutcomePEOMappingCreate,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("mapping.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("mapping.create", scope_type="program")),
 ) -> ProgramOutcomePEOMapping:
     _get_or_404(db, ProgramOutcome, payload.program_outcome_id, "Program outcome")
     _get_or_404(db, PEO, payload.peo_id, "PEO")
@@ -845,8 +866,8 @@ def create_program_outcome_peo_mapping(
 def delete_program_outcome_peo_mapping(
     mapping_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission("mapping.create")),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("mapping.create", scope_type="program")),
 ) -> None:
     mapping = _get_or_404(db, ProgramOutcomePEOMapping, mapping_id, "PEO-PO mapping")
     previous_value = {

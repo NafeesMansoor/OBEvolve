@@ -57,12 +57,58 @@ Once both services have deployed once:
    rebuilds since Vite env vars are baked in at build time, not read at
    runtime).
 
-## 4. Create the first platform admin
+## 4. Get your data onto the Render database
 
-There's no signup page for this on purpose — a platform admin can create
-and manage every institution in the deployment, so it isn't something to
-expose over HTTP without its own bootstrap-auth story. Create it directly
-against the database instead:
+Two ways to get there — pick one.
+
+### Option A: restore your existing local database
+
+Recommended if you already have real/rich data locally — this is what
+carries over the fully populated demo tenant (real marks, calculated
+attainment, improvement plans in every status), not just the bare
+`seed_demo` skeleton.
+
+1. On the Render dashboard, open **obevolve-postgres** → **Connect** → copy
+   the **External Database URL** (starts `postgresql://`, reachable from
+   outside Render — the free tier supports this).
+2. From your machine, with a dump already in hand (see below for how to make
+   one), run:
+   ```bash
+   psql "<External Database URL>" < backups/obevolve_demo_<timestamp>.sql
+   ```
+   The dump is generated with `--clean --if-exists`, so it `DROP`s and
+   recreates everything it touches — safe to run whether the backend has
+   already booted (and created empty `public.institutions`/
+   `platform_admins` tables via its own migration) or not. It carries over
+   whichever `public.platform_admins` row(s) exist locally too, so there's
+   no separate bootstrap-admin step — log in with the same email/password
+   you already use locally.
+3. To make that dump from your local dev Postgres (adjust the schema names
+   to whichever institution(s)/tenant(s) you actually want to bring over —
+   this example is the `demo` tenant only):
+   ```bash
+   pg_dump -U obevolve -d obevolve --clean --if-exists --no-owner --no-privileges \
+     --schema=public --schema=tenant_demo --schema='tenant_demo__bscse' --schema='tenant_demo__bsse' \
+     > backups/obevolve_demo_$(date +%Y%m%d_%H%M%S).sql
+   ```
+   (`backups/` is already gitignored — this file has real user data in it,
+   including password hashes; never commit it.) If your local Postgres has
+   *other* institutions you don't want on Render too (e.g. this repo's own
+   dev database also has a `ulab-cse` tenant), leave their schemas out of
+   `--schema=`; their `public.institutions` row still comes along either way
+   since `public` is dumped whole, but with no matching tenant schema behind
+   it, any request for that slug will error instead of serving real data —
+   harmless, but `DELETE FROM public.institutions WHERE slug = '...';` after
+   restoring cleans it up if that bothers you.
+4. Skip step 5 below entirely — the institution(s), users, and data are
+   already there.
+
+### Option B: seed fresh demo data instead (no local data to bring over)
+
+There's no signup page for creating the first platform admin on purpose — a
+platform admin can create and manage every institution in the deployment,
+so it isn't something to expose over HTTP without its own bootstrap-auth
+story. Create it directly against the database instead:
 
 1. On **obevolve-backend**, open the **Shell** tab (or **Jobs** → **Run
    Job** if Shell isn't available on your plan).
@@ -72,8 +118,9 @@ against the database instead:
    ```
    Re-running it with the same email later just updates the password —
    it's safe to use for a reset.
+3. Continue to step 5.
 
-## 5. Create your first institution
+## 5. Create your first institution (Option B only — skip if you restored data in step 4)
 
 1. Go to `<frontend URL>/platform-login` and sign in with the email/password
    from step 4.
@@ -92,7 +139,12 @@ against the database instead:
      something this deploy doc can paper over). With it checked, you get a
      working login: `admin@demo.obevolve.dev` / `ChangeMe123!` — **change
      that password immediately** (Profile → after logging in) since it's a
-     hardcoded seed default, plainly visible in this repo's source.
+     hardcoded seed default, plainly visible in this repo's source. Note
+     this only runs `app.seed.demo_institution` (one admin user, empty
+     otherwise) — it is *not* the same as Option A's fully populated dataset;
+     run `python scripts/populate_demo_data.py` from the backend Shell
+     afterward against this institution if you want the richer dataset
+     without a local database to restore from.
 3. Log in to `<frontend URL>/login` with that account.
 
 If you later want a *second*, non-demo institution, it needs a different

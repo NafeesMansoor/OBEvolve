@@ -1,0 +1,99 @@
+## Render Blueprint for OBEvolve — see docs/DEPLOY_RENDER.md for the full
+## deploy walkthrough (first-institution bootstrap, env vars that need a
+## manual value after the first deploy, etc.). This file only describes
+## infrastructure; nothing here creates institutions, users, or data.
+
+databases:
+  - name: obevolve-postgres
+    plan: free
+    databaseName: obevolve
+    user: obevolve
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: obevolve-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Runs the public-schema migration (institutions/platform_admins — the
+    # only globally-shared tables) before every start. Tenant/program
+    # schemas are created and migrated on demand when an institution is
+    # provisioned (app/services/tenancy.py) — there is nothing to migrate
+    # for them up front.
+    startCommand: "alembic -c alembic/public/alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: obevolve-postgres
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DEV_TENANT_HEADER
+        value: X-Institution-Slug
+      # Placeholder — after the first deploy, set this to the frontend's
+      # actual Render URL (Render assigns the final hostname; it may not
+      # match the `name:` below exactly if that name is already taken), as a
+      # JSON array, e.g. ["https://obevolve-frontend.onrender.com"]. See
+      # docs/DEPLOY_RENDER.md.
+      - key: BACKEND_CORS_ORIGINS
+        value: '["https://obevolve-frontend.onrender.com"]'
+        sync: false
+      - key: FRONTEND_ORIGIN
+        value: https://obevolve-frontend.onrender.com
+        sync: false
+      # Optional — leave unset to disable "Sign in with Google" (password
+      # login always works). See .env.example for where to get this.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      # Uploads persist to local disk by default (fine for trying the app
+      # out) but Render's free/starter web services have an EPHEMERAL
+      # filesystem — every deploy wipes it. For real use, either attach a
+      # Render persistent disk (paid) or point these at S3/R2/B2. See
+      # backend/app/services/storage.py and .env.example.
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        value: obevolve-evidence
+        sync: false
+
+  - type: web
+    name: obevolve-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Placeholder — after the first deploy, set this to the backend's
+      # actual Render URL + /api/v1, e.g.
+      # https://obevolve-backend.onrender.com/api/v1. See docs/DEPLOY_RENDER.md.
+      - key: VITE_API_BASE_URL
+        value: https://obevolve-backend.onrender.com/api/v1
+        sync: false
+      # Which tenant this deployment serves — set by X-Institution-Slug on
+      # every request rather than by subdomain (see
+      # backend/app/middleware/tenancy.py), so one Render static site serves
+      # exactly one institution's slug. Change after creating your
+      # institution (docs/DEPLOY_RENDER.md); "demo" matches the seed-demo-data
+      # checkbox in the platform-admin "Create institution" dialog.
+      - key: VITE_INSTITUTION_SLUG
+        value: demo
+        sync: false
+    routes:
+      # SPA client-side routing — every path that isn't a real static asset
+      # falls back to index.html so React Router (not Render) handles it.
+      - type: rewrite
+        source: /*
+        destination: /index.html

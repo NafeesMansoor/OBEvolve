@@ -6,7 +6,7 @@ startup rather than failing deep inside a request handler.
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +33,21 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="postgresql+psycopg://obevolve:change-me@localhost:5432/obevolve"
     )
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        """Managed Postgres providers (Render, Heroku, ...) hand out bare
+        `postgres://`/`postgresql://` connection strings — SQLAlchemy's
+        `postgresql` dialect defaults to the psycopg2 driver for those, which
+        isn't installed here (only psycopg3, `psycopg[binary]`). Rewrite to
+        the explicit `postgresql+psycopg://` driver so a URL pasted straight
+        from a hosting provider's dashboard works without hand-editing."""
+        if v.startswith("postgres://"):
+            return "postgresql+psycopg://" + v[len("postgres://") :]
+        if v.startswith("postgresql://"):
+            return "postgresql+psycopg://" + v[len("postgresql://") :]
+        return v
 
     # --- Redis / Celery ---
     redis_url: str = Field(default="redis://localhost:6379/0")

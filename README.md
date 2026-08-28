@@ -32,6 +32,13 @@ implemented vs. still planned, table by table.
   synchronously, on demand, in the request that asks for it
 - Local orchestration: Docker Compose
 
+## Deploying
+
+[docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md) — one-click infra via the
+`render.yaml` Blueprint (Postgres + backend + frontend), plus the manual
+steps a Blueprint can't do for you (secrets, first platform admin, first
+institution).
+
 ## Getting started (local development)
 
 ### 1. Environment

@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import logging
-import os
-
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
@@ -57,34 +55,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["infra"])
     def health() -> dict[str, str]:
-        return {"status": "ok", "version": settings.app_version}
-
-    @app.post("/health-restore")
-    async def restore_from_dump(request: Request) -> dict[str, str]:
-        import re
-        from io import StringIO
-        from app.db.session import get_engine
-        expected = os.environ.get("RESTORE_TOKEN")
-        if not expected or request.headers.get("x-restore-token") != expected:
-            raise HTTPException(status_code=404)
-        sql_text = (await request.body()).decode("utf-8")
-        pattern = re.compile(r"COPY\s+(\S+\s*\([^)]*\))\s+FROM\s+stdin;\n(.*?)\n\\\.\n", re.IGNORECASE | re.DOTALL)
-        engine = get_engine()
-        raw_conn = engine.raw_connection()
-        cur = raw_conn.cursor()
-        pos = 0
-        for m in pattern.finditer(sql_text):
-            pre = sql_text[pos:m.start()].strip()
-            if pre:
-                cur.execute(pre)
-            cur.copy_expert(f"COPY {m.group(1)} FROM STDIN", StringIO(m.group(2) + "\n"))
-            pos = m.end()
-        tail = sql_text[pos:].strip()
-        if tail:
-            cur.execute(tail)
-        raw_conn.commit()
-        raw_conn.close()
-        return {"status": "restored"}
+        return {"status": "ok", "version": settings.app_version}       
             
     return app
 

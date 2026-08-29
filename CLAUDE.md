@@ -75,9 +75,11 @@ assume `docker compose up` works until those exist.
 - RBAC is **permission-code-based, never role-name-based** — `require_permission("curriculum.approve")`,
   never `if role.name == "Dean"`. Codes are fixed (`backend/app/core/permissions.py`); roles are
   configurable per tenant and just hold a set of codes (`backend/app/seed/default_roles.py`
-  documents the default set and scope-type conventions). See the published
-  [Access Map](https://claude.ai/code/artifact/f984e975-d442-4367-8a1e-df55b14d53b8) artifact for
-  the full per-role menu/tab/read-write breakdown if you need to reason about who can see or do what.
+  documents the default set and scope-type conventions). See
+  [docs/ACCESS_MAP.md](docs/ACCESS_MAP.md) (or the same data as a browsable
+  [interactive artifact](https://claude.ai/code/artifact/f984e975-d442-4367-8a1e-df55b14d53b8))
+  for the full per-role menu/tab/read-write breakdown if you need to reason about who can see or
+  do what.
 - Two separate, non-overlapping auth planes: tenant users (`/auth/login`) vs. platform admins
   (`/platform-auth/login`, `public.platform_admins`, own frontend shell under
   `frontend/src/features/platform/`). A platform admin is never a tenant user row.

@@ -9,6 +9,8 @@ import {
   LineChart,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   ShieldCheck,
   Target,
   User as UserIcon,
@@ -33,11 +35,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Footer } from '@/components/footer'
+import { GlobalSearch } from '@/components/global-search'
 import { Logo } from '@/components/logo'
+import { NotificationsPanel } from '@/components/notifications-panel'
 import { ProgramSwitcher } from '@/components/program-switcher'
 import { RoleSwitcher } from '@/components/role-switcher'
 import { ThemeMenuItems } from '@/components/theme-toggle'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const SIDEBAR_COLLAPSED_KEY = 'obevolve.sidebar-collapsed'
 
 interface NavItem {
   label: string
@@ -111,7 +118,7 @@ const navItems: NavItem[] = [
     to: '/organization',
     icon: ShieldCheck,
     sectionKey: 'organization',
-    anyOfPermissions: ['org.view', 'program.view', 'user.view', 'institution.view'],
+    anyOfPermissions: ['org.view', 'program.view', 'user.view', 'institution.view', 'audit.view'],
   },
   {
     label: 'Raw Data Console',
@@ -141,13 +148,15 @@ function initials(fullName: string): string {
   return (first + last).toUpperCase() || 'U'
 }
 
-function BrandMark() {
+function BrandMark({ collapsed }: { collapsed?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+    <div className={cn('flex items-center gap-2.5', collapsed && 'justify-center')}>
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
         <Logo className="size-5" />
       </div>
-      <span className="font-display text-sm font-semibold tracking-tight">OBEvolve</span>
+      {!collapsed && (
+        <span className="font-display text-sm font-semibold tracking-tight">OBEvolve</span>
+      )}
     </div>
   )
 }
@@ -156,10 +165,12 @@ function NavLinks({
   items,
   isDeemphasized,
   onNavigate,
+  collapsed,
 }: {
   items: NavItem[]
   isDeemphasized: (item: NavItem) => boolean
   onNavigate?: () => void
+  collapsed?: boolean
 }) {
   const location = useLocation()
 
@@ -169,13 +180,15 @@ function NavLinks({
         const isActive = location.pathname === item.to
         const deemphasized = isDeemphasized(item)
 
-        return (
+        const link = (
           <Link
             key={item.to}
             to={item.to}
             onClick={onNavigate}
+            aria-label={collapsed ? item.label : undefined}
             className={cn(
               'flex w-full items-center gap-3 rounded-md border-l-2 border-transparent px-3 py-2 text-sm font-medium transition-colors',
+              collapsed && 'justify-center px-0',
               isActive
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
@@ -183,8 +196,17 @@ function NavLinks({
             )}
           >
             <item.icon className="size-4 shrink-0" />
-            <span className="flex-1 truncate text-left">{item.label}</span>
+            {!collapsed && <span className="flex-1 truncate text-left">{item.label}</span>}
           </Link>
+        )
+
+        if (!collapsed) return link
+
+        return (
+          <Tooltip key={item.to}>
+            <TooltipTrigger asChild>{link}</TooltipTrigger>
+            <TooltipContent side="right">{item.label}</TooltipContent>
+          </Tooltip>
         )
       })}
     </nav>
@@ -197,6 +219,13 @@ export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(
+    () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true',
+  )
+
+  React.useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed))
+  }, [sidebarCollapsed])
 
   function handleLogout() {
     logout()
@@ -251,16 +280,58 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 border-r bg-card md:flex md:flex-col">
-        <div className="flex h-16 items-center border-b px-6">
-          <BrandMark />
+      <aside
+        className={cn(
+          'hidden shrink-0 border-r bg-card transition-[width] duration-200 md:flex md:flex-col',
+          sidebarCollapsed ? 'w-16' : 'w-64',
+        )}
+      >
+        <div
+          className={cn(
+            'flex h-16 items-center border-b',
+            sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-6',
+          )}
+        >
+          <BrandMark collapsed={sidebarCollapsed} />
+          {!sidebarCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0"
+              aria-label="Collapse sidebar"
+              onClick={() => setSidebarCollapsed(true)}
+            >
+              <PanelLeftClose className="size-4" />
+            </Button>
+          )}
         </div>
-        <NavLinks items={visibleItems} isDeemphasized={isDeemphasized} />
-        <div className="border-t p-3">
-          <p className="px-3 py-2 text-xs text-muted-foreground">
-            {user?.full_name} · {user?.roles.length ?? 0} role
-            {(user?.roles.length ?? 0) === 1 ? '' : 's'}
-          </p>
+        <NavLinks
+          items={visibleItems}
+          isDeemphasized={isDeemphasized}
+          collapsed={sidebarCollapsed}
+        />
+        <div className={cn('border-t p-3', sidebarCollapsed && 'flex justify-center p-2')}>
+          {sidebarCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9"
+                  aria-label="Expand sidebar"
+                  onClick={() => setSidebarCollapsed(false)}
+                >
+                  <PanelLeftOpen className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Expand sidebar</TooltipContent>
+            </Tooltip>
+          ) : (
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              {user?.full_name} · {user?.roles.length ?? 0} role
+              {(user?.roles.length ?? 0) === 1 ? '' : 's'}
+            </p>
+          )}
         </div>
       </aside>
 
@@ -301,11 +372,14 @@ export function AppLayout() {
             </span>
           </div>
 
+          <GlobalSearch />
+
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <div className="hidden items-center gap-1.5 sm:flex sm:gap-2">
               <ProgramSwitcher />
               <RoleSwitcher />
             </div>
+            <NotificationsPanel />
             {accountMenu}
           </div>
         </header>

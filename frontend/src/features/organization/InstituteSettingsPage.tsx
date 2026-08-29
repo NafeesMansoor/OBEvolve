@@ -1,6 +1,7 @@
 import { Lock } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/useAuth'
+import { AuditLogTab } from '@/features/organization/AuditLogTab'
 import { DepartmentsTab } from '@/features/organization/DepartmentsTab'
 import { InstitutionTab } from '@/features/organization/InstitutionTab'
 import { ProgramsTab } from '@/features/organization/ProgramsTab'
@@ -42,10 +43,18 @@ export function InstituteSettingsPage() {
       content: <ProgramsTab />,
     },
     { value: 'users', label: 'Users & roles', show: hasPermission('user.view'), content: <UsersTab /> },
+    {
+      value: 'audit',
+      label: 'Audit log',
+      show: hasPermission('audit.view'),
+      content: <AuditLogTab />,
+    },
   ].filter((t) => t.show)
 
   return (
-    <RequirePermission anyOf={['org.view', 'program.view', 'user.view', 'institution.view']}>
+    <RequirePermission
+      anyOf={['org.view', 'program.view', 'user.view', 'institution.view', 'audit.view']}
+    >
       <PageHeader
         title="Institute Settings"
         description="Institution identity, campuses, schools, departments, programs, and users."

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import { AppRoutes } from '@/app/routes'
 import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { ActiveProgramProvider } from '@/lib/active-program-context'
 import { AuthProvider } from '@/lib/auth-context'
 import { PlatformAuthProvider } from '@/lib/platform-auth-context'
@@ -22,16 +23,18 @@ export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <PlatformAuthProvider>
-              <ActiveProgramProvider>
-                <AppRoutes />
-                <Toaster richColors closeButton position="top-right" />
-              </ActiveProgramProvider>
-            </PlatformAuthProvider>
-          </AuthProvider>
-        </BrowserRouter>
+        <TooltipProvider delayDuration={200}>
+          <BrowserRouter>
+            <AuthProvider>
+              <PlatformAuthProvider>
+                <ActiveProgramProvider>
+                  <AppRoutes />
+                  <Toaster richColors closeButton position="top-right" />
+                </ActiveProgramProvider>
+              </PlatformAuthProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
   )

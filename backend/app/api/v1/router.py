@@ -7,16 +7,19 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     academic_ops,
     assessment,
+    audit,
     auth,
     curriculum,
     grading,
     improvement,
     institutions,
     marks,
+    notifications,
     org,
     platform_auth,
     platform_raw_data,
     raw_data,
+    search,
     users,
 )
 
@@ -39,3 +42,6 @@ api_router.include_router(raw_data.router, prefix="/raw-data", tags=["raw-data"]
 api_router.include_router(
     platform_raw_data.router, prefix="/platform-raw-data", tags=["platform-raw-data"]
 )
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
+api_router.include_router(search.router, prefix="/search", tags=["search"])

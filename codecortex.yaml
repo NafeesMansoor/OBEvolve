@@ -1,0 +1,49 @@
+# CodeCortex semantic-index configuration for OBEvolve.
+#
+# The CLI is installed under tools/codecortex/.venv (a separate Python
+# environment from backend/.venv — CodeCortex is a development tool, not an
+# OBEvolve runtime dependency) — see CLAUDE.md's "Semantic code intelligence"
+# section for the exact commands. This file just holds the indexing/query
+# tuning; it isn't picked up automatically unless a command is run with
+# `--config codecortex.yaml`.
+
+codecortex:
+  # Graph construction — full CPG (AST + CFG + DFG), not just the LSP-style
+  # call/import graph, since this is a small-to-medium repo (not the
+  # 500k+ LOC case that needs on-demand CFG/DFG for build-time reasons).
+  enable_cpg: true
+  on_demand_cfg: false
+  on_demand_dfg: false
+
+  # Embedding provider — "local" (sentence-transformers, CPU) is installed in
+  # tools/codecortex/.venv, so semantic queries get real embedding quality
+  # rather than the structural-only "stub" fallback.
+  embedding_backend: local
+  embedding_dimensions: 384
+
+  # Clustering — groups semantically related code (e.g. "everything touching
+  # assessment documents" spanning backend/app/models/tenant/assessments/,
+  # backend/app/api/v1/endpoints/assessment.py, and
+  # frontend/src/features/assessment/) even across the Python/TypeScript
+  # language boundary.
+  enable_clustering: true
+  min_cluster_size: 5
+
+  # Retrieval / traversal tuning.
+  retrieval_top_k: 20
+  token_budget: 4000
+  min_semantic_score: 0.0
+  bfs_depth: 3
+  max_nodes_per_query: 500
+  centrality_ranking: true
+
+  respect_gitignore: true
+
+  # tools/codecortex is the CLI's own source (a vendored dev tool, not
+  # OBEvolve code) — indexing it would mix CodeCortex's own graph/parser
+  # internals into OBEvolve's semantic graph. backups/ and ref/ are data
+  # snapshots and binary reference documents, not source.
+  exclude_paths:
+    - tools/codecortex
+    - backups
+    - ref

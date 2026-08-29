@@ -39,3 +39,7 @@ backups/
 # CodeCortex (codebase-mapping tool, cloned locally for indexing this repo —
 # not an OBEvolve source dependency, kept out of version control)
 tools/codecortex/
+# CodeCortex's generated graph snapshot for this repo — a regenerable index
+# cache (see CLAUDE.md), not source; can be a few MB and changes on every
+# reindex.
+.codecortex/

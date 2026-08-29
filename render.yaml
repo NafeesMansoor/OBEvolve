@@ -43,10 +43,8 @@ services:
       # JSON array, e.g. ["https://obevolve-frontend.onrender.com"]. See
       # docs/DEPLOY_RENDER.md.
       - key: BACKEND_CORS_ORIGINS
-        value: '["https://obevolve-frontend.onrender.com"]'
         sync: false
       - key: FRONTEND_ORIGIN
-        value: https://obevolve-frontend.onrender.com
         sync: false
       # Optional — leave unset to disable "Sign in with Google" (password
       # login always works). See .env.example for where to get this.
@@ -64,7 +62,6 @@ services:
       - key: S3_SECRET_KEY
         sync: false
       - key: S3_BUCKET_NAME
-        value: obevolve-evidence
         sync: false
 
   - type: web
@@ -80,7 +77,6 @@ services:
       # actual Render URL + /api/v1, e.g.
       # https://obevolve-backend.onrender.com/api/v1. See docs/DEPLOY_RENDER.md.
       - key: VITE_API_BASE_URL
-        value: https://obevolve-backend.onrender.com/api/v1
         sync: false
       # Which tenant this deployment serves — set by X-Institution-Slug on
       # every request rather than by subdomain (see
@@ -89,7 +85,6 @@ services:
       # institution (docs/DEPLOY_RENDER.md); "demo" matches the seed-demo-data
       # checkbox in the platform-admin "Create institution" dialog.
       - key: VITE_INSTITUTION_SLUG
-        value: demo
         sync: false
     routes:
       # SPA client-side routing — every path that isn't a real static asset

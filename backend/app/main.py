@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -56,8 +55,8 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["infra"])
     def health() -> dict[str, str]:
-        return {"status": "ok", "version": settings.app_version}
-
+        return {"status": "ok", "version": settings.app_version}       
+            
     return app
 
 

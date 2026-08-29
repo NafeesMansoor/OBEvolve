@@ -7,9 +7,12 @@ shadcn/Radix primitives, `class-variance-authority`, `lucide-react` icons.
 
 ## Style
 **Primary:** Data-Dense Dashboard. **Secondary:** Minimalism & Swiss Style, Accessible & Ethical.
-Flat/bordered surfaces over heavy shadows. Elevation reserved for truly-floating layers
-(dialog, popover, dropdown, sheet) — regular cards use a 1px border, not a drop shadow.
-No glassmorphism/blur — this app is read constantly at a desk; blur hurts table legibility.
+As of Revision 3, cards use the shadcn default `shadow-sm` + 0.75rem radius (soft-elevated,
+rounded-xl) rather than a flat 1px border — this is the modern analytics-SaaS-dashboard
+convention (see Revision 3 note below) and reads as more "product," less "spreadsheet," without
+adding real elevation depth. Heavier elevation (`shadow-md`/`shadow-lg`) stays reserved for
+truly-floating layers (dialog, popover, dropdown, sheet). No glassmorphism/blur — this app is
+read constantly at a desk; blur hurts table legibility even though Framer's own site uses it.
 
 ## Do NOT change
 - Any data-fetching, mutation, API call, prop, or business-logic branch. Redesign is
@@ -18,61 +21,83 @@ No glassmorphism/blur — this app is read constantly at a desk; blur hurts tabl
 - The permission-gating logic in nav/pages (`hasPermission`, `anyOfPermissions`, `require-permission.tsx`).
 
 ## Color tokens (already wired via `hsl(var(--token))` in `tailwind.config.ts` — edit ONLY `src/index.css`)
-**Revision 2** (superseding the original institutional-navy palette): warm cream + sage/olive +
-raspberry-rose, per explicit reference hexes from the user: `#FFF7EB`, `#F9F0E0`, `#A2AB73`,
-`#CC3A63`. All pairs below are WCAG-verified (4.5:1 text / 3:1 non-text minimum) — the ref hues
-are preserved but lightness was tuned per-role for contrast (e.g. primary uses the `A2AB73`
-hue/saturation at L30 instead of its literal L56, since the literal tone fails 4.5:1 with white
-button text). Don't "correct" these back toward the literal ref hex values without re-running
-the contrast math.
+**Revision 3** (current — supersedes Revision 2's cream/sage/rose palette below): a real
+visual-direction change, not a refresh, requested explicitly by the user to align with
+`docs/UI_UX_redesign.md` §2-3, which names two references —
+a Dribbble SaaS-analytics-dashboard light theme (cool near-white canvas, white cards, single
+vivid-indigo accent — the standard genre convention for that whole category of shot, not one
+exact shot's literal pixels) and Framer.com's dark theme (near-black canvas, bright accent
+popping off it). One brand hue (229°, indigo-blue) carries across both themes for continuity —
+only lightness/saturation shift between light and dark, which is why `--primary`/`--ring` share
+a hue in both blocks below. All pairs are WCAG-verified (4.5:1 text minimum; computed via a
+one-off relative-luminance script, not eyeballed) — see git history on this file for the exact
+numbers if you need to re-derive. `--radius` moved from 0.5rem to 0.75rem (rounded-xl) to match
+the softer card language both references use; see the Style section above for the accompanying
+shadow-vs-border change.
 Light:
 ```
---background: 38 68% 93%       (F9F0E0 — warm parchment canvas)
---foreground: 70 20% 15%       (dark olive ink, not cold slate)
---card / --popover: 36 100% 96% (FFF7EB — lighter cream, pops off the canvas)
---card-foreground / --popover-foreground: 70 20% 15%
---primary: 74 32% 30%          (deep moss/sage — A2AB73's hue, darkened for AA text contrast)
---primary-foreground: 36 60% 98%
---secondary: 38 45% 91%
---secondary-foreground: 70 20% 15%
---muted: 38 35% 90%
---muted-foreground: 70 12% 36%
---accent: 38 40% 89%           (neutral hover bg — NOT the brand accent, don't repurpose)
---accent-foreground: 70 20% 15%
---destructive: 343 59% 42%     (CC3A63's hue, darkened slightly for AA with white text)
---destructive-foreground: 36 60% 98%
---success: 152 45% 28%         (kept a separate green hue from primary to avoid confusion)
---success-foreground: 36 60% 98%
---warning: 32 85% 34%          (amber, shifted off the background's own hue-38 so it doesn't
-                                 blend in)
---warning-foreground: 36 60% 98%
---border / --input: 38 30% 80%
---ring: 74 40% 38%             (brighter than primary — must stay visible as focus indicator)
---radius: 0.5rem
+--background: 220 25% 98%      (cool near-white canvas, not warm cream)
+--foreground: 222 30% 12%      (deep slate-navy ink)
+--card / --popover: 0 0% 100%  (pure white — pops off the tinted canvas)
+--card-foreground / --popover-foreground: 222 30% 12%
+--primary: 229 84% 58%         (vivid indigo-blue — the single brand accent)
+--primary-foreground: 0 0% 100%
+--secondary: 222 20% 95%
+--secondary-foreground: 222 30% 12%
+--muted: 222 20% 95%
+--muted-foreground: 222 15% 40%
+--accent: 222 20% 94%          (neutral hover bg — NOT the brand accent, don't repurpose)
+--accent-foreground: 222 30% 12%
+--destructive: 356 75% 48%
+--destructive-foreground: 0 0% 100%
+--success: 152 55% 32%
+--success-foreground: 0 0% 100%
+--warning: 38 92% 45%
+--warning-foreground: 222 30% 12%
+--border / --input: 220 18% 90%
+--ring: 229 84% 58%            (same hue as primary — the vivid accent doubles as the focus ring)
+--radius: 0.75rem
 ```
 Dark (`.dark`):
 ```
---background: 35 12% 9%        (warm near-black, not cold navy-black)
---foreground: 38 35% 92%       (cream text — echoes the light-mode canvas color, inverted role)
---card / --popover: 35 12% 12%
---card-foreground / --popover-foreground: 38 35% 92%
---primary: 75 38% 60%          (bright sage, paired with dark ink text — not white text)
---primary-foreground: 70 15% 10%
---secondary / --muted / --accent: 35 12% 16%-18%
---secondary-foreground / --accent-foreground: 38 35% 92%
---muted-foreground: 38 15% 65%
---destructive: 343 60% 62%
---destructive-foreground: 70 15% 10%
---success: 152 42% 48%
---success-foreground: 70 15% 10%
---warning: 32 80% 55%
---warning-foreground: 70 15% 10%
---border / --input: 35 12% 20%
---ring: 75 45% 62%
+--background: 240 8% 6%        (near-black, Framer-style — not warm, not navy)
+--foreground: 210 20% 96%
+--card / --popover: 240 6% 10%
+--card-foreground / --popover-foreground: 210 20% 96%
+--primary: 229 90% 65%         (brightened for contrast on near-black; paired with dark-ink text)
+--primary-foreground: 240 8% 6%
+--secondary / --muted: 240 6% 14%
+--accent: 240 6% 16%
+--secondary-foreground / --accent-foreground: 210 20% 96%
+--muted-foreground: 215 12% 65%
+--destructive: 356 80% 62%
+--destructive-foreground: 240 8% 6%
+--success: 152 50% 52%
+--success-foreground: 240 8% 6%
+--warning: 38 90% 58%
+--warning-foreground: 240 8% 6%
+--border / --input: 240 8% 18%
+--ring: 229 90% 65%
 ```
 Workflow status colors (`status-badge.tsx`) stay in their existing blue/amber/emerald/violet
 family — already distinct from primary/accent and already accessible; do not merge them into
 the new primary/warning tokens.
+
+<details>
+<summary>Revision 2 (superseded 2026-08 — kept for history, do not reapply)</summary>
+
+Warm cream + sage/olive + raspberry-rose, per explicit reference hexes from the user:
+`#FFF7EB`, `#F9F0E0`, `#A2AB73`, `#CC3A63`.
+```
+--background: 38 68% 93%   --foreground: 70 20% 15%
+--card/--popover: 36 100% 96%
+--primary: 74 32% 30%      --primary-foreground: 36 60% 98%
+--secondary: 38 45% 91%    --muted: 38 35% 90%   --muted-foreground: 70 12% 36%
+--accent: 38 40% 89%       --destructive: 343 59% 42%
+--success: 152 45% 28%     --warning: 32 85% 34%
+--border/--input: 38 30% 80%  --ring: 74 40% 38%  --radius: 0.5rem
+```
+</details>
 
 ## Question authoring: Bloom's Level + CO mapping, not "difficulty"
 `Question.difficulty` (free-text column) is no longer shown in any create/edit UI — a question

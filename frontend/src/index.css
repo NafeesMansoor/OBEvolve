@@ -8,80 +8,88 @@
  * Keep this the single source of truth for color — components should
  * always reference the semantic Tailwind classes (bg-background,
  * text-foreground, bg-primary, ...) rather than raw colors.
+ *
+ * Revision 3 — modern SaaS-dashboard direction (supersedes the Revision 2
+ * cream/sage/rose palette). Light theme follows the cool-neutral-canvas +
+ * single vivid-indigo-accent convention of contemporary analytics
+ * dashboards; dark theme follows Framer.com's near-black-canvas + bright
+ * accent convention. Same brand hue (229°, indigo-blue) carries across both
+ * themes for continuity; only lightness/saturation shift. See
+ * design-system/obevolve/MASTER.md for the full WCAG rationale.
  */
 @layer base {
   :root {
-    --background: 38 68% 93%;
-    --foreground: 70 20% 15%;
+    --background: 220 25% 98%;
+    --foreground: 222 30% 12%;
 
-    --card: 36 100% 96%;
-    --card-foreground: 70 20% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 30% 12%;
 
-    --popover: 36 100% 96%;
-    --popover-foreground: 70 20% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 30% 12%;
 
-    --primary: 74 32% 30%;
-    --primary-foreground: 36 60% 98%;
+    --primary: 229 84% 58%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 38 45% 91%;
-    --secondary-foreground: 70 20% 15%;
+    --secondary: 222 20% 95%;
+    --secondary-foreground: 222 30% 12%;
 
-    --muted: 38 35% 90%;
-    --muted-foreground: 70 12% 36%;
+    --muted: 222 20% 95%;
+    --muted-foreground: 222 15% 40%;
 
-    --accent: 38 40% 89%;
-    --accent-foreground: 70 20% 15%;
+    --accent: 222 20% 94%;
+    --accent-foreground: 222 30% 12%;
 
-    --destructive: 343 59% 42%;
-    --destructive-foreground: 36 60% 98%;
+    --destructive: 356 75% 48%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 152 45% 28%;
-    --success-foreground: 36 60% 98%;
+    --success: 152 55% 32%;
+    --success-foreground: 0 0% 100%;
 
-    --warning: 32 85% 34%;
-    --warning-foreground: 36 60% 98%;
+    --warning: 38 92% 45%;
+    --warning-foreground: 222 30% 12%;
 
-    --border: 38 30% 80%;
-    --input: 38 30% 80%;
-    --ring: 74 40% 38%;
+    --border: 220 18% 90%;
+    --input: 220 18% 90%;
+    --ring: 229 84% 58%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 35 12% 9%;
-    --foreground: 38 35% 92%;
+    --background: 240 8% 6%;
+    --foreground: 210 20% 96%;
 
-    --card: 35 12% 12%;
-    --card-foreground: 38 35% 92%;
+    --card: 240 6% 10%;
+    --card-foreground: 210 20% 96%;
 
-    --popover: 35 12% 12%;
-    --popover-foreground: 38 35% 92%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 210 20% 96%;
 
-    --primary: 75 38% 60%;
-    --primary-foreground: 70 15% 10%;
+    --primary: 229 90% 65%;
+    --primary-foreground: 240 8% 6%;
 
-    --secondary: 35 12% 16%;
-    --secondary-foreground: 38 35% 92%;
+    --secondary: 240 6% 14%;
+    --secondary-foreground: 210 20% 96%;
 
-    --muted: 35 12% 16%;
-    --muted-foreground: 38 15% 65%;
+    --muted: 240 6% 14%;
+    --muted-foreground: 215 12% 65%;
 
-    --accent: 35 12% 18%;
-    --accent-foreground: 38 35% 92%;
+    --accent: 240 6% 16%;
+    --accent-foreground: 210 20% 96%;
 
-    --destructive: 343 60% 62%;
-    --destructive-foreground: 70 15% 10%;
+    --destructive: 356 80% 62%;
+    --destructive-foreground: 240 8% 6%;
 
-    --success: 152 42% 48%;
-    --success-foreground: 70 15% 10%;
+    --success: 152 50% 52%;
+    --success-foreground: 240 8% 6%;
 
-    --warning: 32 80% 55%;
-    --warning-foreground: 70 15% 10%;
+    --warning: 38 90% 58%;
+    --warning-foreground: 240 8% 6%;
 
-    --border: 35 12% 20%;
-    --input: 35 12% 20%;
-    --ring: 75 45% 62%;
+    --border: 240 8% 18%;
+    --input: 240 8% 18%;
+    --ring: 229 90% 65%;
   }
 }
 

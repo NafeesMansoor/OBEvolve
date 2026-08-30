@@ -36,6 +36,12 @@ class Course(UUIDPKMixin, TimestampMixin, TenantBase):
     # "Major Core", "Concentration Elective (Data Science)") — not an enum,
     # since institution-specific category naming varies (DATABASE_PLAN.md §C).
     course_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # "theory" | "lab" — distinct from the free-text `course_type` category
+    # label above; this drives which Course Files checklist applies
+    # (Faculty Module spec §6 vs §7), nothing else. Defaults to "theory"
+    # since most courses are lecture-based; labs are the minority that need
+    # explicit marking.
+    delivery_format: Mapped[str] = mapped_column(String(10), nullable=False, default="theory")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Self-referential, nullable, one-directional: "this course is also
     # offered as/with that course" (e.g. a cross-listed course taught
@@ -83,5 +89,13 @@ class CourseVersion(UUIDPKMixin, TimestampMixin, TenantBase):
     approved_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # Course outline content (§1/§1.6/§1.7 — deliberately excludes §1.5's
+    # week-by-week delivery plan, out of scope) — one line per item,
+    # rendered as a bullet list. Admin-edited (PATCH /course-versions/{id});
+    # faculty only ever propose a change via CourseChangeRequest.
+    objectives: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tla_items: Mapped[str | None] = mapped_column(Text, nullable=True)
+    learning_materials: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_assessment_weights: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     course: Mapped[Course] = relationship(back_populates="versions")

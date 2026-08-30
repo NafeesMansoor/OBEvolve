@@ -1,9 +1,11 @@
 import * as React from 'react'
 import {
   BarChart3,
+  BookMarked,
   BookOpen,
   ClipboardCheck,
   Database,
+  GraduationCap,
   Info,
   LayoutDashboard,
   LineChart,
@@ -36,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Footer } from '@/components/footer'
 import { GlobalSearch } from '@/components/global-search'
-import { Logo } from '@/components/logo'
+import { Logo, LogoMark } from '@/components/logo'
 import { NotificationsPanel } from '@/components/notifications-panel'
 import { ProgramSwitcher } from '@/components/program-switcher'
 import { RoleSwitcher } from '@/components/role-switcher'
@@ -66,47 +68,82 @@ const navItems: NavItem[] = [
     anyOfPermissions: [],
   },
   {
+    label: 'Courses',
+    to: '/courses',
+    icon: GraduationCap,
+    sectionKey: 'courses',
+    anyOfPermissions: ['section.view'],
+  },
+  {
+    // curriculum.view is deliberately NOT the gate here — Faculty holds it
+    // too (needed internally for CO-mapping dropdowns etc.), which would
+    // otherwise leak this institution-wide admin page into the Faculty nav
+    // (spec §30: Faculty's own nav is Dashboard/Courses/Question Bank
+    // only). outcome.create/outcome.approve are held by curriculum
+    // administrators and reviewers (Program/Course Administrator, Head of
+    // Department, Dean, Program Coordinator) but not by Faculty.
     label: 'Course Level Settings',
     to: '/course-settings',
     icon: BookOpen,
     sectionKey: 'courseSettings',
-    anyOfPermissions: ['curriculum.view'],
+    anyOfPermissions: ['outcome.create', 'outcome.approve'],
   },
   {
     label: 'Program Level Setting',
     to: '/program-settings',
     icon: Target,
     sectionKey: 'programSettings',
-    anyOfPermissions: ['curriculum.view', 'program.view'],
+    anyOfPermissions: ['outcome.create', 'outcome.approve', 'program.view'],
   },
   {
+    // Institution/program-wide read-write over offerings, sections, faculty
+    // assignments, and students — gated on section.manage specifically
+    // (not section.view/student.view, which Faculty/Course Coordinator also
+    // hold) so faculty never see this module (Faculty Module spec §10: "not
+    // displayed to faculty because faculty cannot read or write data
+    // within that module" — they use Courses/Question Bank instead).
     label: 'Academic Operations',
     to: '/academic',
     icon: ClipboardCheck,
     sectionKey: 'academic',
-    anyOfPermissions: [
-      'section.view',
-      'section.manage',
-      'student.view',
-      'student.manage',
-      'academic_calendar.view',
-    ],
+    anyOfPermissions: ['section.manage', 'academic_calendar.view'],
   },
   {
+    // grading.manage, not grading.view — Faculty/Course Coordinator hold
+    // the latter (needed to resolve grading policy display elsewhere) but
+    // not the former; only Program Administrator configures grading
+    // policy institution/program-wide.
     label: 'Grading',
     to: '/grading',
     icon: BarChart3,
     sectionKey: 'grading',
-    anyOfPermissions: ['grading.view'],
+    anyOfPermissions: ['grading.manage'],
   },
   {
+    // assessment.approve, not assessment.view — Faculty holds the latter
+    // (needed for their own Course Management → Assessments tab, a
+    // different page) but not the former; this is the institution-wide
+    // admin console (types/rubrics/question bank across every section),
+    // reserved for reviewers/coordinators.
     label: 'Assessment',
     to: '/assessment',
     icon: ClipboardCheck,
     sectionKey: 'assessment',
+    anyOfPermissions: ['assessment.approve'],
+  },
+  {
+    label: 'Question Bank',
+    to: '/question-bank',
+    icon: BookMarked,
+    sectionKey: 'questionBank',
     anyOfPermissions: ['assessment.view'],
   },
   {
+    // assessment.view included so Faculty sees this too — AnalyticsPage
+    // branches internally: a caller with only assessment.view (no
+    // program.view/attainment.calculate/assessment.approve) gets "My
+    // Courses" — an aggregate view across their own current+previous
+    // sections — instead of the institution/program-wide rollup tabs.
     label: 'Analytics',
     to: '/analytics',
     icon: LineChart,
@@ -151,12 +188,7 @@ function initials(fullName: string): string {
 function BrandMark({ collapsed }: { collapsed?: boolean }) {
   return (
     <div className={cn('flex items-center gap-2.5', collapsed && 'justify-center')}>
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Logo className="size-5" />
-      </div>
-      {!collapsed && (
-        <span className="font-display text-sm font-semibold tracking-tight">OBEvolve</span>
-      )}
+      {collapsed ? <LogoMark className="size-8 shrink-0" /> : <Logo className="text-lg" />}
     </div>
   )
 }

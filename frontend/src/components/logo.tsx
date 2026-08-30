@@ -1,39 +1,51 @@
+import { cn } from '@/lib/utils'
+
 /**
- * OBEvolve's mark: an ascending, connected node graph — reads as both a
- * knowledge/outcome network (PEO → PO → CO mapping is literally this shape
- * elsewhere in the app) and an upward trajectory ("evolve"). Renders in
- * `currentColor` so it inherits whatever text color its container sets
- * (e.g. `text-primary-foreground` on the usual `bg-primary` badge).
+ * OBEvolve's wordmark (ref/logo.png): "OBE" set in white with a red
+ * keyline, "volve" solid red — reproduced as real text (not the source
+ * raster, which is only 145×52px and blurs past favicon size) so it stays
+ * crisp at any size and respects dark/light theme automatically via the
+ * `--primary` token. `-webkit-text-stroke` on "OBE" is what makes it read
+ * on any background, light or dark, exactly like the red keyline in the
+ * source mark — `paint-order: stroke fill` keeps the stroke from eating
+ * into the white fill. Size via font-size utilities on `className` (e.g.
+ * `text-lg`, `text-3xl`), not `size-*`.
  */
 export function Logo({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
+    <span
+      className={cn(
+        'inline-flex items-baseline font-display font-extrabold leading-none tracking-tight',
+        className,
+      )}
+    >
+      <span
+        className="text-white"
+        style={{ WebkitTextStroke: '0.16em hsl(var(--primary))', paintOrder: 'stroke fill' }}
+      >
+        OBE
+      </span>
+      <span className="text-primary">volve</span>
+    </span>
+  )
+}
+
+/** Compact monogram for tight spaces (collapsed sidebar, badge-sized
+ * contexts) where the full wordmark won't fit — the source logo has no
+ * separate icon glyph, so this derives one echoing the wordmark's own
+ * "OBE" / "volve" split rather than an arbitrary single letter: "O" from
+ * the white-stroked half, "v" from the solid-red half. Size via `size-*`
+ * (it's a square badge, not a font-size context like `Logo`). */
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center justify-center rounded-md bg-primary font-display text-sm font-extrabold leading-none tracking-tighter text-primary-foreground',
+        className,
+      )}
       aria-hidden="true"
     >
-      <path
-        d="M4.5 17.5L9.5 12.5L13.5 15.5L19.5 6.5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M13.5 15.5L16 18"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.55"
-      />
-      <circle cx="4.5" cy="17.5" r="1.6" fill="currentColor" />
-      <circle cx="9.5" cy="12.5" r="1.6" fill="currentColor" />
-      <circle cx="13.5" cy="15.5" r="1.6" fill="currentColor" />
-      <circle cx="16" cy="18" r="1.3" fill="currentColor" opacity="0.55" />
-      <circle cx="19.5" cy="6.5" r="1.8" fill="currentColor" />
-    </svg>
+      O<span className="italic">v</span>
+    </span>
   )
 }

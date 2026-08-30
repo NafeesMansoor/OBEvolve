@@ -13,6 +13,69 @@ Postgres instance, schema-per-institution with schema-per-program nested inside 
 Full architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Full data model:
 [docs/DATABASE_PLAN.md](docs/DATABASE_PLAN.md). Deploying: [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 
+## Semantic code intelligence (CodeCortex) — query this FIRST, before grep/Explore
+
+This repo is indexed with [CodeCortex](https://github.com/NafeesMansoor/CodeCortex), a semantic
+code-graph tool (tree-sitter → Code Property Graph → embeddings → clustering/centrality →
+retrieval). **Every agent working in this repo should reach for a CodeCortex query before a plain
+grep sweep or an `Explore` subagent for any "where is the code that does X" / "what calls this" /
+"what would break if I changed this" question** — it answers in one call what a multi-file grep
+fan-out (or a whole subagent spin-up) would otherwise cost, so default to it first and it keeps
+token spend down across the session. The one exception: if you already know the exact file and
+line (a path was given, or a previous tool call already found it), just `Read` it — don't query
+CodeCortex to rediscover something you already have.
+
+**Setup** (already done in this repo, documented here so it's not re-discovered): the CLI lives in
+its own clone + venv at `tools/codecortex/` (gitignored — it's a vendored dev tool, not an OBEvolve
+dependency; `backend/.venv` is unrelated). Indexing config is `codecortex.yaml` at the repo root.
+The generated graph snapshot is `.codecortex/graph.json` (gitignored, regenerable, ~3 MB as of the
+last reindex — 313 files, 2499 nodes, 14646 edges, 123 `.tsx` files confirmed indexed).
+
+**Every invocation needs these two env vars on macOS**, or `query`/`impact` segfault (a real
+PyTorch/FAISS OpenMP duplicate-library conflict, not flaky — `index` alone doesn't need them since
+it never loads the retrieval/embedding-search path):
+
+```bash
+export KMP_DUPLICATE_LIB_OK=TRUE
+export OMP_NUM_THREADS=1
+```
+
+```bash
+CC=tools/codecortex/.venv/bin/codecortex   # shorthand used below
+
+# Reindex after a large batch of changes (not needed for small edits — query
+# rebuilds on the fly, just slower). Takes ~40-125s depending on change size.
+$CC index . --config codecortex.yaml --mode cpg --enable-embeddings --enable-clustering \
+  --save-snapshot .codecortex/graph.json
+
+# Natural-language semantic search across backend + frontend — START HERE
+# for "where is the code that does X" instead of grep.
+$CC query --query "assessment document pending review" --target . --config codecortex.yaml
+
+# Blast radius of changing a function/class — START HERE instead of a
+# manual grep-for-callers sweep before touching a shared function.
+$CC query --impact require_permission --target . --config codecortex.yaml
+
+# Interactive graph explorer at http://localhost:7979 (no --config flag —
+# visualize doesn't accept one; it builds its own lighter default index)
+$CC visualize .
+```
+
+**Two real bugs in the CodeCortex install were found and fixed while setting this up, and are
+still present upstream as of v1.2.0 — verified directly against the pipx-installed v1.2.0 source
+during a 2026-08-31 reinstall, not fixed** (patched locally under `tools/codecortex/`; reapply
+both if `tools/codecortex` is ever re-cloned or updated — check upstream first in case a newer
+release finally includes them, but don't assume it does without checking): (1)
+`pipeline/context_builder.py`'s file walker only globbed one hardcoded extension per language
+(`.ts`, `.js`), silently dropping every `.tsx`/`.jsx` file — for this repo that meant the entire
+React component tree was invisible to the index; fixed to expand each parser's full `.extensions`
+list. (2) `core/parsers/typescript_parser.py` used the plain `typescript` tree-sitter grammar (no
+JSX support) for `.tsx` files too; fixed to pick the `tsx` grammar variant by extension.
+
+Only one project-level installation of CodeCortex should exist for this repo — `tools/codecortex/`
+above. Don't `pip install` or `pipx install` a second global copy "for convenience"; a global
+install won't carry the two local patches above and will silently regress `.tsx`/`.jsx` indexing.
+
 ## Commands
 
 ### Backend (`backend/`, venv at `backend/.venv`)
@@ -98,55 +161,3 @@ assume `docker compose up` works until those exist.
 color tokens, typography, spacing, and the per-page redesign checklist — read it before making any
 visual change to the frontend. It also documents where the light/dark theme toggle
 (`next-themes`) lives and the Bloom's-Level/CO-mapping convention for question authoring.
-
-## Semantic code intelligence (CodeCortex)
-
-This repo is indexed with [CodeCortex](https://github.com/NafeesMansoor/CodeCortex), a semantic
-code-graph tool (tree-sitter → Code Property Graph → embeddings → clustering/centrality →
-retrieval) — reach for it instead of a plain grep sweep when a question spans both languages
-(backend + frontend), needs "what calls/imports this" or blast-radius reasoning, or is a fuzzy
-"where is the code that does X" question rather than an exact-string search.
-
-**Setup** (already done in this repo, documented here so it's not re-discovered): the CLI lives in
-its own clone + venv at `tools/codecortex/` (gitignored — it's a vendored dev tool, not an OBEvolve
-dependency; `backend/.venv` is unrelated). Indexing config is `codecortex.yaml` at the repo root.
-The generated graph snapshot is `.codecortex/graph.json` (gitignored, regenerable, ~2.8 MB as of
-the last reindex — 259 files, 2124 nodes, 12296 edges).
-
-**Every invocation needs these two env vars on macOS**, or `query`/`impact` segfault (a real
-PyTorch/FAISS OpenMP duplicate-library conflict, not flaky — `index` alone doesn't need them since
-it never loads the retrieval/embedding-search path):
-
-```bash
-export KMP_DUPLICATE_LIB_OK=TRUE
-export OMP_NUM_THREADS=1
-```
-
-```bash
-CC=tools/codecortex/.venv/bin/codecortex   # shorthand used below
-
-# Reindex after a large batch of changes (not needed for small edits — query
-# rebuilds on the fly, just slower). Takes ~35-40s.
-$CC index . --config codecortex.yaml --mode cpg --enable-embeddings --enable-clustering \
-  --save-snapshot .codecortex/graph.json
-
-# Natural-language semantic search across backend + frontend
-$CC query --query "assessment document pending review" --target . --config codecortex.yaml
-
-# Blast radius of changing a function/class
-$CC query --impact require_permission --target . --config codecortex.yaml
-
-# Interactive graph explorer at http://localhost:7979 (no --config flag —
-# visualize doesn't accept one; it builds its own lighter default index)
-$CC visualize .
-```
-
-**Two real bugs in the CodeCortex install were found and fixed while setting this up** (patched
-locally under `tools/codecortex/`, not yet upstreamed — mention it if you're touching that tool
-again): (1) `pipeline/context_builder.py`'s file walker only globbed one hardcoded extension per
-language (`.ts`, `.js`), silently dropping every `.tsx`/`.jsx` file — for this repo that meant the
-entire React component tree was invisible to the index; fixed to expand each parser's full
-`.extensions` list. (2) `core/parsers/typescript_parser.py` used the plain `typescript` tree-sitter
-grammar (no JSX support) for `.tsx` files too; fixed to pick the `tsx` grammar variant by
-extension. If `tools/codecortex` gets re-cloned or updated, re-check whether these are fixed
-upstream before assuming they still need the local patch.

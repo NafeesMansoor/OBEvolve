@@ -23,6 +23,9 @@ export interface FacultyAssignment {
   /** Resolved server-side — see backend FacultyAssignmentRead.faculty_name. */
   faculty_name: string | null
   role: 'coordinator' | 'instructor'
+  office_location: string | null
+  consultation_hours: string | null
+  meeting_link: string | null
   created_at: string
   updated_at: string
 }

@@ -146,11 +146,8 @@ export function PlatformRawDataPage() {
     <div className="flex min-h-screen flex-col bg-muted/40">
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 md:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Logo className="size-5" />
-          </div>
           <div className="flex items-center gap-2">
-            <span className="font-display text-sm font-semibold tracking-tight">OBEvolve</span>
+            <Logo className="text-lg" />
             <Badge variant="outline" className="font-normal text-muted-foreground">
               Platform Admin
             </Badge>

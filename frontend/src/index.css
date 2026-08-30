@@ -13,83 +13,126 @@
  * cream/sage/rose palette). Light theme follows the cool-neutral-canvas +
  * single vivid-indigo-accent convention of contemporary analytics
  * dashboards; dark theme follows Framer.com's near-black-canvas + bright
- * accent convention. Same brand hue (229°, indigo-blue) carries across both
- * themes for continuity; only lightness/saturation shift. See
- * design-system/obevolve/MASTER.md for the full WCAG rationale.
+ * accent convention. Same brand hue carries across both themes for
+ * continuity; only lightness/saturation shift.
+ *
+ * Revision 4 — --primary/--ring retuned to the (then-current) OBEvolve
+ * logo's dominant indigo-blue. Superseded by Revision 5 below — kept only
+ * as prior-art context, values no longer live.
+ *
+ * Revision 5 — the OBEvolve logo changed (ref/logo.png): plain red
+ * wordmark ("OBE" white-on-red-keyline, "volve" solid red), no gradient,
+ * no icon glyph. --primary/--ring retuned to that logo's sampled red
+ * (~9° hue, fully saturated — RGB 222,29,0, the exact "volve" red).
+ * --destructive shifted from 356° to 348° (a visibly cooler, pinker red)
+ * so a primary CTA and a delete button are never the same hue family at a
+ * glance — see the WCAG contrast + hue-separation rationale in
+ * design-system/obevolve/MASTER.md. --brand-violet/--brand-cyan (tied to
+ * the old gradient logo) are retired in favor of --brand-red-light/
+ * --brand-red-deep, a monochrome tint/shade pair of the one brand hue.
+ * Neutral tokens (background/foreground/secondary/muted/accent/border)
+ * also rotated from a cool blue-gray hue (~220°) to a true-neutral warm
+ * gray (~15°) in LIGHT mode so they don't fight the red accent by
+ * simultaneous contrast — S/L values unchanged, so contrast ratios are
+ * unaffected.
+ *
+ * Revision 5.1 — dark-mode neutrals corrected back to true 0%-saturation
+ * gray (not the same warm ~15° tint as light mode): a warm hue at dark
+ * mode's much lower lightness (7-19%) reads as muddy/brownish rather than
+ * crisp — confirmed against real dark-mode-red-accent precedent (cinema/
+ * streaming-style UIs keep the dark surface neutral and let one accent
+ * color carry 100% of the brand hue). Light mode's warm tint is unaffected
+ * — it works there because near-white easily stays "warm paper," not
+ * "dirty," at 90%+ lightness.
  */
 @layer base {
   :root {
-    --background: 220 25% 98%;
-    --foreground: 222 30% 12%;
+    --background: 15 15% 98%;
+    --foreground: 15 20% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 30% 12%;
+    --card-foreground: 15 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 30% 12%;
+    --popover-foreground: 15 20% 12%;
 
-    --primary: 229 84% 58%;
+    --primary: 9 100% 44%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 20% 95%;
-    --secondary-foreground: 222 30% 12%;
+    /* Brand tints/shades sampled from the OBEvolve logo (ref/logo.png) —
+       decorative use only (gradients, hero washes). Not wired into shadcn
+       component variants. */
+    --brand-red-light: 9 90% 68%;
+    --brand-red-deep: 9 85% 28%;
 
-    --muted: 222 20% 95%;
-    --muted-foreground: 222 15% 40%;
+    --secondary: 15 12% 95%;
+    --secondary-foreground: 15 20% 12%;
 
-    --accent: 222 20% 94%;
-    --accent-foreground: 222 30% 12%;
+    --muted: 15 12% 95%;
+    --muted-foreground: 15 10% 40%;
 
-    --destructive: 356 75% 48%;
+    --accent: 15 12% 94%;
+    --accent-foreground: 15 20% 12%;
+
+    --destructive: 348 80% 44%;
     --destructive-foreground: 0 0% 100%;
 
     --success: 152 55% 32%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 45%;
-    --warning-foreground: 222 30% 12%;
+    --warning-foreground: 15 20% 12%;
 
-    --border: 220 18% 90%;
-    --input: 220 18% 90%;
-    --ring: 229 84% 58%;
+    --border: 15 12% 90%;
+    --input: 15 12% 90%;
+    --ring: 9 100% 44%;
 
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 240 8% 6%;
-    --foreground: 210 20% 96%;
+    /* True neutral (0% saturation), not a warm/red-tinted dark — at low
+       lightness a hue-tinted near-black reads as muddy/brownish rather
+       than crisp (confirmed against a real dark-mode-red-accent precedent:
+       cinema/OTT-style UIs keep the dark surface neutral and let one
+       accent color carry all the brand hue). Only --primary/--destructive/
+       --ring/--brand-red-* carry the brand red in dark mode. */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 96%;
 
-    --card: 240 6% 10%;
-    --card-foreground: 210 20% 96%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 240 6% 10%;
-    --popover-foreground: 210 20% 96%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 229 90% 65%;
-    --primary-foreground: 240 8% 6%;
+    --primary: 9 95% 60%;
+    --primary-foreground: 0 0% 7%;
 
-    --secondary: 240 6% 14%;
-    --secondary-foreground: 210 20% 96%;
+    --brand-red-light: 9 90% 72%;
+    --brand-red-deep: 9 80% 32%;
 
-    --muted: 240 6% 14%;
-    --muted-foreground: 215 12% 65%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 96%;
 
-    --accent: 240 6% 16%;
-    --accent-foreground: 210 20% 96%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --destructive: 356 80% 62%;
-    --destructive-foreground: 240 8% 6%;
+    --accent: 0 0% 17%;
+    --accent-foreground: 0 0% 96%;
+
+    --destructive: 348 85% 62%;
+    --destructive-foreground: 0 0% 7%;
 
     --success: 152 50% 52%;
-    --success-foreground: 240 8% 6%;
+    --success-foreground: 0 0% 7%;
 
     --warning: 38 90% 58%;
-    --warning-foreground: 240 8% 6%;
+    --warning-foreground: 0 0% 7%;
 
-    --border: 240 8% 18%;
-    --input: 240 8% 18%;
-    --ring: 229 90% 65%;
+    --border: 0 0% 19%;
+    --input: 0 0% 19%;
+    --ring: 9 95% 60%;
   }
 }
 

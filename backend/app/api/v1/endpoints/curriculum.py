@@ -50,6 +50,7 @@ from app.schemas.curriculum import (
     CourseUpdate,
     CourseVersionCreate,
     CourseVersionRead,
+    CourseVersionUpdate,
     EngineeringActivityRead,
     FrameworkPORead,
     KnowledgeProfileRead,
@@ -330,6 +331,34 @@ def get_course_version(
     _current_user: User = Depends(require_permission("curriculum.view")),
 ) -> CourseVersion:
     return _get_or_404(db, CourseVersion, version_id, "Course version")
+
+
+@router.patch("/course-versions/{version_id}", response_model=CourseVersionRead)
+def update_course_version(
+    version_id: uuid.UUID,
+    payload: CourseVersionUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("outcome.create")),
+) -> CourseVersion:
+    version = _get_or_404(db, CourseVersion, version_id, "Course version")
+    changes = payload.model_dump(exclude_unset=True)
+    previous_value = {field: getattr(version, field) for field in changes}
+    for field, value in changes.items():
+        setattr(version, field, value)
+    db.add(version)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="course_version.updated",
+        entity_type="CourseVersion",
+        entity_id=version.id,
+        previous_value={k: str(v) for k, v in previous_value.items()},
+        new_value=payload.model_dump(mode="json", exclude_unset=True),
+        **get_request_context(request),
+    )
+    return version
 
 
 @router.post("/course-versions/{version_id}/advance", response_model=CourseVersionRead)

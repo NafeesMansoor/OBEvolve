@@ -68,8 +68,21 @@ class FacultyAssignmentRead(BaseModel):
     # blank/showing a raw UUID for those roles.
     faculty_name: str | None = None
     role: str
+    office_location: str | None
+    consultation_hours: str | None
+    meeting_link: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class FacultyAssignmentContactInfoUpdate(BaseModel):
+    """The only Course Settings fields a faculty member can edit directly
+    (Faculty Module spec §4.1) — everything else routes through a change
+    request."""
+
+    office_location: str | None = None
+    consultation_hours: str | None = None
+    meeting_link: str | None = None
 
 
 # --- StudentEnrollment ---

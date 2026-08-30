@@ -8,6 +8,7 @@ from app.models.tenant.assessments.assessment import (
     Assessment,
     AssessmentDocument,
     AssessmentQuestion,
+    AssessmentQuestionProgramOutcomeMapping,
     AssessmentType,
     Question,
     QuestionBloomMapping,
@@ -17,7 +18,9 @@ from app.models.tenant.assessments.assessment import (
     RubricLevel,
 )
 from app.models.tenant.assessments.marks import (
+    AttainmentSnapshot,
     CourseAttainmentConfig,
+    GradeSubmission,
     ProgramAttainmentConfig,
     StudentMark,
 )
@@ -26,8 +29,11 @@ __all__ = [
     "Assessment",
     "AssessmentDocument",
     "AssessmentQuestion",
+    "AssessmentQuestionProgramOutcomeMapping",
     "AssessmentType",
+    "AttainmentSnapshot",
     "CourseAttainmentConfig",
+    "GradeSubmission",
     "ProgramAttainmentConfig",
     "Question",
     "QuestionBloomMapping",

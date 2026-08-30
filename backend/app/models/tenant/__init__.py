@@ -20,8 +20,11 @@ from app.models.tenant.assessments import (
     Assessment,
     AssessmentDocument,
     AssessmentQuestion,
+    AssessmentQuestionProgramOutcomeMapping,
     AssessmentType,
+    AttainmentSnapshot,
     CourseAttainmentConfig,
+    GradeSubmission,
     ProgramAttainmentConfig,
     Question,
     QuestionBloomMapping,
@@ -32,6 +35,12 @@ from app.models.tenant.assessments import (
     StudentMark,
 )
 from app.models.tenant.audit import AuditLog, Notification
+from app.models.tenant.change_requests import CourseChangeRequest
+from app.models.tenant.course_files import (
+    CourseFileRequirement,
+    CourseFileSubmission,
+    CourseFileType,
+)
 from app.models.tenant.courses import (
     Course,
     CourseOffering,
@@ -78,12 +87,18 @@ __all__ = [
     "Assessment",
     "AssessmentDocument",
     "AssessmentQuestion",
+    "AssessmentQuestionProgramOutcomeMapping",
     "AssessmentType",
+    "AttainmentSnapshot",
     "AuditLog",
     "BloomLevel",
     "Campus",
     "Course",
     "CourseAttainmentConfig",
+    "CourseChangeRequest",
+    "CourseFileRequirement",
+    "CourseFileSubmission",
+    "CourseFileType",
     "CourseOffering",
     "CourseOutcome",
     "CourseOutcomePOMapping",
@@ -94,6 +109,7 @@ __all__ = [
     "FacultyAssignment",
     "FacultyProfile",
     "FrameworkPO",
+    "GradeSubmission",
     "GradingBand",
     "GradingPolicy",
     "ImprovementPlan",

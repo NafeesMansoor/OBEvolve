@@ -112,6 +112,28 @@ PERMISSIONS: list[PermissionDef] = [
         "Approve or reject pending raw-data change proposals",
         "raw_data",
     ),
+    # --- Course files (Faculty Module spec §5-9) ---
+    PermissionDef(
+        "course_file.configure",
+        "Configure per-semester course-file requirements (required/optional, deadlines)",
+        "course_files",
+    ),
+    PermissionDef(
+        "course_file.upload", "Upload course files for an assigned section", "course_files"
+    ),
+    PermissionDef("course_file.review", "Approve/reject submitted course files", "course_files"),
+    PermissionDef("course_file.view", "View course files and their requirements", "course_files"),
+    # --- Course Settings change requests (Faculty Module spec §4.2) ---
+    PermissionDef(
+        "course_change_request.create",
+        "Propose a change to admin-controlled course information",
+        "course_change_request",
+    ),
+    PermissionDef(
+        "course_change_request.review",
+        "Approve or reject a course change request",
+        "course_change_request",
+    ),
 ]
 
 PERMISSION_CODES: frozenset[str] = frozenset(p.code for p in PERMISSIONS)

@@ -34,6 +34,7 @@ from app.models.tenant.assessments import (
     Assessment,
     AssessmentDocument,
     AssessmentQuestion,
+    AssessmentQuestionProgramOutcomeMapping,
     AssessmentType,
     Question,
     QuestionBloomMapping,
@@ -49,6 +50,8 @@ from app.schemas.assessment import (
     AssessmentDocumentRead,
     AssessmentDocumentReview,
     AssessmentQuestionCreate,
+    AssessmentQuestionProgramOutcomeMappingCreate,
+    AssessmentQuestionProgramOutcomeMappingRead,
     AssessmentQuestionRead,
     AssessmentRead,
     AssessmentTypeCreate,
@@ -69,6 +72,11 @@ from app.schemas.assessment import (
 )
 from app.schemas.attainment import AssessmentWeightSummary
 from app.services.audit import write_audit_log
+from app.services.faculty_scope import (
+    ensure_assigned_to_section,
+    ensure_section_access,
+    filter_to_my_sections,
+)
 from app.services.rbac import get_program_scoped_db, require_permission
 from app.services.storage import delete_upload, read_upload, save_upload
 
@@ -377,12 +385,19 @@ def create_question(
 @router.get("/questions", response_model=list[QuestionRead])
 def list_questions(
     course_version_id: uuid.UUID | None = Query(default=None),
+    is_globally_shared: bool | None = Query(
+        default=None,
+        description="Question Bank search (spec §16-17): filter to questions "
+        "explicitly shared for reuse across sections/terms.",
+    ),
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_permission("assessment.view")),
 ) -> list[Question]:
     query = db.query(Question)
     if course_version_id is not None:
         query = query.filter(Question.course_version_id == course_version_id)
+    if is_globally_shared is not None:
+        query = query.filter(Question.is_globally_shared.is_(is_globally_shared))
     return query.order_by(Question.created_at.desc()).all()
 
 
@@ -623,6 +638,7 @@ def create_assessment(
     db: Session = Depends(get_program_scoped_db),
     current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> Assessment:
+    ensure_assigned_to_section(db, current_user.id, payload.course_section_id)
     assessment = Assessment(**payload.model_dump(), status=WorkflowStatus.DRAFT)
     db.add(assessment)
     db.flush()
@@ -640,26 +656,38 @@ def create_assessment(
 
 @router.get("/assessments", response_model=list[AssessmentRead])
 def list_assessments(
+    request: Request,
     course_section_id: uuid.UUID | None = Query(default=None),
     db: Session = Depends(get_program_scoped_db),
-    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
+    current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
 ) -> list[Assessment]:
-    query = db.query(Assessment)
     if course_section_id is not None:
-        query = query.filter(Assessment.course_section_id == course_section_id)
+        ensure_section_access(db, current_user.id, course_section_id, request.state.program_id)
+        return (
+            db.query(Assessment)
+            .filter(Assessment.course_section_id == course_section_id)
+            .order_by(Assessment.created_at.desc())
+            .all()
+        )
+    my_section_ids = filter_to_my_sections(db, current_user.id, request.state.program_id)
+    query = db.query(Assessment)
+    if my_section_ids is not None:
+        query = query.filter(Assessment.course_section_id.in_(my_section_ids))
     return query.order_by(Assessment.created_at.desc()).all()
 
 
 @router.get("/assessments/weight-summary", response_model=AssessmentWeightSummary)
 def get_assessment_weight_summary(
+    request: Request,
     course_section_id: uuid.UUID = Query(...),
     db: Session = Depends(get_program_scoped_db),
-    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
+    current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
 ) -> AssessmentWeightSummary:
     """Surfaced to the UI as a non-blocking banner, not enforced at
     create/update time: assessments for a section are typically added one at
     a time, so a hard "must sum to 100%" check on every write would make it
     impossible to build up to 100% incrementally."""
+    ensure_section_access(db, current_user.id, course_section_id, request.state.program_id)
     assessments = (
         db.query(Assessment).filter(Assessment.course_section_id == course_section_id).all()
     )
@@ -677,10 +705,15 @@ def get_assessment_weight_summary(
 @router.get("/assessments/{assessment_id}", response_model=AssessmentRead)
 def get_assessment(
     assessment_id: uuid.UUID,
+    request: Request,
     db: Session = Depends(get_program_scoped_db),
-    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
+    current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
 ) -> Assessment:
-    return _get_or_404(db, Assessment, assessment_id, "Assessment")
+    assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
+    ensure_section_access(
+        db, current_user.id, assessment.course_section_id, request.state.program_id
+    )
+    return assessment
 
 
 @router.patch("/assessments/{assessment_id}", response_model=AssessmentRead)
@@ -692,6 +725,7 @@ def update_assessment(
     current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> Assessment:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
+    ensure_assigned_to_section(db, current_user.id, assessment.course_section_id)
     previous_value = {
         "title": assessment.title,
         "max_marks": str(assessment.max_marks),
@@ -722,6 +756,7 @@ def delete_assessment(
     current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> None:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
+    ensure_assigned_to_section(db, current_user.id, assessment.course_section_id)
     db.delete(assessment)
     db.flush()
     write_audit_log(
@@ -734,6 +769,79 @@ def delete_assessment(
     )
 
 
+def _validate_assessment_finalizable(db: Session, assessment: Assessment) -> None:
+    """Guards the draft→submitted transition only (Faculty Module spec
+    §15.1/§18/§19 all describe a one-time "finalize" check, not a re-check on
+    every later stage). Which check applies is read off `AssessmentType`'s
+    existing type-level flags — `requires_documents` already identifies
+    exam-type assessments (seeded true only for Midterm/Final Exam), so it
+    doubles as the BR-07 mark-sum discriminator without a new flag."""
+    assessment_type = _get_or_404(
+        db, AssessmentType, assessment.assessment_type_id, "Assessment type"
+    )
+    questions = (
+        db.query(AssessmentQuestion)
+        .filter(AssessmentQuestion.assessment_id == assessment.id)
+        .all()
+    )
+
+    if assessment_type.requires_documents:  # exam-type: Midterm/Final — BR-07
+        total = sum((q.marks_allocated for q in questions), Decimal(0))
+        if total != assessment.max_marks:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Incomplete: question marks total {total}, must total "
+                f"{assessment.max_marks}.",
+            )
+        return
+
+    if assessment_type.requires_cep_documents:  # Complex Engineering Problem — §18
+        if not questions:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Add at least one task before finalizing.",
+            )
+        for q in questions:
+            has_co = (
+                db.query(QuestionCourseOutcomeMapping)
+                .filter(QuestionCourseOutcomeMapping.question_id == q.question_id)
+                .first()
+                is not None
+            )
+            has_po = (
+                db.query(AssessmentQuestionProgramOutcomeMapping)
+                .filter(AssessmentQuestionProgramOutcomeMapping.assessment_question_id == q.id)
+                .first()
+                is not None
+            )
+            if not (has_co and has_po):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Every task must have a Course Outcome and Program Outcome "
+                    "mapping before finalizing.",
+                )
+        return
+
+    if assessment_type.requires_oep_validation:  # Open-Ended Problem — §19
+        if not questions:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Add at least one task before finalizing.",
+            )
+        for q in questions:
+            has_co = (
+                db.query(QuestionCourseOutcomeMapping)
+                .filter(QuestionCourseOutcomeMapping.question_id == q.question_id)
+                .first()
+                is not None
+            )
+            if not has_co:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Every task must have a Course Outcome mapping before finalizing.",
+                )
+
+
 @router.post("/assessments/{assessment_id}/advance", response_model=AssessmentRead)
 def advance_assessment(
     assessment_id: uuid.UUID,
@@ -742,6 +850,9 @@ def advance_assessment(
     current_user: User = Depends(require_permission("assessment.approve", scope_type="program")),
 ) -> Assessment:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
+    ensure_section_access(
+        db, current_user.id, assessment.course_section_id, request.state.program_id
+    )
     current_status = WorkflowStatus(assessment.status)
     next_status = _NEXT_STATUS.get(current_status)
     if next_status is None:
@@ -749,6 +860,8 @@ def advance_assessment(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Assessment in status {current_status.value!r} cannot be advanced further.",
         )
+    if current_status == WorkflowStatus.DRAFT:
+        _validate_assessment_finalizable(db, assessment)
     previous_value = {"status": current_status.value}
     assessment.status = next_status
     db.add(assessment)
@@ -778,7 +891,8 @@ def create_assessment_question(
     db: Session = Depends(get_program_scoped_db),
     current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> AssessmentQuestion:
-    _get_or_404(db, Assessment, payload.assessment_id, "Assessment")
+    assessment = _get_or_404(db, Assessment, payload.assessment_id, "Assessment")
+    ensure_assigned_to_section(db, current_user.id, assessment.course_section_id)
     _get_or_404(db, Question, payload.question_id, "Question")
     assessment_question = AssessmentQuestion(**payload.model_dump())
     db.add(assessment_question)
@@ -862,6 +976,76 @@ def delete_assessment_question(
         action="assessment_question.deleted",
         entity_type="AssessmentQuestion",
         entity_id=assessment_question_id,
+        **get_request_context(request),
+    )
+
+
+# --- Assessment-question PO mapping (Complex Engineering Problem tasks, §18) ---
+@router.post(
+    "/assessment-question-po-mappings",
+    response_model=AssessmentQuestionProgramOutcomeMappingRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_assessment_question_po_mapping(
+    payload: AssessmentQuestionProgramOutcomeMappingCreate,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
+) -> AssessmentQuestionProgramOutcomeMapping:
+    _get_or_404(db, AssessmentQuestion, payload.assessment_question_id, "Assessment question")
+    mapping = AssessmentQuestionProgramOutcomeMapping(**payload.model_dump())
+    db.add(mapping)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="assessment_question_po_mapping.created",
+        entity_type="AssessmentQuestionProgramOutcomeMapping",
+        entity_id=mapping.id,
+        new_value=payload.model_dump(mode="json"),
+        **get_request_context(request),
+    )
+    return mapping
+
+
+@router.get(
+    "/assessment-question-po-mappings",
+    response_model=list[AssessmentQuestionProgramOutcomeMappingRead],
+)
+def list_assessment_question_po_mappings(
+    assessment_question_id: uuid.UUID | None = Query(default=None),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("assessment.view", scope_type="program")),
+) -> list[AssessmentQuestionProgramOutcomeMapping]:
+    query = db.query(AssessmentQuestionProgramOutcomeMapping)
+    if assessment_question_id is not None:
+        query = query.filter(
+            AssessmentQuestionProgramOutcomeMapping.assessment_question_id
+            == assessment_question_id
+        )
+    return query.all()
+
+
+@router.delete(
+    "/assessment-question-po-mappings/{mapping_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_assessment_question_po_mapping(
+    mapping_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
+) -> None:
+    mapping = _get_or_404(
+        db, AssessmentQuestionProgramOutcomeMapping, mapping_id, "Assessment-question PO mapping"
+    )
+    db.delete(mapping)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="assessment_question_po_mapping.deleted",
+        entity_type="AssessmentQuestionProgramOutcomeMapping",
+        entity_id=mapping_id,
         **get_request_context(request),
     )
 

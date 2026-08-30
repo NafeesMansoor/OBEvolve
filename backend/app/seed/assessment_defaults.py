@@ -21,6 +21,7 @@ DEFAULT_ASSESSMENT_TYPE_NAMES: list[str] = [
     "Seminar",
     "Practical",
     "Complex Engineering Problem",
+    "Open-Ended Lab Problem",
     "Class Participation",
 ]
 
@@ -34,6 +35,10 @@ DOCUMENT_REQUIRED_TYPE_NAMES: set[str] = {"Midterm", "Final Exam"}
 # This type requires the CEP-specific document set (problem definition,
 # marked-rubric sample, project reports).
 CEP_DOCUMENT_REQUIRED_TYPE_NAMES: set[str] = {"Complex Engineering Problem"}
+
+# This type requires Open-Ended Problem validation on advance (CO-mapping
+# completeness, no PO/KPA requirement — see requires_oep_validation).
+OEP_VALIDATION_TYPE_NAMES: set[str] = {"Open-Ended Lab Problem"}
 
 
 def seed_default_assessment_types(db: Session) -> dict[str, AssessmentType]:
@@ -50,6 +55,7 @@ def seed_default_assessment_types(db: Session) -> dict[str, AssessmentType]:
             is_custom=False,
             requires_documents=name in DOCUMENT_REQUIRED_TYPE_NAMES,
             requires_cep_documents=name in CEP_DOCUMENT_REQUIRED_TYPE_NAMES,
+            requires_oep_validation=name in OEP_VALIDATION_TYPE_NAMES,
         )
         db.add(assessment_type)
         existing[name] = assessment_type

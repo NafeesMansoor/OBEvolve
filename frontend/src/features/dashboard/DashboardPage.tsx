@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom'
 
 import { useAuth } from '@/features/auth/useAuth'
 import { MyAttainmentPanel } from '@/features/dashboard/MyAttainmentPanel'
+import { FacultyCoursesPanel } from '@/features/faculty-dashboard/FacultyCoursesPanel'
 import type { Student } from '@/features/academic-ops/types'
 import type { PendingAssessmentDocument } from '@/features/assessment/types'
 import type { Course } from '@/features/curriculum/types'
@@ -24,13 +25,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 
+// Kept in lockstep with app/layout.tsx's navItems gating — a quick link a
+// user can't actually see in the sidebar is a broken link, not a shortcut.
 const QUICK_LINKS = [
-  { to: '/course-settings', label: 'Course Level Settings', icon: BookOpen, permission: 'curriculum.view' },
+  { to: '/course-settings', label: 'Course Level Settings', icon: BookOpen, permission: 'outcome.create' },
   { to: '/program-settings', label: 'Program Level Setting', icon: Target, permission: 'program.view' },
-  { to: '/academic', label: 'Academic Operations', icon: ClipboardCheck, permission: 'section.view' },
-  { to: '/grading', label: 'Grading', icon: BarChart3, permission: 'grading.view' },
-  { to: '/assessment', label: 'Assessment', icon: ClipboardCheck, permission: 'assessment.view' },
-  { to: '/analytics', label: 'Analytics', icon: LineChart, permission: 'program.view' },
+  { to: '/academic', label: 'Academic Operations', icon: ClipboardCheck, permission: 'section.manage' },
+  { to: '/grading', label: 'Grading', icon: BarChart3, permission: 'grading.manage' },
+  { to: '/assessment', label: 'Assessment', icon: ClipboardCheck, permission: 'assessment.approve' },
+  { to: '/analytics', label: 'Analytics', icon: LineChart, permission: 'assessment.view' },
   { to: '/organization', label: 'Organization Admin', icon: ShieldCheck, permission: 'org.view' },
 ]
 
@@ -52,6 +55,7 @@ function greeting(): string {
 export function DashboardPage() {
   const { user, hasPermission } = useAuth()
   const isStudent = Boolean(user?.roles.includes('Student'))
+  const teachesCourses = hasPermission('section.view')
 
   const links = QUICK_LINKS.filter((l) => hasPermission(l.permission))
 
@@ -71,9 +75,15 @@ export function DashboardPage() {
 
       {isStudent && <MyAttainmentPanel />}
 
+      {teachesCourses && <FacultyCoursesPanel />}
+
       {!isStudent && <PendingDocumentsCard />}
 
-      {!isStudent && <OverviewStats />}
+      {/* FacultyCoursesPanel already leads with its own personalized
+       * Overview (current/previous courses, students taught) — showing
+       * this institution-wide generic count row too was pure redundant
+       * clutter for anyone who teaches. Reserved for roles that don't. */}
+      {!isStudent && !teachesCourses && <OverviewStats />}
 
       {links.length > 0 && (
         <div className="flex flex-col gap-3">

@@ -136,6 +136,13 @@ class CourseVersionCreate(BaseModel):
     effective_academic_year_id: uuid.UUID | None = None
 
 
+class CourseVersionUpdate(BaseModel):
+    objectives: str | None = None
+    tla_items: str | None = None
+    learning_materials: str | None = None
+    target_assessment_weights: str | None = None
+
+
 class CourseVersionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -144,6 +151,10 @@ class CourseVersionRead(BaseModel):
     version_label: str
     effective_academic_year_id: uuid.UUID | None
     status: WorkflowStatus
+    objectives: str | None
+    tla_items: str | None
+    learning_materials: str | None
+    target_assessment_weights: str | None
     created_by: uuid.UUID | None
     approved_by: uuid.UUID | None
     created_at: datetime
@@ -256,6 +267,8 @@ class CourseOutcomeCreate(BaseModel):
     statement: str = Field(min_length=1)
     sequence: int
     bloom_target_level_id: uuid.UUID | None = None
+    delivery_methods: str | None = None
+    assessment_tools: str | None = None
 
 
 class CourseOutcomeUpdate(BaseModel):
@@ -263,6 +276,8 @@ class CourseOutcomeUpdate(BaseModel):
     statement: str | None = Field(default=None, min_length=1)
     sequence: int | None = None
     bloom_target_level_id: uuid.UUID | None = None
+    delivery_methods: str | None = None
+    assessment_tools: str | None = None
     is_active: bool | None = None
 
 
@@ -275,6 +290,8 @@ class CourseOutcomeRead(BaseModel):
     statement: str
     sequence: int
     bloom_target_level_id: uuid.UUID | None
+    delivery_methods: str | None
+    assessment_tools: str | None
     is_active: bool
     status: WorkflowStatus
     created_at: datetime

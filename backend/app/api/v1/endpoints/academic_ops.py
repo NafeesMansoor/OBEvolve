@@ -28,6 +28,7 @@ from app.schemas.academic import (
     CourseOfferingRead,
     CourseSectionCreate,
     CourseSectionRead,
+    FacultyAssignmentContactInfoUpdate,
     FacultyAssignmentCreate,
     FacultyAssignmentRead,
     StudentAlignmentUpdate,
@@ -37,6 +38,7 @@ from app.schemas.academic import (
     StudentRead,
 )
 from app.services.audit import write_audit_log
+from app.services.faculty_scope import ensure_section_access, filter_to_my_sections
 from app.services.rbac import get_program_scoped_db, require_permission
 
 router = APIRouter()
@@ -197,23 +199,30 @@ def create_course_section(
 
 @router.get("/sections", response_model=list[CourseSectionRead])
 def list_course_sections(
+    request: Request,
     course_offering_id: uuid.UUID | None = Query(default=None),
     db: Session = Depends(get_program_scoped_db),
-    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+    current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> list[CourseSection]:
     query = db.query(CourseSection)
     if course_offering_id is not None:
         query = query.filter(CourseSection.course_offering_id == course_offering_id)
+    my_section_ids = filter_to_my_sections(db, current_user.id, request.state.program_id)
+    if my_section_ids is not None:
+        query = query.filter(CourseSection.id.in_(my_section_ids))
     return query.order_by(CourseSection.section_code).all()
 
 
 @router.get("/sections/{section_id}", response_model=CourseSectionRead)
 def get_course_section(
     section_id: uuid.UUID,
+    request: Request,
     db: Session = Depends(get_program_scoped_db),
-    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+    current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> CourseSection:
-    return _get_or_404(db, CourseSection, section_id, "Course section")
+    section = _get_or_404(db, CourseSection, section_id, "Course section")
+    ensure_section_access(db, current_user.id, section.id, request.state.program_id)
+    return section
 
 
 @router.patch("/sections/{section_id}", response_model=CourseSectionRead)
@@ -299,16 +308,22 @@ def create_faculty_assignment(
 
 @router.get("/faculty-assignments", response_model=list[FacultyAssignmentRead])
 def list_faculty_assignments(
+    request: Request,
     course_section_id: uuid.UUID | None = Query(default=None),
     faculty_user_id: uuid.UUID | None = Query(default=None),
     db: Session = Depends(get_program_scoped_db),
-    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+    current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> list[FacultyAssignmentRead]:
+    if course_section_id is not None:
+        ensure_section_access(db, current_user.id, course_section_id, request.state.program_id)
     query = db.query(FacultyAssignment)
     if course_section_id is not None:
         query = query.filter(FacultyAssignment.course_section_id == course_section_id)
     if faculty_user_id is not None:
         query = query.filter(FacultyAssignment.faculty_user_id == faculty_user_id)
+    my_section_ids = filter_to_my_sections(db, current_user.id, request.state.program_id)
+    if my_section_ids is not None:
+        query = query.filter(FacultyAssignment.course_section_id.in_(my_section_ids))
     assignments = query.order_by(FacultyAssignment.created_at.desc()).all()
 
     # Resolved here rather than requiring the frontend to hold `user.view`
@@ -326,6 +341,9 @@ def list_faculty_assignments(
             faculty_user_id=a.faculty_user_id,
             faculty_name=names_by_id.get(a.faculty_user_id),
             role=a.role,
+            office_location=a.office_location,
+            consultation_hours=a.consultation_hours,
+            meeting_link=a.meeting_link,
             created_at=a.created_at,
             updated_at=a.updated_at,
         )
@@ -353,6 +371,85 @@ def delete_faculty_assignment(
     )
 
 
+@router.patch(
+    "/faculty-assignments/{assignment_id}/contact-info", response_model=FacultyAssignmentRead
+)
+def update_faculty_assignment_contact_info(
+    assignment_id: uuid.UUID,
+    payload: FacultyAssignmentContactInfoUpdate,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.view", scope_type="program")),
+) -> FacultyAssignment:
+    """The only Course Settings edit a faculty member can make directly
+    (spec §4.1) — restricted to the row's own `faculty_user_id`, regardless
+    of whether the caller also holds `section.manage` (a Coordinator editing
+    someone else's office hours isn't "requesting a modification", so it
+    isn't routed through `course_change_requests` either — it's simply not
+    allowed from this endpoint)."""
+    assignment = _get_or_404(db, FacultyAssignment, assignment_id, "Faculty assignment")
+    if assignment.faculty_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Can only edit your own contact information",
+        )
+    previous_value = {
+        "office_location": assignment.office_location,
+        "consultation_hours": assignment.consultation_hours,
+        "meeting_link": assignment.meeting_link,
+    }
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(assignment, field, value)
+    db.add(assignment)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="faculty_assignment.contact_info_updated",
+        entity_type="FacultyAssignment",
+        entity_id=assignment.id,
+        previous_value=previous_value,
+        new_value=payload.model_dump(mode="json", exclude_unset=True),
+        **get_request_context(request),
+    )
+    return assignment
+
+
+@router.get("/students/search", response_model=list[StudentRead])
+def search_students(
+    q: str = Query(min_length=2),
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("student.manage", scope_type="program")),
+) -> list[StudentRead]:
+    """A narrow directory lookup for the "+ Add Student" enrollment flow
+    (Faculty Module spec §10.1) — `list_students`/`get_student` below need
+    an *unscoped* `student.view`/`.manage` grant (institution-wide curriculum
+    alignment is admin territory), which a normal program-scoped Faculty
+    grant never satisfies. This is deliberately much narrower: name/email/
+    student-code search only, no program/curriculum fields are editable
+    through it, so exposing it to any program-scoped `student.manage`
+    holder (Faculty included) doesn't leak institution-wide administration.
+    """
+    like = f"%{q}%"
+    profiles = (
+        db.query(StudentProfile)
+        .join(User, User.id == StudentProfile.user_id)
+        .filter(
+            (User.full_name.ilike(like))
+            | (User.email.ilike(like))
+            | (StudentProfile.student_code.ilike(like))
+        )
+        .limit(20)
+        .all()
+    )
+    users_by_id = {
+        u.id: u for u in db.query(User).filter(User.id.in_([p.user_id for p in profiles]))
+    }
+    return [
+        _student_read(users_by_id[p.user_id], p) for p in profiles if p.user_id in users_by_id
+    ]
+
+
 # --- Student enrollment ---
 @router.post(
     "/enrollments", response_model=StudentEnrollmentRead, status_code=status.HTTP_201_CREATED
@@ -363,6 +460,9 @@ def create_enrollment(
     db: Session = Depends(get_program_scoped_db),
     current_user: User = Depends(require_permission("student.manage", scope_type="program")),
 ) -> StudentEnrollment:
+    ensure_section_access(
+        db, current_user.id, payload.course_section_id, request.state.program_id
+    )
     _get_or_404(db, User, payload.student_user_id, "Student user")
     _get_or_404(db, CourseSection, payload.course_section_id, "Course section")
     enrollment = StudentEnrollment(**payload.model_dump())
@@ -382,16 +482,22 @@ def create_enrollment(
 
 @router.get("/enrollments", response_model=list[StudentEnrollmentRead])
 def list_enrollments(
+    request: Request,
     course_section_id: uuid.UUID | None = Query(default=None),
     student_user_id: uuid.UUID | None = Query(default=None),
     db: Session = Depends(get_program_scoped_db),
-    _current_user: User = Depends(require_permission("student.view", scope_type="program")),
+    current_user: User = Depends(require_permission("student.view", scope_type="program")),
 ) -> list[StudentEnrollment]:
+    if course_section_id is not None:
+        ensure_section_access(db, current_user.id, course_section_id, request.state.program_id)
     query = db.query(StudentEnrollment)
     if course_section_id is not None:
         query = query.filter(StudentEnrollment.course_section_id == course_section_id)
     if student_user_id is not None:
         query = query.filter(StudentEnrollment.student_user_id == student_user_id)
+    my_section_ids = filter_to_my_sections(db, current_user.id, request.state.program_id)
+    if my_section_ids is not None:
+        query = query.filter(StudentEnrollment.course_section_id.in_(my_section_ids))
     return query.order_by(StudentEnrollment.enrolled_at.desc()).all()
 
 
@@ -404,6 +510,9 @@ def update_enrollment_status(
     current_user: User = Depends(require_permission("student.manage", scope_type="program")),
 ) -> StudentEnrollment:
     enrollment = _get_or_404(db, StudentEnrollment, enrollment_id, "Enrollment")
+    ensure_section_access(
+        db, current_user.id, enrollment.course_section_id, request.state.program_id
+    )
     previous_value = {"enrollment_status": enrollment.enrollment_status}
     enrollment.enrollment_status = enrollment_status
     db.add(enrollment)
@@ -429,6 +538,9 @@ def delete_enrollment(
     current_user: User = Depends(require_permission("student.manage", scope_type="program")),
 ) -> None:
     enrollment = _get_or_404(db, StudentEnrollment, enrollment_id, "Enrollment")
+    ensure_section_access(
+        db, current_user.id, enrollment.course_section_id, request.state.program_id
+    )
     db.delete(enrollment)
     db.flush()
     write_audit_log(

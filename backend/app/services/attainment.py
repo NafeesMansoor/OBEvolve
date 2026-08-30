@@ -492,7 +492,7 @@ def calculate_program_analytics_summary(
     )
 
 
-def _resolve_letter_grade(
+def resolve_letter_grade(
     db: Session, program_version_id: uuid.UUID, percent: Decimal
 ) -> tuple[str | None, Decimal | None]:
     """A program's own grading policy wins over the institution-wide
@@ -696,7 +696,7 @@ def get_student_attainment_summary(
         )
         if fully_graded and total_max > 0:
             percent = (total_obtained / total_max * 100).quantize(Decimal("0.01"))
-            letter_grade, grade_point = _resolve_letter_grade(db, program_version_id, percent)
+            letter_grade, grade_point = resolve_letter_grade(db, program_version_id, percent)
         else:
             letter_grade, grade_point = None, None
 

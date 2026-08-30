@@ -12,6 +12,8 @@ import { AcademicOpsPage } from '@/features/academic-ops/AcademicOpsPage'
 import { AboutPage } from '@/features/about/AboutPage'
 import { AnalyticsPage } from '@/features/analytics/AnalyticsPage'
 import { AssessmentPage } from '@/features/assessment/AssessmentPage'
+import { CourseManagementPage } from '@/features/course-management/CourseManagementPage'
+import { MyCoursesPage } from '@/features/course-management/MyCoursesPage'
 import { CourseSettingsPage } from '@/features/curriculum/CourseSettingsPage'
 import { ProgramSettingsPage } from '@/features/curriculum/ProgramSettingsPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
@@ -21,6 +23,7 @@ import { PlatformDashboardPage } from '@/features/platform/PlatformDashboardPage
 import { PlatformLoginPage } from '@/features/platform/PlatformLoginPage'
 import { PlatformRawDataPage } from '@/features/platform/PlatformRawDataPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
+import { QuestionBankPage } from '@/features/question-bank/QuestionBankPage'
 import { PendingChangesPage } from '@/features/raw-data/PendingChangesPage'
 import { RawDataConsolePage } from '@/features/raw-data/RawDataConsolePage'
 
@@ -53,6 +56,9 @@ export function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/courses" element={<MyCoursesPage />} />
+          <Route path="/courses/:sectionId" element={<CourseManagementPage />} />
+          <Route path="/question-bank" element={<QuestionBankPage />} />
           <Route path="/course-settings" element={<CourseSettingsPage />} />
           <Route path="/program-settings" element={<ProgramSettingsPage />} />
           <Route path="/academic" element={<AcademicOpsPage />} />

@@ -9,6 +9,8 @@ from app.api.v1.endpoints import (
     assessment,
     audit,
     auth,
+    course_change_requests,
+    course_files,
     curriculum,
     grading,
     improvement,
@@ -35,6 +37,12 @@ api_router.include_router(academic_ops.router, prefix="/academic", tags=["academ
 api_router.include_router(grading.router, prefix="/grading", tags=["grading"])
 api_router.include_router(assessment.router, prefix="/assessment", tags=["assessment"])
 api_router.include_router(marks.router, prefix="/marks", tags=["marks"])
+api_router.include_router(course_files.router, prefix="/course-files", tags=["course-files"])
+api_router.include_router(
+    course_change_requests.router,
+    prefix="/course-change-requests",
+    tags=["course-change-requests"],
+)
 api_router.include_router(
     improvement.router, prefix="/improvement-plans", tags=["improvement-plans"]
 )

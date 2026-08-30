@@ -4,6 +4,7 @@ export interface AssessmentType {
   is_custom: boolean
   requires_documents: boolean
   requires_cep_documents: boolean
+  requires_oep_validation: boolean
 }
 
 export interface Rubric {
@@ -45,6 +46,10 @@ export interface Question {
   status: string
   author_id: string | null
   reviewer_id: string | null
+  /** K/P/A classification — Complex Engineering Problem tasks only. */
+  kpa: 'K' | 'P' | 'A' | null
+  /** Question Bank sharing (Faculty Module spec §17) — default false. */
+  is_globally_shared: boolean
   created_at: string
   updated_at: string
 }
@@ -53,6 +58,14 @@ export interface QuestionCourseOutcomeMapping {
   id: string
   question_id: string
   course_outcome_id: string
+}
+
+/** CEP task -> Program Outcome mapping, scoped to one AssessmentQuestion
+ * (not the shared Question bank row) — spec §18. */
+export interface AssessmentQuestionProgramOutcomeMapping {
+  id: string
+  assessment_question_id: string
+  program_outcome_id: string
 }
 
 export interface QuestionBloomMapping {
@@ -79,6 +92,9 @@ export interface Assessment {
   date: string | null
   duration_minutes: number | null
   rubric_id: string | null
+  /** Problem statement for a CEP/OEP assessment (spec §18-19) — null for
+   * ordinary exam-type assessments. */
+  purpose: string | null
   status: string
   document_deadline_extended_to: string | null
   document_deadline_extended_by: string | null

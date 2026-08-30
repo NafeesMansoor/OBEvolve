@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -126,4 +126,80 @@ class ProgramAttainmentConfig(UUIDPKMixin, TimestampMixin, TenantBase):
     )
     min_po_attainment_percent: Mapped[Decimal] = mapped_column(
         Numeric(5, 2), nullable=False, default=60
+    )
+
+
+class GradeSubmission(UUIDPKMixin, TimestampMixin, TenantBase):
+    """One row per `CourseSection`, created the first time a faculty member
+    saves that section's grade sheet (Faculty Module spec §21-23). `status`
+    flips from "draft" to "submitted" via a dedicated endpoint, never a
+    generic PATCH (mirrors `WorkflowStatus`'s dedicated-`/advance`
+    convention, but this is a plain two-state flag — not
+    `app.db.base.WorkflowStatus` — since there's no multi-stage
+    draft→review→publish lifecycle here, just "can still edit" vs "locked",
+    matching `AssessmentDocument`/`RawDataChangeRequest`'s precedent for a
+    lightweight status that isn't the shared 6-stage one). Once "submitted",
+    `bulk_upsert_student_marks` and any grade edit for this section's
+    assessments must be rejected (BR-10) — enforced by callers checking this
+    row's status, not a DB trigger.
+
+    schema="program": see docs/adr/0003-schema-per-program.md.
+    """
+
+    __tablename__ = "grade_submissions"
+    __table_args__ = {"schema": "program"}
+
+    course_section_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("program.course_sections.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="draft")
+    submitted_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AttainmentSnapshot(UUIDPKMixin, TenantBase):
+    """A persisted CO/PO attainment result, captured at the moment a
+    `GradeSubmission` is finalized (Faculty Module spec §24: attainment must
+    be "stored... as a historical record" and "reproducible from the stored
+    assessment and mapping data", not only ever computed on demand). Written
+    by calling the existing `app.services.attainment` calculation functions
+    unchanged and persisting their output here — this table adds storage,
+    not new calculation logic. Exactly one of `course_outcome_id`/
+    `program_outcome_id` is set per row, per `scope`.
+
+    No `TimestampMixin` `updated_at` — a snapshot is immutable once written;
+    a re-submission creates a new `GradeSubmission` (and thus new snapshot
+    rows), it doesn't mutate an old one.
+
+    schema="program": see docs/adr/0003-schema-per-program.md.
+    """
+
+    __tablename__ = "attainment_snapshots"
+    __table_args__ = {"schema": "program"}
+
+    grade_submission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("program.grade_submissions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    scope: Mapped[str] = mapped_column(String(2), nullable=False)  # "co" | "po"
+    course_outcome_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("course_outcomes.id", ondelete="CASCADE"), nullable=True
+    )
+    program_outcome_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("program.program_outcomes.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    attainment_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    student_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

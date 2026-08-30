@@ -109,6 +109,15 @@ class FacultyAssignment(UUIDPKMixin, TimestampMixin, TenantBase):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     role: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Faculty Module spec §4.1: the only Course Settings fields a faculty
+    # member can edit directly (everything else routes through a change
+    # request) — properties of *this instructor teaching this section*, not
+    # of the section itself, so they live here rather than on CourseSection
+    # (two co-instructors of the same section could hold different office
+    # hours). Editable only by the row's own `faculty_user_id`.
+    office_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    consultation_hours: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    meeting_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
 
 class StudentEnrollment(UUIDPKMixin, TenantBase):

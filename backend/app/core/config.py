@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # frontend/src/lib/version.ts's APP_VERSION (no shared build step wires
     # the three together automatically). Exposed via GET /health and the
     # OpenAPI spec (see app/main.py).
-    app_version: str = "1.0.1"
+    app_version: str = "1.0.3"
     api_v1_prefix: str = "/api/v1"
 
     # --- Database ---

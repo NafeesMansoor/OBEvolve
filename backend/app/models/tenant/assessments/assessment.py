@@ -36,6 +36,10 @@ class AssessmentType(UUIDPKMixin, TimestampMixin, TenantBase):
     # sample, project reports). Seeded true only for "Complex Engineering
     # Problem" — same type-level-flag reasoning as requires_documents.
     requires_cep_documents: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Gates Open-Ended Problem validation on advance (CO-mapping completeness
+    # required, but — unlike requires_cep_documents — no PO/KPA requirement;
+    # Faculty Module spec §19). Seeded true only for "Open-Ended Lab Problem".
+    requires_oep_validation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class Rubric(UUIDPKMixin, TimestampMixin, TenantBase):
@@ -102,6 +106,15 @@ class Question(UUIDPKMixin, TimestampMixin, TenantBase):
     reviewer_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # K(nowledge)/P(roblem attribute)/A(ctivity) classification — only
+    # meaningful for a Complex Engineering Problem "task" (Faculty Module
+    # spec §18); null for exam/OEP questions, which don't carry this.
+    kpa: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    # Faculty Module spec §17: a question authored for one course/section can
+    # be shared into the institution-wide Question Bank for reuse by any
+    # faculty teaching the same course version, this term or a future one.
+    # Default False — sharing is opt-in per question, not automatic.
+    is_globally_shared: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class QuestionCourseOutcomeMapping(UUIDPKMixin, TimestampMixin, TenantBase):
@@ -181,6 +194,11 @@ class Assessment(UUIDPKMixin, TimestampMixin, TenantBase):
     status: Mapped[WorkflowStatus] = mapped_column(
         String(20), nullable=False, default=WorkflowStatus.DRAFT
     )
+    # The problem statement for a Complex Engineering Problem or Open-Ended
+    # Problem assessment (Faculty Module spec §18/§19: "Problem" + "Purpose")
+    # — the assessment's own `title` already covers "Problem"; this is
+    # "Purpose". Null for ordinary exam-type assessments, which don't have one.
+    purpose: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Document uploads (AssessmentDocument) are due by the academic term's
     # end_date unless a Program Administrator extends it here — the
     # effective deadline is `document_deadline_extended_to or
@@ -224,6 +242,41 @@ class AssessmentQuestion(UUIDPKMixin, TimestampMixin, TenantBase):
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
 
     assessment: Mapped[Assessment] = relationship(back_populates="questions")
+
+
+class AssessmentQuestionProgramOutcomeMapping(UUIDPKMixin, TimestampMixin, TenantBase):
+    """Junction, mirrors `QuestionCourseOutcomeMapping` in shape, but scoped
+    to one `AssessmentQuestion` (not the shared `Question` bank row) — used
+    only for Complex Engineering Problem "task" questions, which map to a
+    Program Outcome in addition to a Course Outcome (spec §18). Scoped to
+    the assessment-question rather than the question-bank row because a PO
+    is a property of a specific *program*, while `Question` is
+    institution-shared and can be reused across programs (see
+    `app.models.tenant.obe.outcomes.PEO`'s docstring for why a program-scoped
+    table can't literally FK a per-program table from a shared one). Exam
+    questions and Open-Ended Problem tasks don't use this table at all.
+
+    schema="program": see docs/adr/0003-schema-per-program.md.
+    `assessment_question_id` targets `assessment_questions` — also
+    schema="program" — and needs the explicit `program.` prefix;
+    `program_outcome_id` likewise targets `program.program_outcomes`.
+    """
+
+    __tablename__ = "assessment_question_po_mappings"
+    __table_args__ = {"schema": "program"}
+
+    assessment_question_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("program.assessment_questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    program_outcome_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("program.program_outcomes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
 
 class AssessmentDocument(UUIDPKMixin, TimestampMixin, TenantBase):

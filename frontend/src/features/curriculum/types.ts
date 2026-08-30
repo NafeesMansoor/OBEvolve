@@ -61,6 +61,7 @@ export interface Course {
   credits: string
   contact_hours: number | null
   course_type: string | null
+  delivery_format: 'theory' | 'lab'
   is_active: boolean
   co_offered_with_id: string | null
   created_at: string
@@ -73,6 +74,10 @@ export interface CourseVersion {
   version_label: string
   effective_academic_year_id: string | null
   status: string
+  objectives: string | null
+  tla_items: string | null
+  learning_materials: string | null
+  target_assessment_weights: string | null
   created_by: string | null
   approved_by: string | null
   created_at: string
@@ -115,6 +120,8 @@ export interface CourseOutcome {
   statement: string
   sequence: number
   bloom_target_level_id: string | null
+  delivery_methods: string | null
+  assessment_tools: string | null
   is_active: boolean
   status: string
 }

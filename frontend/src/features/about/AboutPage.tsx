@@ -1,6 +1,7 @@
 import { Code2, ExternalLink, Globe } from 'lucide-react'
 
 import { APP_VERSION } from '@/lib/version'
+import { Logo } from '@/components/logo'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/page-header'
@@ -38,6 +39,18 @@ const VERSION_HISTORY = [
     version: `${APP_VERSION}`,
     tag: 'Current',
     notes:
+      'Faculty Course Settings restored with real course-outline content (description, objectives, Course Outcomes with delivery methods/assessment tools, CO-PO mapping, TLA, materials, weights, grading policy) and a Coordinator approve/reject action on change requests; CEP guidance (Problem Attributes) surfaced in task authoring; a cross-course faculty Analytics view (grade distribution, CO/PO attainment, filterable); BR-01 previous-semester read-only now enforced server-side; the OBEvolve icon mark refined to "Ov".',
+  },
+  {
+    version: '1.0.2',
+    tag: 'Prior',
+    notes:
+      'Faculty Module: per-course-section workspace (Overview, Course Settings + change requests, Course Files, Students, Assessments with CEP/OEP task authoring, Marks Entry, Grades with submit-and-lock + CO attainment snapshot, Analytics); a Question Bank page; "my sections only" scoping for faculty across assessments/marks/enrollments; the OBEvolve brand logo and refreshed red theme.',
+  },
+  {
+    version: '1.0.1',
+    tag: 'Prior',
+    notes:
       'Product versioning introduced. Program/Course Level Settings split out of the former combined Curriculum & Outcomes page; a dedicated Analytics section; the raw-data console; forgot/reset-password flow; scoped RBAC fixes across every program-scoped endpoint.',
   },
   {
@@ -74,6 +87,13 @@ function ExternalLinkRow({
 export function AboutPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="h-1.5 bg-brand-gradient" />
+        <div className="flex justify-center py-8">
+          <Logo className="text-6xl" />
+        </div>
+      </div>
+
       <PageHeader
         title="About OBEvolve"
         description="A production-grade, multi-tenant Outcome-Based Education and accreditation platform."

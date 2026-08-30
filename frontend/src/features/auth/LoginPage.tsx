@@ -74,10 +74,7 @@ export function LoginPage() {
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center gap-2 text-center">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Logo className="size-6" />
-            </div>
-            <h1 className="font-display text-xl font-semibold tracking-tight">OBEvolve</h1>
+            <Logo className="text-3xl" />
             <p className="text-sm text-muted-foreground">
               Outcome-Based Education &amp; accreditation platform
             </p>

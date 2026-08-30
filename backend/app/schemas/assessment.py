@@ -27,6 +27,7 @@ class AssessmentTypeRead(BaseModel):
     is_custom: bool
     requires_documents: bool
     requires_cep_documents: bool
+    requires_oep_validation: bool
 
 
 # --- Rubric ---
@@ -94,6 +95,10 @@ class QuestionCreate(BaseModel):
     marks: Decimal
     topic: str | None = None
     author_id: uuid.UUID | None = None
+    # K/P/A classification — Complex Engineering Problem tasks only (§18).
+    kpa: str | None = Field(default=None, max_length=1)
+    # Question Bank sharing (§17) — default False, opt-in per question.
+    is_globally_shared: bool = False
 
 
 class QuestionRead(BaseModel):
@@ -109,6 +114,8 @@ class QuestionRead(BaseModel):
     status: WorkflowStatus
     author_id: uuid.UUID | None
     reviewer_id: uuid.UUID | None
+    kpa: str | None
+    is_globally_shared: bool
     created_at: datetime
     updated_at: datetime
 
@@ -151,6 +158,8 @@ class AssessmentCreate(BaseModel):
     date: date_type | None = None
     duration_minutes: int | None = None
     rubric_id: uuid.UUID | None = None
+    # Complex Engineering Problem / Open-Ended Problem "Purpose" (§18-19).
+    purpose: str | None = None
 
 
 class AssessmentRead(BaseModel):
@@ -166,6 +175,7 @@ class AssessmentRead(BaseModel):
     date: date_type | None
     duration_minutes: int | None
     rubric_id: uuid.UUID | None
+    purpose: str | None
     status: WorkflowStatus
     document_deadline_extended_to: date_type | None
     document_deadline_extended_by: uuid.UUID | None
@@ -196,6 +206,20 @@ class AssessmentQuestionRead(BaseModel):
     sequence: int
     created_at: datetime
     updated_at: datetime
+
+
+# --- AssessmentQuestion PO mapping (Complex Engineering Problem tasks, §18) ---
+class AssessmentQuestionProgramOutcomeMappingCreate(BaseModel):
+    assessment_question_id: uuid.UUID
+    program_outcome_id: uuid.UUID
+
+
+class AssessmentQuestionProgramOutcomeMappingRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    assessment_question_id: uuid.UUID
+    program_outcome_id: uuid.UUID
 
 
 # --- AssessmentDocument (question paper / moderation form / compliance form) ---

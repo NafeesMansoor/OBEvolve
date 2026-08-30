@@ -130,6 +130,12 @@ class CourseOutcome(UUIDPKMixin, TimestampMixin, TenantBase):
         nullable=True,
         index=True,
     )
+    # Course outline §1.2 ("Mapping of Course Outcomes to Delivery methods
+    # and Assessment Tools") — free text per CO, shown to faculty alongside
+    # the CO statement; edited the same way as the statement (admin-only,
+    # PATCH /course-outcomes/{id}), never directly by faculty.
+    delivery_methods: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assessment_tools: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     status: Mapped[WorkflowStatus] = mapped_column(
         String(20), nullable=False, default=WorkflowStatus.DRAFT

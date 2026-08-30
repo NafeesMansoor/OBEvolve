@@ -4,4 +4,4 @@
  * step wiring them to each other automatically. Backend counterpart:
  * backend/app/core/config.py's Settings.app_version.
  */
-export const APP_VERSION = '1.0.1'
+export const APP_VERSION = '1.0.3'

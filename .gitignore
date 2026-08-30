@@ -36,6 +36,9 @@ docker-compose.override.yml
 # version-controlled, may contain real tenant data.
 backups/
 
+# Local credentials reference (dev/test logins) — never version-controlled.
+docs/CREDENTIALS.local.md
+
 # CodeCortex (codebase-mapping tool, cloned locally for indexing this repo —
 # not an OBEvolve source dependency, kept out of version control)
 tools/codecortex/

@@ -99,6 +99,59 @@ Warm cream + sage/olive + raspberry-rose, per explicit reference hexes from the 
 ```
 </details>
 
+**Revision 4** (superseded by Revision 5 — kept for history): retuned `--primary`/`--ring` to
+228° indigo-blue to match the logo that existed at the time (`ref/OBEvolve_logo.png`, an
+icon+gradient wordmark). That logo was replaced; none of Revision 4's values are live — see
+git history on this file if the indigo direction is ever needed again.
+
+**Revision 5** (current — red rebrand, 2026-08): the OBEvolve logo changed to a plain red
+wordmark (`ref/logo.png` — "OBE" set in white with a red keyline, "volve" solid red; no icon
+glyph, no gradient). `--primary`/`--ring` were retuned to the logo's exact sampled red — 9°
+hue, fully saturated (RGB 222,29,0, sampled directly from the "volve" pixels) — re-verified
+against WCAG AA (light: 4.76:1 vs white, 4.54:1 as text on canvas; dark: 5.76:1 vs dark-ink).
+`--destructive` was deliberately shifted from 356° to 348° (a visibly pinker/cooler red) to
+keep a clear hue gap from the new brand-red primary — a same-hue primary and destructive is a
+real mistap risk on a red-themed product (a "Save"/"Submit" button must never look like a
+"Delete" button); 21° of separation plus the warm-vs-cool split reads as two different reds at
+a glance, matching the separation used by red-primary products more broadly (rose/crimson
+primary + pure-red destructive is a common, deliberate pairing, not sloppiness). Neutral tokens
+(`--background`/`--foreground`/`--secondary`/`--muted`/`--accent`/`--border`) were also rotated
+from the old cool blue-gray hue (~220°) to a true-neutral warm gray (~15°) — same S/L values,
+so contrast ratios are unchanged — because a blue-tinted gray fights a red accent by
+simultaneous contrast (reds look muddier next to cool grays than true-neutral ones).
+`--brand-violet`/`--brand-cyan` (tied to the old gradient logo) are retired; replaced with a
+monochrome tint/shade pair of the one brand hue:
+```
+--brand-red-light: 9 90% 68%  (dark: 9 90% 72%)  — light tint, for gradient starts/washes
+--brand-red-deep:  9 85% 28%  (dark: 9 80% 32%)   — dark shade, for gradient ends/depth
+```
+Tailwind exposes these as `bg-brand-red-light`/`bg-brand-red-deep`/`text-brand-red-light` etc.,
+plus a `bg-brand-gradient` utility (light → primary → deep, 135deg, all one hue — "shades of
+red," not a multi-hue gradient) for hero/decorative surfaces only (e.g. the About page banner's
+top accent strip) — never for body text, buttons, or anything already carrying a semantic
+token, and never as a backdrop directly behind the white-filled "OBE" half of the wordmark
+(the white fill needs a neutral or dark backdrop to read — see Logo assets below).
+
+### Logo assets
+
+`ref/logo.png` (source, 145×52 after trim — too small to use as a raster UI asset above
+favicon size) is reproduced as real text, not an image: `frontend/src/components/logo.tsx`
+exports `Logo` (the full "OBEvolve" wordmark — "OBE" white with a `-webkit-text-stroke` in
+`--primary` reproducing the source's red keyline, `paint-order: stroke fill` so the stroke
+doesn't eat into the fill; "volve" solid `text-primary`; sized via font-size utilities like
+`text-lg`/`text-3xl`, not `size-*`) and `LogoMark` (a compact single-letter "O" monogram badge
+for spaces too tight for the full wordmark — collapsed sidebar, favicon-adjacent contexts;
+sized via `size-*`, it's a square). The source logo has no separate icon glyph, so `LogoMark`
+is a derived monogram, not a cropped asset. Because "OBE" relies on its red stroke for contrast,
+never place `Logo` directly on a `bg-primary`/`bg-brand-gradient`/other red surface — the white
+fill and stroke both read as the same hue as the background and the wordmark disappears; only
+neutral (`bg-card`, `bg-background`, `bg-popover`) or dark surfaces are safe backdrops. Favicon
+PNGs (`frontend/public/favicon-32.png`/`-48.png`/`apple-touch-icon.png`) are regenerated
+straight from the trimmed source raster (`sips`/Pillow, LANCZOS upscale, centered on a padded
+transparent square) since a 32-48px tab icon is small enough that the low source resolution
+doesn't show. `ref/drgeek_logo.jpg` (developer credit) is unrelated to this rebrand — still
+cropped to `frontend/src/assets/brand/drgeek-logo.png` and shown small in `Footer`.
+
 ## Question authoring: Bloom's Level + CO mapping, not "difficulty"
 `Question.difficulty` (free-text column) is no longer shown in any create/edit UI — a question
 is classified by **Bloom's cognitive level** (single select, `BloomLevel` catalogue seeded per

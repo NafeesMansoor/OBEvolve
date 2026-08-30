@@ -25,6 +25,8 @@ export function useActiveRole() {
  */
 export const NAV_SECTION_ROLES: Record<string, string[]> = {
   dashboard: [],
+  courses: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  questionBank: ['Faculty', 'Course Coordinator', 'Institution Administrator', 'Super Administrator'],
   courseSettings: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
   programSettings: ['Program Coordinator', 'Institution Administrator', 'Super Administrator'],
   academic: ['Faculty', 'Course Coordinator', 'Registrar', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],

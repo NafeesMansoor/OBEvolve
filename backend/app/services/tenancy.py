@@ -35,6 +35,7 @@ from app.db.session import get_engine, session_scope
 from app.models.public.institution import Institution
 from app.seed.assessment_defaults import seed_default_assessment_types
 from app.seed.bloom_defaults import seed_default_bloom_levels
+from app.seed.course_file_defaults import seed_default_course_file_types
 from app.seed.default_permissions import seed_default_permissions
 from app.seed.default_roles import seed_default_roles
 from app.seed.demo_institution import seed_demo_data
@@ -225,6 +226,7 @@ def provision_tenant(
             permission_map = seed_default_permissions(tenant_db)
             seed_default_roles(tenant_db, permission_map)
             seed_default_assessment_types(tenant_db)
+            seed_default_course_file_types(tenant_db)
             seed_default_bloom_levels(tenant_db)
             seed_default_mapping_scale(tenant_db)
             if seed_demo:

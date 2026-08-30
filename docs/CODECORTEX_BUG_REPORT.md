@@ -1,5 +1,13 @@
 # CodeCortex v1.2.0 — two indexing bugs that silently drop `.tsx`/`.jsx` files
 
+**RESOLVED in v1.2.1 (2026-08-30)** — both bugs described below are fixed upstream
+(commit `e673c20`, "Fix .tsx/.jsx files being silently dropped from the index, set version
+1.2.1"), which also independently fixes the same one-extension-per-language bug in
+`reindex_file()` and `ParallelIndexer.parse_directory()`. OBEvolve's `tools/codecortex/` clone has
+been updated to the `v1.2.1` tag and its local patches discarded — re-verified 2026-08-31: 124
+`.tsx` files index cleanly, 0 parse errors. The rest of this document is kept as the original
+report for reference.
+
 **Found while indexing a React 19 + TypeScript (Vite) frontend paired with a Python/FastAPI
 backend** (OBEvolve, a mixed-language monorepo). Both bugs were re-verified directly against a
 fresh `pipx install codecortex==1.2.0` on 2026-08-31 — **still present in the latest published

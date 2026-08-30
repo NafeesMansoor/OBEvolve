@@ -29,7 +29,7 @@ CodeCortex to rediscover something you already have.
 its own clone + venv at `tools/codecortex/` (gitignored — it's a vendored dev tool, not an OBEvolve
 dependency; `backend/.venv` is unrelated). Indexing config is `codecortex.yaml` at the repo root.
 The generated graph snapshot is `.codecortex/graph.json` (gitignored, regenerable, ~3 MB as of the
-last reindex — 313 files, 2499 nodes, 14646 edges, 123 `.tsx` files confirmed indexed).
+last reindex — 315 files, 2536 nodes, 14940 edges, 124 `.tsx` files confirmed indexed).
 
 **Every invocation needs these two env vars on macOS**, or `query`/`impact` segfault (a real
 PyTorch/FAISS OpenMP duplicate-library conflict, not flaky — `index` alone doesn't need them since
@@ -61,20 +61,19 @@ $CC query --impact require_permission --target . --config codecortex.yaml
 $CC visualize .
 ```
 
-**Two real bugs in the CodeCortex install were found and fixed while setting this up, and are
-still present upstream as of v1.2.0 — verified directly against the pipx-installed v1.2.0 source
-during a 2026-08-31 reinstall, not fixed** (patched locally under `tools/codecortex/`; reapply
-both if `tools/codecortex` is ever re-cloned or updated — check upstream first in case a newer
-release finally includes them, but don't assume it does without checking): (1)
-`pipeline/context_builder.py`'s file walker only globbed one hardcoded extension per language
-(`.ts`, `.js`), silently dropping every `.tsx`/`.jsx` file — for this repo that meant the entire
-React component tree was invisible to the index; fixed to expand each parser's full `.extensions`
-list. (2) `core/parsers/typescript_parser.py` used the plain `typescript` tree-sitter grammar (no
-JSX support) for `.tsx` files too; fixed to pick the `tsx` grammar variant by extension.
+**Two real bugs that used to require local patches here were fixed upstream in v1.2.1
+(2026-08-30) and this repo is now on stock v1.2.1 — no local patches applied, none needed.**
+History, kept for context: `pipeline/context_builder.py`'s file walker used to build its extension
+set from language-handle keys (`"ts"`, `"js"`) instead of each parser's declared `.extensions`
+list, silently dropping every `.tsx`/`.jsx` file — for this repo that meant the entire React
+component tree was invisible to the index. `.tsx` files that were discovered also parsed with the
+plain `typescript` tree-sitter grammar (no JSX support), producing mostly `ERROR` nodes. Both are
+fixed directly in `tools/codecortex/` as of the v1.2.1 tag (verified: 124 `.tsx` files now indexed
+cleanly, 0 parse errors) — if `tools/codecortex` is ever re-cloned or updated, just confirm it's
+still on `v1.2.1` or later (`codecortex --version`); no patch-reapplication step needed anymore.
 
 Only one project-level installation of CodeCortex should exist for this repo — `tools/codecortex/`
-above. Don't `pip install` or `pipx install` a second global copy "for convenience"; a global
-install won't carry the two local patches above and will silently regress `.tsx`/`.jsx` indexing.
+above. Don't `pip install` or `pipx install` a second global copy "for convenience."
 
 ## Commands
 

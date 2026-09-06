@@ -5,12 +5,14 @@ import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
 import type { AcademicTerm, AcademicYear } from '@/features/organization/types'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
 import { RecordDetailSheet } from '@/components/record-detail-sheet'
-import { useEntityCreate, useEntityList } from '@/lib/crud-hooks'
+import { useEntityAction, useEntityCreate, useEntityList } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
 
 const yearSchema = z.object({
@@ -59,6 +61,10 @@ export function AcademicCalendarTab() {
     '/org/academic-terms',
     [['org', 'academic-terms']],
   )
+  const activateTerm = useEntityAction<AcademicTerm>(
+    (id) => `/org/academic-terms/${id}/activate`,
+    [['org', 'academic-terms']],
+  )
 
   const yearById = React.useMemo(() => new Map((years ?? []).map((y) => [y.id, y])), [years])
 
@@ -81,12 +87,28 @@ export function AcademicCalendarTab() {
     { key: 'end_date', header: 'End', render: (r) => r.end_date },
   ]
 
+  const activeCount = (terms ?? []).filter((t) => t.is_active).length
+
   const termColumns: DataTableColumn<AcademicTerm>[] = [
     { key: 'name', header: 'Name', render: (r) => r.name, searchValue: (r) => r.name },
     { key: 'term_type', header: 'Type', render: (r) => r.term_type },
     { key: 'year', header: 'Academic year', render: (r) => yearById.get(r.academic_year_id)?.label ?? '—' },
     { key: 'start_date', header: 'Start', render: (r) => r.start_date },
     { key: 'end_date', header: 'End', render: (r) => r.end_date },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (r) =>
+        r.is_active ? (
+          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+            Current
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="font-normal">
+            Previous
+          </Badge>
+        ),
+    },
   ]
 
   return (
@@ -122,7 +144,20 @@ export function AcademicCalendarTab() {
             </Button>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-3">
+          {activeCount > 1 && (
+            <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
+              {activeCount} terms are marked current at once — every "current semester" view in the
+              app treats all of them as current. Activate the one term that should actually be
+              current below to fix this.
+            </div>
+          )}
+          {activeCount === 0 && (terms ?? []).length > 0 && (
+            <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
+              No term is marked current — every "current semester" view in the app will show
+              nothing by default. Activate the current term below.
+            </div>
+          )}
           <DataTable
             data={terms}
             columns={termColumns}
@@ -133,6 +168,32 @@ export function AcademicCalendarTab() {
             searchPlaceholder="Search terms…"
             emptyMessage="No academic terms yet."
             onRowClick={(r) => setViewTerm(r)}
+            actions={
+              canManage
+                ? (r) =>
+                    r.is_active ? undefined : (
+                      <ConfirmAction
+                        trigger={
+                          <Button size="sm" variant="outline">
+                            Set as current
+                          </Button>
+                        }
+                        title={`Set ${r.name} as the current term?`}
+                        description="Every other term will be marked as a previous term. This changes what every 'current semester' view in the app shows by default."
+                        onConfirm={async () => {
+                          try {
+                            await activateTerm.mutateAsync(r.id)
+                            toast.success(`${r.name} is now the current term`)
+                          } catch (err) {
+                            toast.error(
+                              err instanceof ApiError ? err.detail : 'Unable to activate term.',
+                            )
+                          }
+                        }}
+                      />
+                    )
+                : undefined
+            }
           />
         </CardContent>
       </Card>
@@ -156,6 +217,7 @@ export function AcademicCalendarTab() {
           title={viewTerm.name}
           subtitle={yearById.get(viewTerm.academic_year_id)?.label}
           fields={[
+            { label: 'Status', value: viewTerm.is_active ? 'Current' : 'Previous' },
             { label: 'Type', value: viewTerm.term_type },
             { label: 'Academic year', value: yearById.get(viewTerm.academic_year_id)?.label ?? '—' },
             { label: 'Start date', value: viewTerm.start_date },

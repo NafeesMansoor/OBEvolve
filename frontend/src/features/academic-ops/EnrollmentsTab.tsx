@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { History, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -32,9 +32,13 @@ export function EnrollmentsTab() {
   const { labelFor } = useCourseVersionLookup()
   const { termById } = useAcademicTermLookup()
 
+  // Default selector is current-semester only (spec §8); this flips to the
+  // explicit "View Previous Semesters" action (spec §9).
+  const [showPrevious, setShowPrevious] = React.useState(false)
   const { data: offerings } = useEntityList<CourseOffering>(
-    ['academic', 'course-offerings'],
+    ['academic', 'course-offerings', showPrevious ? 'all-terms' : 'current-term'],
     '/academic/course-offerings',
+    showPrevious ? { include_previous: 'true' } : undefined,
   )
   const [offeringId, setOfferingId] = React.useState('')
   const { data: sections } = useEntityList<CourseSection>(
@@ -183,6 +187,14 @@ export function EnrollmentsTab() {
             </SelectContent>
           </Select>
         </div>
+        <Button
+          size="sm"
+          variant={showPrevious ? 'default' : 'outline'}
+          onClick={() => setShowPrevious((v) => !v)}
+        >
+          <History className="size-4" />
+          {showPrevious ? 'Showing all semesters' : 'View previous semesters'}
+        </Button>
         {canManage && sectionId && (
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> Enroll student

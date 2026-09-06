@@ -95,3 +95,41 @@ export interface UserRoleGrant {
   scope_type: string | null
   scope_id: string | null
 }
+
+export interface ProgramFaculty {
+  id: string
+  email: string
+  full_name: string
+}
+
+export interface ProgramCourse {
+  id: string
+  code: string
+  title: string
+}
+
+export interface ProgramRoleGrant {
+  id: string
+  user_id: string
+  role_id: string
+  scope_type: string | null
+  scope_id: string | null
+}
+
+export interface ProgramRoster {
+  faculty: ProgramFaculty[]
+  assignable_roles: { id: string; name: string }[]
+  courses: ProgramCourse[]
+  grants: ProgramRoleGrant[]
+}
+
+export interface TermCommitStatus {
+  academic_term_id: string
+  term_name: string
+  term_end_date: string
+  is_committed: boolean
+  manually_enabled: boolean
+  committable: boolean
+  committed_by: string | null
+  committed_at: string | null
+}

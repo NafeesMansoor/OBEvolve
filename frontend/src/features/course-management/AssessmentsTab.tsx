@@ -12,6 +12,7 @@ import type {
   Question,
   QuestionCourseOutcomeMapping,
 } from '@/features/assessment/types'
+import { GreenEditButton } from '@/features/course-management/GreenEditButton'
 import type { MyCourseCard } from '@/features/course-management/types'
 import type {
   AccreditationFramework,
@@ -23,6 +24,7 @@ import { ApiError, apiClient } from '@/lib/api-client'
 import {
   useEntityAction,
   useEntityCreate,
+  useEntityGet,
   useEntityList,
 } from '@/lib/crud-hooks'
 import { Badge } from '@/components/ui/badge'
@@ -51,7 +53,18 @@ const createSchema = z.object({
  * mapping) surfaced only for assessment types that need them. */
 export function AssessmentsTab({ course }: { course: MyCourseCard }) {
   const { hasPermission } = useAuth()
-  const canManage = hasPermission('assessment.create') && course.is_current_term
+  const isAuthority = hasPermission('section.manage')
+  // Course-Level Settings spec §2/§3: for a personally-assigned Course
+  // Teacher (not a section authority), assessment authoring is additionally
+  // gated on "Assessments" being enabled for this course's type — a
+  // section authority is unaffected, mirroring how Students/Settings work.
+  const { data: sectionConfig } = useEntityGet<Record<string, boolean>>(
+    ['course-types', 'resolve', course.course_section_id],
+    `/course-types/resolve/${course.course_section_id}`,
+  )
+  const assessmentsEnabled = isAuthority || (sectionConfig?.assessments ?? false)
+  const canManage =
+    hasPermission('assessment.create') && course.is_current_term && assessmentsEnabled
   const canApprove = hasPermission('assessment.approve')
 
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -104,11 +117,12 @@ export function AssessmentsTab({ course }: { course: MyCourseCard }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        {canManage && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New assessment
-          </Button>
-        )}
+        <GreenEditButton
+          enabled={canManage}
+          onClick={() => setCreateOpen(true)}
+          label="New assessment"
+          icon={<Plus className="size-4" />}
+        />
       </div>
 
       <DataTable

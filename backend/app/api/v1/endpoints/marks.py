@@ -52,6 +52,7 @@ from app.services.rbac import (
     require_any_grant,
     require_permission,
 )
+from app.services.term_commit import ensure_term_not_committed, reopen_grade_submission_if_submitted
 
 router = APIRouter()
 
@@ -68,21 +69,6 @@ def _assessment_course_section_id(db: Session, assessment_question_id: uuid.UUID
     if aq is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Assessment question not found")
     return _get_or_404_assessment(db, aq.assessment_id).course_section_id
-
-
-def _ensure_grades_not_submitted(db: Session, course_section_id: uuid.UUID) -> None:
-    """BR-10: once final grades are submitted, marks for that section are
-    locked — no more saves, no matter which endpoint tries."""
-    submission = (
-        db.query(GradeSubmission)
-        .filter(GradeSubmission.course_section_id == course_section_id)
-        .one_or_none()
-    )
-    if submission is not None and submission.status == "submitted":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Grades for this section have been submitted and can no longer be modified.",
-        )
 
 
 @router.get("/student-marks", response_model=list[StudentMarkRead])
@@ -119,7 +105,8 @@ def bulk_upsert_student_marks(
             db, payload.entries[0].assessment_question_id
         )
         ensure_assigned_to_section(db, current_user.id, course_section_id)
-        _ensure_grades_not_submitted(db, course_section_id)
+        ensure_term_not_committed(db, course_section_id)
+        reopen_grade_submission_if_submitted(db, course_section_id)
     keys = [(e.assessment_question_id, e.student_enrollment_id) for e in payload.entries]
     existing = {
         (m.assessment_question_id, m.student_enrollment_id): m
@@ -177,7 +164,8 @@ def update_student_mark(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Student mark not found")
     course_section_id = _assessment_course_section_id(db, mark.assessment_question_id)
     ensure_assigned_to_section(db, current_user.id, course_section_id)
-    _ensure_grades_not_submitted(db, course_section_id)
+    ensure_term_not_committed(db, course_section_id)
+    reopen_grade_submission_if_submitted(db, course_section_id)
     previous_value = {"marks_obtained": str(mark.marks_obtained)}
     mark.marks_obtained = payload.marks_obtained
     mark.entered_by = current_user.id
@@ -209,7 +197,8 @@ def delete_student_mark(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Student mark not found")
     course_section_id = _assessment_course_section_id(db, mark.assessment_question_id)
     ensure_assigned_to_section(db, current_user.id, course_section_id)
-    _ensure_grades_not_submitted(db, course_section_id)
+    ensure_term_not_committed(db, course_section_id)
+    reopen_grade_submission_if_submitted(db, course_section_id)
     db.delete(mark)
     db.flush()
     write_audit_log(
@@ -314,6 +303,7 @@ def submit_section_grades(
     current_user: User = Depends(require_permission("marks.enter", scope_type="program")),
 ) -> GradeSubmission:
     ensure_assigned_to_section(db, current_user.id, course_section_id)
+    ensure_term_not_committed(db, course_section_id)
     submission = submit_final_grades(db, course_section_id, current_user.id)
     write_audit_log(
         db,

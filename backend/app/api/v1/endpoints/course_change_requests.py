@@ -1,10 +1,9 @@
-"""Course Settings change requests (Faculty Module spec §4.2): a faculty
-member proposes a change to admin-controlled course information instead of
-editing it directly. Approving a request only flips its status — it does
-not auto-apply the change (see `CourseChangeRequest`'s model docstring for
-why); the Course Coordinator/Program Administrator makes the real edit
-through the existing admin Course Settings UI, using the approved request
-as the audited justification.
+"""Course-level change requests: a faculty member proposes a change to an
+admin-controlled, section-gated part of their course (Course Overview/
+Settings/Students/Assessments) instead of editing it directly. See
+docs/course_level_settings_and_approval_workflow.md and
+`app.models.tenant.change_requests.CourseChangeRequest`'s docstring for the
+staged-approval/auto-apply shape.
 """
 
 from __future__ import annotations
@@ -24,12 +23,23 @@ from app.schemas.change_requests import (
     CourseChangeRequestReview,
 )
 from app.services.audit import write_audit_log
+from app.services.course_type_config import (
+    SECTION_APPROVAL_TIERS,
+    apply_change_request,
+    compute_import_preview,
+    ensure_section_enabled,
+)
 from app.services.faculty_scope import (
     ensure_assigned_to_section,
     ensure_section_access,
     filter_to_my_sections,
 )
-from app.services.rbac import get_program_scoped_db, require_any_grant, require_permission
+from app.services.rbac import (
+    get_program_scoped_db,
+    require_any_grant,
+    require_permission,
+    user_has_permission,
+)
 
 router = APIRouter()
 
@@ -39,6 +49,26 @@ def _get_or_404(db: Session, request_id: uuid.UUID) -> CourseChangeRequest:
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Change request not found")
     return obj
+
+
+@router.get("/import-preview", response_model=dict[str, dict[str, object]])
+def preview_import(
+    course_section_id: uuid.UUID = Query(...),
+    source_course_version_id: uuid.UUID = Query(...),
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(
+        require_permission("course_change_request.create", scope_type="program")
+    ),
+) -> dict[str, dict[str, object]]:
+    """Read-only "review what will be imported before confirming" step
+    (spec §10) — computes the current-vs-source diff for every importable
+    settings field without writing anything. The caller reviews this, edits
+    the reason/fields they actually want, then submits each chosen field
+    through the normal `POST /course-change-requests` using this preview's
+    `proposed_value` verbatim, so an import still flows through the same
+    approval workflow as any other teacher-submitted change."""
+    ensure_assigned_to_section(db, current_user.id, course_section_id)
+    return compute_import_preview(db, course_section_id, source_course_version_id)
 
 
 @router.post("", response_model=CourseChangeRequestRead, status_code=status.HTTP_201_CREATED)
@@ -51,8 +81,9 @@ def create_course_change_request(
     ),
 ) -> CourseChangeRequest:
     ensure_assigned_to_section(db, current_user.id, payload.course_section_id)
+    ensure_section_enabled(db, payload.course_section_id, payload.section_key)
     change_request = CourseChangeRequest(
-        **payload.model_dump(), status="pending", requested_by=current_user.id
+        **payload.model_dump(), status="pending_admin", requested_by=current_user.id
     )
     db.add(change_request)
     db.flush()
@@ -75,7 +106,12 @@ def list_course_change_requests(
     status_filter: str | None = Query(default=None, alias="status"),
     db: Session = Depends(get_program_scoped_db),
     current_user: User = Depends(
-        require_any_grant("course_change_request.create", "course_change_request.review")
+        require_any_grant(
+            "course_change_request.create",
+            "course_change_request.review",
+            "course_change_request.review_admin",
+            "course_change_request.review_program",
+        )
     ),
 ) -> list[CourseChangeRequest]:
     if course_section_id is not None:
@@ -98,22 +134,62 @@ def review_course_change_request(
     request: Request,
     db: Session = Depends(get_program_scoped_db),
     current_user: User = Depends(
-        require_permission("course_change_request.review", scope_type="program")
+        require_any_grant(
+            "course_change_request.review_admin", "course_change_request.review_program"
+        )
     ),
 ) -> CourseChangeRequest:
     change_request = _get_or_404(db, request_id)
     ensure_section_access(
         db, current_user.id, change_request.course_section_id, request.state.program_id
     )
-    if change_request.status != "pending":
+
+    if change_request.status == "pending_admin":
+        required_code = "course_change_request.review_admin"
+    elif change_request.status == "pending_program_coordinator":
+        required_code = "course_change_request.review_program"
+    else:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Change request is already {change_request.status!r}.",
         )
-    change_request.status = payload.status
-    change_request.reviewed_by = current_user.id
-    change_request.review_note = payload.review_note
-    change_request.reviewed_at = datetime.now(UTC)
+
+    if not user_has_permission(
+        db, current_user.id, required_code, scope_type="program", scope_id=request.state.program_id
+    ) and not user_has_permission(db, current_user.id, required_code):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Missing required permission for this stage: {required_code}",
+        )
+
+    now = datetime.now(UTC)
+    if payload.edited_value_json is not None and payload.status == "approved":
+        change_request.edited_value_json = payload.edited_value_json
+        change_request.edited_by = current_user.id
+        change_request.edited_at = now
+
+    if change_request.status == "pending_admin":
+        change_request.reviewed_by = current_user.id
+        change_request.review_note = payload.review_note
+        change_request.reviewed_at = now
+        if payload.status == "approved":
+            if SECTION_APPROVAL_TIERS[change_request.section_key] == 1:
+                change_request.status = "approved"
+                apply_change_request(db, change_request)
+            else:
+                change_request.status = "pending_program_coordinator"
+        else:
+            change_request.status = payload.status
+    else:  # pending_program_coordinator
+        change_request.program_coordinator_reviewed_by = current_user.id
+        change_request.program_coordinator_review_note = payload.review_note
+        change_request.program_coordinator_reviewed_at = now
+        if payload.status == "approved":
+            change_request.status = "approved"
+            apply_change_request(db, change_request)
+        else:
+            change_request.status = payload.status
+
     db.add(change_request)
     db.flush()
     write_audit_log(
@@ -122,7 +198,11 @@ def review_course_change_request(
         action=f"course_change_request.{payload.status}",
         entity_type="CourseChangeRequest",
         entity_id=change_request.id,
-        new_value={"status": payload.status, "review_note": payload.review_note},
+        new_value={
+            "status": change_request.status,
+            "review_note": payload.review_note,
+            "edited_value_json": payload.edited_value_json,
+        },
         **get_request_context(request),
     )
     return change_request

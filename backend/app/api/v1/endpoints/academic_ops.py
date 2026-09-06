@@ -37,8 +37,14 @@ from app.schemas.academic import (
     StudentEnrollmentRead,
     StudentRead,
 )
+from app.services.academic_terms import get_current_term_ids
 from app.services.audit import write_audit_log
-from app.services.faculty_scope import ensure_section_access, filter_to_my_sections
+from app.services.course_type_config import ensure_direct_enrollment_write_allowed
+from app.services.faculty_scope import (
+    ensure_section_access,
+    filter_to_my_sections,
+    is_section_authority,
+)
 from app.services.rbac import get_program_scoped_db, require_permission
 
 router = APIRouter()
@@ -100,6 +106,15 @@ def create_course_offering(
 def list_course_offerings(
     course_version_id: uuid.UUID | None = Query(default=None),
     academic_term_id: uuid.UUID | None = Query(default=None),
+    include_previous: bool = Query(
+        default=False,
+        description=(
+            "Default view is current-semester only (spec §8). Pass true for "
+            "the explicit 'View Previous Semesters' action (spec §9), or "
+            "pass academic_term_id to look at one specific term directly — "
+            "either bypasses the current-term default filter."
+        ),
+    ),
     db: Session = Depends(get_program_scoped_db),
     _current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> list[CourseOffering]:
@@ -108,6 +123,8 @@ def list_course_offerings(
         query = query.filter(CourseOffering.course_version_id == course_version_id)
     if academic_term_id is not None:
         query = query.filter(CourseOffering.academic_term_id == academic_term_id)
+    elif not include_previous:
+        query = query.filter(CourseOffering.academic_term_id.in_(get_current_term_ids(db)))
     return query.order_by(CourseOffering.created_at.desc()).all()
 
 
@@ -201,12 +218,25 @@ def create_course_section(
 def list_course_sections(
     request: Request,
     course_offering_id: uuid.UUID | None = Query(default=None),
+    include_previous: bool = Query(
+        default=False,
+        description=(
+            "Default view is current-semester only (spec §8). Pass true for "
+            "the explicit 'View Previous Semesters' action (spec §9); "
+            "passing course_offering_id for one specific (possibly "
+            "previous-term) offering also bypasses the default filter."
+        ),
+    ),
     db: Session = Depends(get_program_scoped_db),
     current_user: User = Depends(require_permission("section.view", scope_type="program")),
 ) -> list[CourseSection]:
     query = db.query(CourseSection)
     if course_offering_id is not None:
         query = query.filter(CourseSection.course_offering_id == course_offering_id)
+    elif not include_previous:
+        query = query.join(
+            CourseOffering, CourseSection.course_offering_id == CourseOffering.id
+        ).filter(CourseOffering.academic_term_id.in_(get_current_term_ids(db)))
     my_section_ids = filter_to_my_sections(db, current_user.id, request.state.program_id)
     if my_section_ids is not None:
         query = query.filter(CourseSection.id.in_(my_section_ids))
@@ -463,6 +493,9 @@ def create_enrollment(
     ensure_section_access(
         db, current_user.id, payload.course_section_id, request.state.program_id
     )
+    ensure_direct_enrollment_write_allowed(
+        is_section_authority(db, current_user.id, request.state.program_id)
+    )
     _get_or_404(db, User, payload.student_user_id, "Student user")
     _get_or_404(db, CourseSection, payload.course_section_id, "Course section")
     enrollment = StudentEnrollment(**payload.model_dump())
@@ -513,6 +546,9 @@ def update_enrollment_status(
     ensure_section_access(
         db, current_user.id, enrollment.course_section_id, request.state.program_id
     )
+    ensure_direct_enrollment_write_allowed(
+        is_section_authority(db, current_user.id, request.state.program_id)
+    )
     previous_value = {"enrollment_status": enrollment.enrollment_status}
     enrollment.enrollment_status = enrollment_status
     db.add(enrollment)
@@ -540,6 +576,9 @@ def delete_enrollment(
     enrollment = _get_or_404(db, StudentEnrollment, enrollment_id, "Enrollment")
     ensure_section_access(
         db, current_user.id, enrollment.course_section_id, request.state.program_id
+    )
+    ensure_direct_enrollment_write_allowed(
+        is_section_authority(db, current_user.id, request.state.program_id)
     )
     db.delete(enrollment)
     db.flush()

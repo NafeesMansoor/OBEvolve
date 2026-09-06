@@ -42,6 +42,19 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef("user.view", "View users within a tenant", "identity"),
     PermissionDef("role.manage", "Create/update roles and role-permission grants", "identity"),
     PermissionDef("role.view", "View roles and permissions", "identity"),
+    PermissionDef(
+        "program_role.manage",
+        "Grant/revoke Faculty, Course Coordinator, and Course Administrator roles "
+        "for people within one's own program — a narrower, program-scoped peer of "
+        "role.manage, not a proxy for institution-wide user/role administration",
+        "identity",
+    ),
+    PermissionDef(
+        "term_commit.manage",
+        "Enable early Final Commit for a term and permanently commit it, locking "
+        "every assessment/marks/attainment write for that term in one's own program",
+        "org",
+    ),
     # --- Curriculum / OBE outcomes (Phase 3 — reserved) ---
     PermissionDef("curriculum.view", "View curriculum (PEOs/POs/PSOs/COs)", "curriculum"),
     PermissionDef("outcome.create", "Create outcome definitions", "curriculum"),
@@ -132,6 +145,24 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef(
         "course_change_request.review",
         "Approve or reject a course change request",
+        "course_change_request",
+    ),
+    # --- Course-Level Settings and Approval Workflow ---
+    PermissionDef(
+        "course_type.manage",
+        "Add/deactivate Course Types and configure which course-level "
+        "sections are editable per type",
+        "course_change_request",
+    ),
+    PermissionDef(
+        "course_change_request.review_admin",
+        "Stage-1 (Course Administrator) review of a course change request",
+        "course_change_request",
+    ),
+    PermissionDef(
+        "course_change_request.review_program",
+        "Stage-2 (Program Coordinator) final review of a two-stage course "
+        "change request",
         "course_change_request",
     ),
 ]

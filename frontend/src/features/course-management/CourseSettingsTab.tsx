@@ -1,13 +1,12 @@
 import * as React from 'react'
 import { useQueries } from '@tanstack/react-query'
-import { z } from 'zod'
+import { toast } from 'sonner'
 
-import { useAuth } from '@/features/auth/useAuth'
-import {
-  TARGET_FIELD_LABELS,
-  type ChangeRequestTargetField,
-  type CourseChangeRequest,
-} from '@/features/change-requests/types'
+import type { ChangeRequestTargetField, CourseChangeRequest } from '@/features/change-requests/types'
+import { ChangeRequestRow } from '@/features/change-requests/ChangeRequestRow'
+import { BulletList } from '@/features/course-management/BulletList'
+import { InlineEditableField } from '@/features/course-management/InlineEditableField'
+import { InlineEditableOutcomesTable } from '@/features/course-management/InlineEditableOutcomesTable'
 import type { MyCourseCard } from '@/features/course-management/types'
 import type {
   Course,
@@ -23,68 +22,25 @@ import { ApiError, apiClient } from '@/lib/api-client'
 import { useEntityCreate, useEntityGet, useEntityList } from '@/lib/crud-hooks'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { toast } from 'sonner'
-
-const TARGET_FIELD_OPTIONS = Object.entries(TARGET_FIELD_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}))
-
-const schema = z.object({
-  target_field: z.string().min(1, 'Select what you want changed'),
-  proposed_value: z.string().min(1, 'Describe the proposed value'),
-  reason: z.string().min(1, 'A reason is required'),
-})
-
-const fields: EntityField[] = [
-  { name: 'target_field', label: 'What needs to change', type: 'select', options: TARGET_FIELD_OPTIONS },
-  {
-    name: 'proposed_value',
-    label: 'Proposed value',
-    type: 'textarea',
-    placeholder: 'Describe the change you want made',
-  },
-  { name: 'reason', label: 'Reason', type: 'textarea', placeholder: 'Why is this change needed?' },
-]
-
-const STATUS_STYLE: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  approved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-  rejected: 'bg-destructive/10 text-destructive',
-}
-
-function BulletList({ text, empty }: { text: string | null | undefined; empty: string }) {
-  const lines = (text ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
-  if (lines.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>
-  return (
-    <ul className="list-disc space-y-1 pl-5 text-sm">
-      {lines.map((line, i) => (
-        <li key={i}>{line}</li>
-      ))}
-    </ul>
-  )
-}
 
 /** Faculty Module spec §4: Course Settings itself (description, outcomes,
  * TLA mapping, learning materials, weights, grading policy) stays
  * admin-controlled — a faculty member can only view it here and propose a
- * change (the one exception, office/consultation/meeting-link, lives on the
- * Overview tab instead). Mirrors the course outline structure directly
- * (basic info / description+objectives / §1.2 CO mapping / TLA / §1.6
- * materials / §1.7 weights / §1.8 grading — deliberately excludes §1.5's
- * week-by-week delivery plan). A previous-semester course (BR-01) renders
- * identically except the "Request modification" action is hidden — the
- * backend enforces the same rule independently via
+ * change by double-clicking a field or table cell (Wix-editor-style — see
+ * `InlineEditableField`/`InlineEditableOutcomesTable`), not a separate
+ * button + modal. Description/objectives are the one exception, edited
+ * from the Overview tab instead — single-stage approval, the rest of
+ * Course Settings goes through two stages. Mirrors the course outline
+ * structure directly (basic info / description+objectives / §1.2 CO
+ * mapping / TLA / §1.6 materials / §1.7 weights / §1.8 grading —
+ * deliberately excludes §1.5's week-by-week delivery plan). A
+ * previous-semester course (BR-01) renders identically except nothing is
+ * editable — the backend enforces the same rule independently via
  * `ensure_assigned_to_section`/`ensure_current_term`. */
 export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
-  const { hasPermission } = useAuth()
-  const [open, setOpen] = React.useState(false)
-
   const { data: courseVersion } = useEntityGet<CourseVersion>(
     ['curriculum', 'course-version', course.course_version_id],
     `/curriculum/course-versions/${course.course_version_id}`,
@@ -168,7 +124,14 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
   const create = useEntityCreate<Record<string, unknown>>('/course-change-requests', [
     ['course-change-requests', course.course_section_id],
   ])
-  const canReview = hasPermission('course_change_request.review')
+  // Course-Level Settings spec §2/§3: whether "settings" is enabled for
+  // this section's course type — drives whether fields below are editable.
+  const { data: sectionConfig } = useEntityGet<Record<string, boolean>>(
+    ['course-types', 'resolve', course.course_section_id],
+    `/course-types/resolve/${course.course_section_id}`,
+  )
+  const settingsEnabled = sectionConfig?.settings ?? false
+  const editable = settingsEnabled && course.is_current_term
 
   const poById = React.useMemo(
     () => new Map((programOutcomes ?? []).map((p) => [p.id, p])),
@@ -188,6 +151,26 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
     return map
   }, [mappingScales])
 
+  async function submitChange(
+    targetField: ChangeRequestTargetField,
+    proposedValueJson: Record<string, unknown>,
+    message: string,
+  ) {
+    try {
+      await create.mutateAsync({
+        course_section_id: course.course_section_id,
+        section_key: 'settings',
+        target_field: targetField,
+        proposed_value_json: proposedValueJson,
+        reason: message,
+      })
+      toast.success('Sent for review')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Unable to submit change')
+      throw err
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {!course.is_current_term && (
@@ -195,11 +178,22 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
           This is a previous-semester course — everything below is read-only.
         </div>
       )}
+      {course.is_current_term && (
+        <p className="text-xs text-muted-foreground">
+          {settingsEnabled
+            ? 'Double-click a field or table cell below to propose a change — it goes to your Course Administrator, then your Program Coordinator, for approval.'
+            : 'Course Settings changes are not enabled for this course type.'}
+        </p>
+      )}
 
       <Accordion type="multiple" defaultValue={['description', 'outcomes']} className="w-full">
         <AccordionItem value="description">
           <AccordionTrigger>Course description &amp; objectives</AccordionTrigger>
           <AccordionContent className="flex flex-col gap-3">
+            <p className="text-xs text-muted-foreground">
+              Edited from the Overview tab, not here — description/objectives go through a
+              single-stage approval, the rest of Course Settings through two stages.
+            </p>
             <p className="text-sm">{courseDetail?.description ?? 'No description on file.'}</p>
             <div>
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -213,36 +207,13 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
         <AccordionItem value="outcomes">
           <AccordionTrigger>Course outcomes</AccordionTrigger>
           <AccordionContent>
-            {!courseOutcomes ? (
-              <Skeleton className="h-24 w-full" />
-            ) : courseOutcomes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No course outcomes defined yet.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Code</TableHead>
-                    <TableHead>Statement</TableHead>
-                    <TableHead>Delivery methods</TableHead>
-                    <TableHead>Assessment tools</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courseOutcomes.map((co) => (
-                    <TableRow key={co.id}>
-                      <TableCell className="font-medium">{co.code}</TableCell>
-                      <TableCell>{co.statement}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {co.delivery_methods ?? '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {co.assessment_tools ?? '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+            <InlineEditableOutcomesTable
+              outcomes={courseOutcomes}
+              editable={editable}
+              onSave={(newOutcomes, message) =>
+                submitChange('outcomes', { outcomes: newOutcomes }, message)
+              }
+            />
           </AccordionContent>
         </AccordionItem>
 
@@ -286,14 +257,28 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
         <AccordionItem value="tla">
           <AccordionTrigger>Teaching &amp; learning activities</AccordionTrigger>
           <AccordionContent>
-            <BulletList text={courseVersion?.tla_items} empty="No TLA list on file." />
+            <InlineEditableField
+              value={courseVersion?.tla_items}
+              editable={editable}
+              renderDisplay={(v) => <BulletList text={v} empty="No TLA list on file." />}
+              onSave={(newValue, message) =>
+                submitChange('tla_mapping', { value: newValue }, message)
+              }
+            />
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="materials">
           <AccordionTrigger>Learning materials</AccordionTrigger>
           <AccordionContent>
-            <BulletList text={courseVersion?.learning_materials} empty="No materials on file." />
+            <InlineEditableField
+              value={courseVersion?.learning_materials}
+              editable={editable}
+              renderDisplay={(v) => <BulletList text={v} empty="No materials on file." />}
+              onSave={(newValue, message) =>
+                submitChange('learning_materials', { value: newValue }, message)
+              }
+            />
           </AccordionContent>
         </AccordionItem>
 
@@ -304,9 +289,15 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Target distribution
               </p>
-              <BulletList
-                text={courseVersion?.target_assessment_weights}
-                empty="No target weight distribution on file."
+              <InlineEditableField
+                value={courseVersion?.target_assessment_weights}
+                editable={editable}
+                renderDisplay={(v) => (
+                  <BulletList text={v} empty="No target weight distribution on file." />
+                )}
+                onSave={(newValue, message) =>
+                  submitChange('weights', { value: newValue }, message)
+                }
               />
             </div>
             <div>
@@ -345,7 +336,7 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
 
         <AccordionItem value="grading">
           <AccordionTrigger>Grading policy</AccordionTrigger>
-          <AccordionContent>
+          <AccordionContent className="flex flex-col gap-3">
             {!resolvedPolicy ? (
               <p className="text-sm text-muted-foreground">No grading policy configured.</p>
             ) : !gradingBands || gradingBands.length === 0 ? (
@@ -374,19 +365,28 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
                 </TableBody>
               </Table>
             )}
+            <InlineEditableField
+              value={null}
+              editable={editable}
+              emptyPlaceholder="Double-click to propose a different grading policy."
+              onSave={(newValue, message) =>
+                submitChange('grading_policy', { value: newValue }, message)
+              }
+            />
+            {editable && (
+              <p className="text-xs text-muted-foreground">
+                Grading policy is shared across courses, so an approved change here is applied
+                manually by an admin rather than automatically.
+              </p>
+            )}
           </AccordionContent>
         </AccordionItem>
       </Accordion>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div>
-            <CardTitle className="text-base">Change requests</CardTitle>
-            <CardDescription>
-              Submitted requests forward to your Course Coordinator for review.
-            </CardDescription>
-          </div>
-          {course.is_current_term && <Button onClick={() => setOpen(true)}>Request modification</Button>}
+        <CardHeader>
+          <CardTitle className="text-base">Change requests</CardTitle>
+          <CardDescription>History of proposed changes for this section.</CardDescription>
         </CardHeader>
         <CardContent>
           {requestsLoading ? (
@@ -398,103 +398,24 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Field</TableHead>
+                  <TableHead>Current</TableHead>
+                  <TableHead>Proposed</TableHead>
+                  <TableHead>Edited</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
-                  {canReview && <TableHead className="text-right">Review</TableHead>}
+                  <TableHead className="text-right">Review</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {requests.map((r) => (
-                  <ChangeRequestRow key={r.id} request={r} canReview={canReview} />
+                  <ChangeRequestRow key={r.id} request={r} />
                 ))}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
-
-      <EntityFormDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Request a course settings modification"
-        description="Your Course Coordinator will review this before any change is applied."
-        fields={fields}
-        schema={schema}
-        defaultValues={{ target_field: '', proposed_value: '', reason: '' }}
-        onSubmit={async (values) => {
-          await create.mutateAsync({
-            course_section_id: course.course_section_id,
-            target_field: values.target_field as ChangeRequestTargetField,
-            proposed_value_json: { value: values.proposed_value },
-            reason: values.reason,
-          })
-        }}
-        submitLabel="Submit request"
-      />
     </div>
-  )
-}
-
-function ChangeRequestRow({
-  request,
-  canReview,
-}: {
-  request: CourseChangeRequest
-  canReview: boolean
-}) {
-  const [isReviewing, setIsReviewing] = React.useState(false)
-
-  async function review(reviewStatus: 'approved' | 'rejected') {
-    setIsReviewing(true)
-    try {
-      await apiClient.post(`/course-change-requests/${request.id}/review`, {
-        status: reviewStatus,
-      })
-      toast.success(`Request ${reviewStatus}`)
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.detail : 'Review failed')
-    } finally {
-      setIsReviewing(false)
-    }
-  }
-
-  return (
-    <TableRow>
-      <TableCell>{TARGET_FIELD_LABELS[request.target_field]}</TableCell>
-      <TableCell className="max-w-xs truncate">{request.reason}</TableCell>
-      <TableCell>
-        <Badge className={STATUS_STYLE[request.status]} variant="outline">
-          {request.status}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {new Date(request.created_at).toLocaleDateString()}
-      </TableCell>
-      {canReview && (
-        <TableCell className="text-right">
-          {request.status === 'pending' && (
-            <div className="flex justify-end gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={isReviewing}
-                onClick={() => void review('approved')}
-              >
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={isReviewing}
-                onClick={() => void review('rejected')}
-              >
-                Reject
-              </Button>
-            </div>
-          )}
-        </TableCell>
-      )}
-    </TableRow>
   )
 }

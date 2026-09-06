@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Filter, Save } from 'lucide-react'
+import { Filter, History, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useAuth } from '@/features/auth/useAuth'
@@ -39,9 +39,14 @@ export function MarksEntryTab() {
 
   const { labelFor } = useCourseVersionLookup()
   const { termById } = useAcademicTermLookup()
+  // Default selector is current-semester only (spec §8); this flips to the
+  // explicit "View Previous Semesters" action (spec §9) — e.g. for a
+  // correction to a previous term's marks.
+  const [showPrevious, setShowPrevious] = React.useState(false)
   const { data: offerings } = useEntityList<CourseOffering>(
-    ['academic', 'course-offerings'],
+    ['academic', 'course-offerings', showPrevious ? 'all-terms' : 'current-term'],
     '/academic/course-offerings',
+    showPrevious ? { include_previous: 'true' } : undefined,
   )
   const [offeringId, setOfferingId] = React.useState('')
   const { data: sections } = useEntityList<CourseSection>(
@@ -144,6 +149,14 @@ export function MarksEntryTab() {
             </SelectContent>
           </Select>
         </div>
+        <Button
+          size="sm"
+          variant={showPrevious ? 'default' : 'outline'}
+          onClick={() => setShowPrevious((v) => !v)}
+        >
+          <History className="size-4" />
+          {showPrevious ? 'Showing all semesters' : 'View previous semesters'}
+        </Button>
       </div>
 
       {!assessmentId ? (

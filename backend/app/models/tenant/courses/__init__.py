@@ -1,6 +1,6 @@
 """Course catalog + delivery + grading (DATABASE_PLAN.md §C — all implemented)."""
 
-from app.models.tenant.courses.catalog import Course, CourseVersion
+from app.models.tenant.courses.catalog import Course, CourseType, CourseVersion
 from app.models.tenant.courses.delivery import (
     CourseOffering,
     CourseSection,
@@ -13,6 +13,7 @@ __all__ = [
     "Course",
     "CourseOffering",
     "CourseSection",
+    "CourseType",
     "CourseVersion",
     "FacultyAssignment",
     "GradingBand",

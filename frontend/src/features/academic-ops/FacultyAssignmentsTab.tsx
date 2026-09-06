@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Download, Plus, Trash2 } from 'lucide-react'
+import { Download, History, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -33,9 +33,20 @@ export function FacultyAssignmentsTab() {
   const canManage = hasPermission('section.manage')
   const { labelFor } = useCourseVersionLookup()
   const { termById } = useAcademicTermLookup()
+  // Default selector is current-semester only (spec §8); this flips to the
+  // explicit "View Previous Semesters" action (spec §9).
+  const [showPrevious, setShowPrevious] = React.useState(false)
   const { data: offerings } = useEntityList<CourseOffering>(
-    ['academic', 'course-offerings'],
+    ['academic', 'course-offerings', showPrevious ? 'all-terms' : 'current-term'],
     '/academic/course-offerings',
+    showPrevious ? { include_previous: 'true' } : undefined,
+  )
+  // Import candidates need cross-term visibility regardless of the toggle
+  // above — that's the whole point of "Import from term".
+  const { data: allOfferings } = useEntityList<CourseOffering>(
+    ['academic', 'course-offerings', 'all-terms'],
+    '/academic/course-offerings',
+    { include_previous: 'true' },
   )
   const [offeringId, setOfferingId] = React.useState('')
   const { data: sections } = useEntityList<CourseSection>(
@@ -56,8 +67,10 @@ export function FacultyAssignmentsTab() {
   const [viewAssignment, setViewAssignment] = React.useState<FacultyAssignment | null>(null)
 
   const currentOffering = React.useMemo(
-    () => (offerings ?? []).find((o) => o.id === offeringId),
-    [offerings, offeringId],
+    () =>
+      (offerings ?? []).find((o) => o.id === offeringId) ??
+      (allOfferings ?? []).find((o) => o.id === offeringId),
+    [offerings, allOfferings, offeringId],
   )
   const currentSection = React.useMemo(
     () => (sections ?? []).find((s) => s.id === sectionId),
@@ -70,10 +83,10 @@ export function FacultyAssignmentsTab() {
   // across terms any other way).
   const importCandidates = React.useMemo(() => {
     if (!currentOffering) return []
-    return (offerings ?? [])
+    return (allOfferings ?? [])
       .filter((o) => o.id !== offeringId && o.course_version_id === currentOffering.course_version_id)
       .map((o) => ({ label: termById.get(o.academic_term_id)?.name ?? 'Unknown term', value: o.id }))
-  }, [offerings, offeringId, currentOffering, termById])
+  }, [allOfferings, offeringId, currentOffering, termById])
 
   const {
     data: assignments,
@@ -164,6 +177,14 @@ export function FacultyAssignmentsTab() {
             </SelectContent>
           </Select>
         </div>
+        <Button
+          size="sm"
+          variant={showPrevious ? 'default' : 'outline'}
+          onClick={() => setShowPrevious((v) => !v)}
+        >
+          <History className="size-4" />
+          {showPrevious ? 'Showing all semesters' : 'View previous semesters'}
+        </Button>
         {canManage && sectionId && (
           <>
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>

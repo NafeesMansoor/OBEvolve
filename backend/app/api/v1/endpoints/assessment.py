@@ -79,6 +79,7 @@ from app.services.faculty_scope import (
 )
 from app.services.rbac import get_program_scoped_db, require_permission
 from app.services.storage import delete_upload, read_upload, save_upload
+from app.services.term_commit import ensure_term_not_committed, revert_if_published
 
 # Singleton slots: at most one row per (assessment_id, document_type) —
 # re-uploading replaces it in place. Repeatable slots (_MULTI_DOCUMENT_TYPES):
@@ -639,6 +640,7 @@ def create_assessment(
     current_user: User = Depends(require_permission("assessment.create", scope_type="program")),
 ) -> Assessment:
     ensure_assigned_to_section(db, current_user.id, payload.course_section_id)
+    ensure_term_not_committed(db, payload.course_section_id)
     assessment = Assessment(**payload.model_dump(), status=WorkflowStatus.DRAFT)
     db.add(assessment)
     db.flush()
@@ -726,11 +728,19 @@ def update_assessment(
 ) -> Assessment:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
     ensure_assigned_to_section(db, current_user.id, assessment.course_section_id)
+    ensure_term_not_committed(db, assessment.course_section_id)
     previous_value = {
         "title": assessment.title,
         "max_marks": str(assessment.max_marks),
         "weight": str(assessment.weight) if assessment.weight is not None else None,
+        "status": assessment.status,
     }
+    # A published/archived assessment is never blocked from editing — it's
+    # implicitly un-published back to APPROVED first (see
+    # app.services.term_commit's docstring: this is what "faculty should
+    # have all the access to change assessments" before Final Commit means
+    # in practice for an already-live assessment).
+    reverted = revert_if_published(assessment)
     for field, value in payload.model_dump().items():
         setattr(assessment, field, value)
     db.add(assessment)
@@ -742,7 +752,7 @@ def update_assessment(
         entity_type="Assessment",
         entity_id=assessment.id,
         previous_value=previous_value,
-        new_value=payload.model_dump(mode="json"),
+        new_value={**payload.model_dump(mode="json"), "reverted_from_published": reverted},
         **get_request_context(request),
     )
     return assessment
@@ -757,6 +767,7 @@ def delete_assessment(
 ) -> None:
     assessment = _get_or_404(db, Assessment, assessment_id, "Assessment")
     ensure_assigned_to_section(db, current_user.id, assessment.course_section_id)
+    ensure_term_not_committed(db, assessment.course_section_id)
     db.delete(assessment)
     db.flush()
     write_audit_log(
@@ -853,6 +864,7 @@ def advance_assessment(
     ensure_section_access(
         db, current_user.id, assessment.course_section_id, request.state.program_id
     )
+    ensure_term_not_committed(db, assessment.course_section_id)
     current_status = WorkflowStatus(assessment.status)
     next_status = _NEXT_STATUS.get(current_status)
     if next_status is None:
@@ -893,6 +905,7 @@ def create_assessment_question(
 ) -> AssessmentQuestion:
     assessment = _get_or_404(db, Assessment, payload.assessment_id, "Assessment")
     ensure_assigned_to_section(db, current_user.id, assessment.course_section_id)
+    ensure_term_not_committed(db, assessment.course_section_id)
     _get_or_404(db, Question, payload.question_id, "Question")
     assessment_question = AssessmentQuestion(**payload.model_dump())
     db.add(assessment_question)

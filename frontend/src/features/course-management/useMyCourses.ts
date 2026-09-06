@@ -38,16 +38,20 @@ export function useMyCourses(): {
     { faculty_user_id: user?.id },
     { enabled },
   )
+  // This hook does its own current-vs-previous split below (is_current_term
+  // per card) — it needs every term's data to do that, so it must opt out
+  // of the backend's current-term-only default (spec §8) rather than
+  // inherit it.
   const { data: sections, isLoading: l2 } = useEntityList<CourseSection>(
     ['academic', 'sections', 'mine', activeProgramCode],
     '/academic/sections',
-    undefined,
+    { include_previous: 'true' },
     { enabled },
   )
   const { data: offerings, isLoading: l3 } = useEntityList<CourseOffering>(
     ['academic', 'course-offerings', activeProgramCode],
     '/academic/course-offerings',
-    undefined,
+    { include_previous: 'true' },
     { enabled },
   )
   const { data: enrollments, isLoading: l4 } = useEntityList<StudentEnrollment>(

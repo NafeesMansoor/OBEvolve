@@ -18,6 +18,33 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import TenantBase, TimestampMixin, UUIDPKMixin, WorkflowStatus
 
 
+class CourseType(UUIDPKMixin, TimestampMixin, TenantBase):
+    """Admin-managed classification (Course-Level Settings spec §1) that
+    drives which course-level sections (Overview/Settings/Students/
+    Assessments — see `app.models.tenant.course_type_config.
+    CourseTypeSectionConfig`) a Course Teacher may edit. Deliberately
+    separate from `Course.course_type` below, which is raw, uncurated
+    catalog text imported from the source curriculum (up to 22 distinct
+    values for a single institution) — this is a small, administrator-
+    curated set (e.g. "Theory", "Lab", "Capstone") that a Program/Course
+    Coordinator explicitly creates.
+
+    Tenant-shared (matches `Course`'s own schema) rather than per-program:
+    the type taxonomy itself is one catalog; per-program section-enablement
+    lives in the program-scoped `CourseTypeSectionConfig`.
+
+    "Remove" (spec §1) never deletes the row — only deactivates it, so
+    historical courses classified under a retired type keep their
+    reference and remain unaffected (spec §11).
+    """
+
+    __tablename__ = "course_types"
+
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
 class Course(UUIDPKMixin, TimestampMixin, TenantBase):
     __tablename__ = "courses"
 
@@ -36,6 +63,16 @@ class Course(UUIDPKMixin, TimestampMixin, TenantBase):
     # "Major Core", "Concentration Elective (Data Science)") — not an enum,
     # since institution-specific category naming varies (DATABASE_PLAN.md §C).
     course_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Admin-curated classification (see `CourseType` above) driving
+    # Course-Level Settings section gating. Nullable: an unclassified
+    # course is treated as fully locked (no section enabled) until an
+    # admin assigns one — a deliberately safe default, not an oversight.
+    course_type_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("course_types.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     # "theory" | "lab" — distinct from the free-text `course_type` category
     # label above; this drives which Course Files checklist applies
     # (Faculty Module spec §6 vs §7), nothing else. Defaults to "theory"

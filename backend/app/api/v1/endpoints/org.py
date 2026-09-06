@@ -32,6 +32,7 @@ from app.schemas.institution import InstitutionRead, InstitutionUpdate
 from app.schemas.org import (
     AcademicTermCreate,
     AcademicTermRead,
+    AcademicTermUpdate,
     AcademicYearCreate,
     AcademicYearRead,
     CampusCreate,
@@ -487,3 +488,74 @@ def list_academic_terms(
     frontend swallows the error and just shows blank term names) until
     caught by testing the Assessment page as a Course Coordinator."""
     return db.query(AcademicTerm).order_by(AcademicTerm.start_date.desc()).all()
+
+
+@router.patch("/academic-terms/{term_id}", response_model=AcademicTermRead)
+def update_academic_term(
+    term_id: uuid.UUID,
+    payload: AcademicTermUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("academic_calendar.manage")),
+) -> AcademicTerm:
+    """Name/type/dates only — `is_active` is deliberately not editable here;
+    see `activate_academic_term` for why."""
+    term = _get_or_404(db, AcademicTerm, term_id, "Academic term")
+    previous_value = {
+        "name": term.name, "term_type": term.term_type,
+        "start_date": term.start_date.isoformat(), "end_date": term.end_date.isoformat(),
+    }
+    for field, value in payload.model_dump().items():
+        setattr(term, field, value)
+    db.add(term)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="academic_term.updated",
+        entity_type="AcademicTerm",
+        entity_id=term.id,
+        previous_value=previous_value,
+        new_value=payload.model_dump(mode="json"),
+        **get_request_context(request),
+    )
+    return term
+
+
+@router.post("/academic-terms/{term_id}/activate", response_model=AcademicTermRead)
+def activate_academic_term(
+    term_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("academic_calendar.manage")),
+) -> AcademicTerm:
+    """The one place `AcademicTerm.is_active` is ever set — atomically
+    deactivates every other term in the tenant first, so exactly one term
+    is ever "current" (docs/course_level_settings_and_approval_workflow.md
+    §8/§11: current-semester filtering is driven by this flag, never a
+    hardcoded date, so more than one active term silently pollutes every
+    "current courses" view in the app with a stale semester's data — found
+    live: `tenant_demo` had two terms flagged active at once with no UI
+    that could have prevented or fixed it, since this action didn't exist
+    yet). A bare `is_active` field on the generic update endpoint would let
+    a caller re-introduce that bug by flipping one term on without
+    flipping the others off."""
+    term = _get_or_404(db, AcademicTerm, term_id, "Academic term")
+    previously_active = [
+        t.id for t in db.query(AcademicTerm).filter(AcademicTerm.is_active.is_(True))
+    ]
+    db.query(AcademicTerm).filter(AcademicTerm.id != term_id).update({"is_active": False})
+    term.is_active = True
+    db.add(term)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="academic_term.activated",
+        entity_type="AcademicTerm",
+        entity_id=term.id,
+        previous_value={"previously_active_term_ids": [str(t) for t in previously_active]},
+        new_value={"active_term_id": str(term.id)},
+        **get_request_context(request),
+    )
+    return term

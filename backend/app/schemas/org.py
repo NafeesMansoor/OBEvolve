@@ -137,6 +137,13 @@ class AcademicTermCreate(BaseModel):
     end_date: date
 
 
+class AcademicTermUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    term_type: str = Field(min_length=1, max_length=30)
+    start_date: date
+    end_date: date
+
+
 class AcademicTermRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

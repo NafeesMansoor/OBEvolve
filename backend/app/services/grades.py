@@ -213,6 +213,15 @@ def submit_final_grades(
     db.add(submission)
     db.flush()
 
+    # A resubmission (app.services.term_commit.reopen_grade_submission_if_submitted
+    # reopens this same GradeSubmission row rather than creating a new one)
+    # replaces its snapshot set rather than appending to it — otherwise a
+    # second submit would leave stale rows from the first alongside the new
+    # ones under the same grade_submission_id.
+    db.query(AttainmentSnapshot).filter(
+        AttainmentSnapshot.grade_submission_id == submission.id
+    ).delete()
+
     course_report = calculate_course_attainment(db, course_section_id)
     for outcome in course_report.outcomes:
         if not outcome.assessed or outcome.attainment_percent is None:

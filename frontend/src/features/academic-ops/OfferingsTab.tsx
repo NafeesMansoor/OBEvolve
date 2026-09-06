@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Download, Plus, Trash2 } from 'lucide-react'
+import { Download, History, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -29,6 +29,9 @@ export function OfferingsTab() {
   const [importOpen, setImportOpen] = React.useState(false)
   const [editOffering, setEditOffering] = React.useState<CourseOffering | null>(null)
   const [viewOffering, setViewOffering] = React.useState<CourseOffering | null>(null)
+  // Default view is current-semester only (spec §8); this flips to the
+  // explicit "View Previous Semesters" action (spec §9).
+  const [showPrevious, setShowPrevious] = React.useState(false)
 
   const { options: cvOptions, labelFor } = useCourseVersionLookup()
   const { options: termOptions, termById } = useAcademicTermLookup()
@@ -39,8 +42,17 @@ export function OfferingsTab() {
   )
 
   const { data, isLoading, error } = useEntityList<CourseOffering>(
-    ['academic', 'course-offerings'],
+    ['academic', 'course-offerings', showPrevious ? 'all-terms' : 'current-term'],
     '/academic/course-offerings',
+    showPrevious ? { include_previous: 'true' } : undefined,
+  )
+  // Import needs cross-term visibility regardless of the toggle above —
+  // fetched once and cached separately from the (possibly current-only)
+  // display list.
+  const { data: allTermsData } = useEntityList<CourseOffering>(
+    ['academic', 'course-offerings', 'all-terms'],
+    '/academic/course-offerings',
+    { include_previous: 'true' },
   )
   const create = useEntityCreate<Record<string, unknown>, CourseOffering>(
     '/academic/course-offerings',
@@ -73,6 +85,14 @@ export function OfferingsTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end gap-2">
+        <Button
+          size="sm"
+          variant={showPrevious ? 'default' : 'outline'}
+          onClick={() => setShowPrevious((v) => !v)}
+        >
+          <History className="size-4" />
+          {showPrevious ? 'Showing all semesters' : 'View previous semesters'}
+        </Button>
         {canManage && (
           <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
             <Download className="size-4" /> Import from term
@@ -202,9 +222,9 @@ export function OfferingsTab() {
         onOpenChange={setImportOpen}
         termOptions={termOptions}
         onImport={async (sourceTermId, targetTermId) => {
-          const source = (data ?? []).filter((o) => o.academic_term_id === sourceTermId)
+          const source = (allTermsData ?? []).filter((o) => o.academic_term_id === sourceTermId)
           const alreadyInTarget = new Set(
-            (data ?? [])
+            (allTermsData ?? [])
               .filter((o) => o.academic_term_id === targetTermId)
               .map((o) => o.course_version_id),
           )

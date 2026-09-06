@@ -41,10 +41,12 @@ from app.models.tenant.course_files import (
     CourseFileSubmission,
     CourseFileType,
 )
+from app.models.tenant.course_type_config import CourseTypeSectionConfig
 from app.models.tenant.courses import (
     Course,
     CourseOffering,
     CourseSection,
+    CourseType,
     CourseVersion,
     FacultyAssignment,
     GradingBand,
@@ -77,6 +79,7 @@ from app.models.tenant.org import (
     School,
 )
 from app.models.tenant.raw_data import RawDataChangeRequest
+from app.models.tenant.term_commit import TermCommit
 
 __all__ = [
     "PEO",
@@ -103,6 +106,8 @@ __all__ = [
     "CourseOutcome",
     "CourseOutcomePOMapping",
     "CourseSection",
+    "CourseType",
+    "CourseTypeSectionConfig",
     "CourseVersion",
     "Department",
     "EngineeringActivity",
@@ -137,6 +142,7 @@ __all__ = [
     "StudentEnrollment",
     "StudentMark",
     "StudentProfile",
+    "TermCommit",
     "User",
     "UserRole",
 ]

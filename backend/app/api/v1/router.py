@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     auth,
     course_change_requests,
     course_files,
+    course_types,
     curriculum,
     grading,
     improvement,
@@ -20,8 +21,10 @@ from app.api.v1.endpoints import (
     org,
     platform_auth,
     platform_raw_data,
+    program_roles,
     raw_data,
     search,
+    term_commit,
     users,
 )
 
@@ -38,6 +41,7 @@ api_router.include_router(grading.router, prefix="/grading", tags=["grading"])
 api_router.include_router(assessment.router, prefix="/assessment", tags=["assessment"])
 api_router.include_router(marks.router, prefix="/marks", tags=["marks"])
 api_router.include_router(course_files.router, prefix="/course-files", tags=["course-files"])
+api_router.include_router(course_types.router, prefix="/course-types", tags=["course-types"])
 api_router.include_router(
     course_change_requests.router,
     prefix="/course-change-requests",
@@ -50,6 +54,10 @@ api_router.include_router(raw_data.router, prefix="/raw-data", tags=["raw-data"]
 api_router.include_router(
     platform_raw_data.router, prefix="/platform-raw-data", tags=["platform-raw-data"]
 )
+api_router.include_router(
+    program_roles.router, prefix="/program-roles", tags=["program-roles"]
+)
+api_router.include_router(term_commit.router, prefix="/term-commit", tags=["term-commit"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])

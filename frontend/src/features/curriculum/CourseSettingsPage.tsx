@@ -1,5 +1,6 @@
 import { useAuth } from '@/features/auth/useAuth'
 import { CourseOutcomesTab } from '@/features/curriculum/CourseOutcomesTab'
+import { CourseTypesTab } from '@/features/curriculum/CourseTypesTab'
 import { CourseVersionsTab } from '@/features/curriculum/CourseVersionsTab'
 import { CoursesTab } from '@/features/curriculum/CoursesTab'
 import { PageHeader } from '@/components/page-header'
@@ -10,15 +11,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
  * catalog, its versions, and each version's course outcomes (COs) — the
  * things a course/faculty coordinator configures independent of any one
  * program. PO/PEO-related configuration lives in Program Level Setting
- * instead (see ProgramSettingsPage). */
+ * instead (see ProgramSettingsPage). Course Types (docs/
+ * course_level_settings_and_approval_workflow.md §1-§3) live here too —
+ * they're the classification that drives which course-level sections a
+ * Course Teacher may propose changes to. */
 export function CourseSettingsPage() {
   const { hasPermission } = useAuth()
   const canView = hasPermission('curriculum.view')
+  const canManageCourseTypes = hasPermission('course_type.manage')
 
   const tabs = [
     { value: 'courses', label: 'Courses', show: canView, content: <CoursesTab /> },
     { value: 'course-versions', label: 'Course versions', show: canView, content: <CourseVersionsTab /> },
     { value: 'course-outcomes', label: 'Course Outcomes', show: canView, content: <CourseOutcomesTab /> },
+    {
+      value: 'course-types',
+      label: 'Course Types',
+      show: canManageCourseTypes,
+      content: <CourseTypesTab />,
+    },
   ].filter((t) => t.show)
 
   return (

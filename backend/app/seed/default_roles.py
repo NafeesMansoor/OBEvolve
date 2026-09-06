@@ -160,6 +160,8 @@ DEFAULT_ROLES: list[RoleDef] = [
             "course_file.review",
             "course_file.view",
             "course_change_request.review",
+            "program_role.manage",
+            "term_commit.manage",
         ),
     ),
     RoleDef(
@@ -189,6 +191,9 @@ DEFAULT_ROLES: list[RoleDef] = [
             "course_file.review",
             "course_file.view",
             "course_change_request.review",
+            "course_change_request.review_program",
+            "course_type.manage",
+            "program_role.manage",
         ),
     ),
     RoleDef(
@@ -215,6 +220,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "course_file.review",
             "course_file.view",
             "course_change_request.review",
+            "course_change_request.review_admin",
         ),
     ),
     RoleDef(
@@ -254,6 +260,8 @@ DEFAULT_ROLES: list[RoleDef] = [
             "course_file.view",
             "course_change_request.create",
             "course_change_request.review",
+            "course_change_request.review_admin",
+            "course_type.manage",
         ),
     ),
     RoleDef(

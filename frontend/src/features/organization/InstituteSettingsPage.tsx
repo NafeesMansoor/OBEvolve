@@ -5,6 +5,7 @@ import { AuditLogTab } from '@/features/organization/AuditLogTab'
 import { DepartmentsTab } from '@/features/organization/DepartmentsTab'
 import { InstitutionTab } from '@/features/organization/InstitutionTab'
 import { ProgramsTab } from '@/features/organization/ProgramsTab'
+import { RoleMatrixTab } from '@/features/organization/RoleMatrixTab'
 import { SchoolsTab } from '@/features/organization/SchoolsTab'
 import { UsersTab } from '@/features/organization/UsersTab'
 import { PageHeader } from '@/components/page-header'
@@ -43,6 +44,12 @@ export function InstituteSettingsPage() {
       content: <ProgramsTab />,
     },
     { value: 'users', label: 'Users & roles', show: hasPermission('user.view'), content: <UsersTab /> },
+    {
+      value: 'role-matrix',
+      label: 'Role matrix',
+      show: hasPermission('role.manage'),
+      content: <RoleMatrixTab />,
+    },
     {
       value: 'audit',
       label: 'Audit log',

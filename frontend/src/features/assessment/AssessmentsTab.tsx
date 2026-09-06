@@ -1,6 +1,15 @@
 import * as React from 'react'
 import { useQueries } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, FileText, Filter, ListChecks, Plus, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowRight,
+  FileText,
+  Filter,
+  History,
+  ListChecks,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -56,9 +65,13 @@ export function AssessmentsTab() {
 
   const { labelFor } = useCourseVersionLookup()
   const { options: termOptions, termById } = useAcademicTermLookup()
+  // Default selector is current-semester only (spec §8); this flips to the
+  // explicit "View Previous Semesters" action (spec §9).
+  const [showPrevious, setShowPrevious] = React.useState(false)
   const { data: offerings } = useEntityList<CourseOffering>(
-    ['academic', 'course-offerings'],
+    ['academic', 'course-offerings', showPrevious ? 'all-terms' : 'current-term'],
     '/academic/course-offerings',
+    showPrevious ? { include_previous: 'true' } : undefined,
   )
   const [offeringId, setOfferingId] = React.useState('')
   const { data: sections } = useEntityList<CourseSection>(
@@ -195,11 +208,21 @@ export function AssessmentsTab() {
             </Select>
           </div>
         </div>
-        {canManage && sectionId && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New assessment
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={showPrevious ? 'default' : 'outline'}
+            onClick={() => setShowPrevious((v) => !v)}
+          >
+            <History className="size-4" />
+            {showPrevious ? 'Showing all semesters' : 'View previous semesters'}
           </Button>
-        )}
+          {canManage && sectionId && (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" /> New assessment
+            </Button>
+          )}
+        </div>
       </div>
 
       {sectionId && weightSummary && weightSummary.assessment_count > 0 && (

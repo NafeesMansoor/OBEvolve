@@ -157,3 +157,19 @@ export interface ProgramOutcomePEOMapping {
   mapping_scale_level_id: string
   remarks: string | null
 }
+
+export interface CourseType {
+  id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type SectionKey = 'overview' | 'settings' | 'students' | 'assessments'
+
+export interface SectionConfig {
+  section_key: SectionKey
+  is_enabled: boolean
+}

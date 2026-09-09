@@ -1,15 +1,16 @@
 import { cn } from '@/lib/utils'
 
 /**
- * OBEvolve's wordmark (ref/logo.png): "OBE" set in white with a red
- * keyline, "volve" solid red — reproduced as real text (not the source
- * raster, which is only 145×52px and blurs past favicon size) so it stays
- * crisp at any size and respects dark/light theme automatically via the
- * `--primary` token. `-webkit-text-stroke` on "OBE" is what makes it read
- * on any background, light or dark, exactly like the red keyline in the
- * source mark — `paint-order: stroke fill` keeps the stroke from eating
- * into the white fill. Size via font-size utilities on `className` (e.g.
- * `text-lg`, `text-3xl`), not `size-*`.
+ * OBEvolve's wordmark: "OBE" set in white with a neon-green keyline, "volve"
+ * solid neon-green (Revision 7, "Ink & Neon" — see design-system/obevolve/
+ * MASTER.md) — reproduced as real text so it stays crisp at any size and
+ * repaints automatically with the theme via the `--primary` token.
+ * `-webkit-text-stroke` on "OBE" is what makes the white fill read against a
+ * light canvas — light mode only; dark mode drops the stroke (plain white
+ * reads fine on a dark surface, and the keyline looked heavy there) via a
+ * `dark:` override. `paint-order: stroke fill` (light mode) keeps the
+ * stroke from eating into the white fill. Size via font-size utilities on
+ * `className` (e.g. `text-lg`, `text-3xl`), not `size-*`.
  */
 export function Logo({ className }: { className?: string }) {
   return (
@@ -19,10 +20,7 @@ export function Logo({ className }: { className?: string }) {
         className,
       )}
     >
-      <span
-        className="text-white"
-        style={{ WebkitTextStroke: '0.16em hsl(var(--primary))', paintOrder: 'stroke fill' }}
-      >
+      <span className="text-white [-webkit-text-stroke:0.16em_hsl(var(--primary))] [paint-order:stroke_fill] dark:[-webkit-text-stroke:0]">
         OBE
       </span>
       <span className="text-primary">volve</span>
@@ -34,7 +32,7 @@ export function Logo({ className }: { className?: string }) {
  * contexts) where the full wordmark won't fit — the source logo has no
  * separate icon glyph, so this derives one echoing the wordmark's own
  * "OBE" / "volve" split rather than an arbitrary single letter: "O" from
- * the white-stroked half, "v" from the solid-red half. Size via `size-*`
+ * the white-stroked half, "v" from the solid-amber half. Size via `size-*`
  * (it's a square badge, not a font-size context like `Logo`). */
 export function LogoMark({ className }: { className?: string }) {
   return (

@@ -42,7 +42,14 @@ docs/CREDENTIALS.local.md
 # CodeCortex (codebase-mapping tool, cloned locally for indexing this repo —
 # not an OBEvolve source dependency, kept out of version control)
 tools/codecortex/
+# Architectra (visual architecture-modeling tool, cloned locally — not an
+# OBEvolve source dependency, kept out of version control, same as CodeCortex
+# above). Own venv at tools/architectra/.venv.
+tools/architectra/
 # CodeCortex's generated graph snapshot for this repo — a regenerable index
 # cache (see CLAUDE.md), not source; can be a few MB and changes on every
 # reindex.
 .codecortex/
+# Architectra's generated architecture-model artifact for this repo — same
+# deal as .codecortex/ above: regenerable, not source.
+.architectra/

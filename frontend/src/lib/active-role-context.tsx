@@ -25,14 +25,16 @@ export function useActiveRole() {
  */
 export const NAV_SECTION_ROLES: Record<string, string[]> = {
   dashboard: [],
-  courses: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
-  questionBank: ['Faculty', 'Course Coordinator', 'Institution Administrator', 'Super Administrator'],
-  courseSettings: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  courses: ['Faculty', 'Section Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  questionBank: ['Faculty', 'Section Coordinator', 'Institution Administrator', 'Super Administrator'],
+  courseSettings: ['Faculty', 'Section Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
   programSettings: ['Program Coordinator', 'Institution Administrator', 'Super Administrator'],
-  academic: ['Faculty', 'Course Coordinator', 'Registrar', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
-  grading: ['Faculty', 'Course Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
-  assessment: ['Faculty', 'Course Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
-  analytics: ['Faculty', 'Course Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  outcomeMapping: ['Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  programAdministration: ['Program Coordinator', 'Institution Administrator', 'Super Administrator'],
+  academic: ['Faculty', 'Section Coordinator', 'Registrar', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
+  grading: ['Faculty', 'Section Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
+  assessment: ['Faculty', 'Section Coordinator', 'Examination Administrator', 'Institution Administrator', 'Super Administrator'],
+  analytics: ['Faculty', 'Section Coordinator', 'Program Coordinator', 'Institution Administrator', 'Super Administrator'],
   organization: ['Institution Administrator', 'Super Administrator'],
   rawData: [
     'Institution Administrator',

@@ -391,7 +391,9 @@ def create_peo(
     payload: PEOCreate,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> PEO:
     peo = PEO(**payload.model_dump(), status=WorkflowStatus.DRAFT, created_by=current_user.id)
     db.add(peo)
@@ -435,7 +437,9 @@ def update_peo(
     payload: PEOUpdate,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> PEO:
     peo = _get_or_404(db, PEO, peo_id, "PEO")
     changes = payload.model_dump(exclude_unset=True)
@@ -462,7 +466,9 @@ def advance_peo(
     peo_id: uuid.UUID,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("outcome.approve", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> PEO:
     peo = _get_or_404(db, PEO, peo_id, "PEO")
     return _advance(
@@ -484,7 +490,9 @@ def create_program_outcome(
     payload: ProgramOutcomeCreate,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> ProgramOutcome:
     if payload.framework_po_id is not None:
         _get_or_404(db, FrameworkPO, payload.framework_po_id, "Framework PO")
@@ -530,7 +538,9 @@ def update_program_outcome(
     payload: ProgramOutcomeUpdate,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("outcome.create", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> ProgramOutcome:
     outcome = _get_or_404(db, ProgramOutcome, program_outcome_id, "Program outcome")
     changes = payload.model_dump(exclude_unset=True)
@@ -559,7 +569,9 @@ def advance_program_outcome(
     program_outcome_id: uuid.UUID,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("outcome.approve", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> ProgramOutcome:
     outcome = _get_or_404(db, ProgramOutcome, program_outcome_id, "Program outcome")
     return _advance(
@@ -851,7 +863,9 @@ def create_program_outcome_peo_mapping(
     payload: ProgramOutcomePEOMappingCreate,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("mapping.create", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> ProgramOutcomePEOMapping:
     _get_or_404(db, ProgramOutcome, payload.program_outcome_id, "Program outcome")
     _get_or_404(db, PEO, payload.peo_id, "PEO")
@@ -896,7 +910,9 @@ def delete_program_outcome_peo_mapping(
     mapping_id: uuid.UUID,
     request: Request,
     db: Session = Depends(get_program_scoped_db),
-    current_user: User = Depends(require_permission("mapping.create", scope_type="program")),
+    current_user: User = Depends(
+        require_permission("program_outcome_framework.manage", scope_type="program")
+    ),
 ) -> None:
     mapping = _get_or_404(db, ProgramOutcomePEOMapping, mapping_id, "PEO-PO mapping")
     previous_value = {

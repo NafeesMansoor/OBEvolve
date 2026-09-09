@@ -108,7 +108,7 @@ def provisioned_tenant(public_db: Session, db_engine):
     from app.services.tenancy import provision_tenant
 
     slug = f"test-{uuid.uuid4().hex[:8]}"
-    institution = provision_tenant(
+    institution, _ = provision_tenant(
         public_db,
         name=f"Test Institution {slug}",
         code=slug.upper(),

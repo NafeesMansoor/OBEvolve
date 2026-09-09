@@ -58,12 +58,7 @@ export default {
   			warning: {
   				DEFAULT: 'hsl(var(--warning))',
   				foreground: 'hsl(var(--warning-foreground))'
-  			},
-  			'brand-red-light': 'hsl(var(--brand-red-light))',
-  			'brand-red-deep': 'hsl(var(--brand-red-deep))'
-  		},
-  		backgroundImage: {
-  			'brand-gradient': 'linear-gradient(135deg, hsl(var(--brand-red-light)) 0%, hsl(var(--primary)) 55%, hsl(var(--brand-red-deep)) 100%)'
+  			}
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

@@ -17,9 +17,45 @@ export const API_BASE_URL: string =
 export const INSTITUTION_SLUG: string | undefined = import.meta.env
   .VITE_INSTITUTION_SLUG as string | undefined
 
-/** Shape of error responses returned by the FastAPI backend. */
+/** Shape of error responses returned by the FastAPI backend. Most endpoints
+ * return a plain string `detail`, but FastAPI's own request-validation layer
+ * (422 Unprocessable Entity — e.g. a Pydantic `EmailStr` rejecting a value
+ * the frontend's own looser check let through) returns `detail` as an array
+ * of Pydantic error objects instead. Typed as `unknown` here so callers go
+ * through `extractErrorDetail` below rather than rendering it directly. */
 export interface ApiErrorShape {
-  detail: string
+  detail: unknown
+}
+
+/** Pydantic v2's per-field validation error shape (FastAPI 422 responses). */
+interface PydanticValidationError {
+  type: string
+  loc: (string | number)[]
+  msg: string
+  input?: unknown
+}
+
+function isPydanticValidationErrors(value: unknown): value is PydanticValidationError[] {
+  return (
+    Array.isArray(value) &&
+    value.every((v) => typeof v === 'object' && v !== null && 'msg' in v && 'loc' in v)
+  )
+}
+
+/** Normalizes a FastAPI error response's `detail` into a renderable string —
+ * never returns the raw Pydantic validation-error array a 422 sends back,
+ * since rendering an array of objects directly crashes React. */
+export function extractErrorDetail(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string') return detail
+  if (isPydanticValidationErrors(detail)) {
+    return detail
+      .map((e) => {
+        const field = e.loc.filter((p) => p !== 'body').join('.')
+        return field ? `${field}: ${e.msg}` : e.msg
+      })
+      .join('; ')
+  }
+  return fallback
 }
 
 /** Normalized error thrown by the api client for callers to catch. */
@@ -187,8 +223,10 @@ apiClient.interceptors.response.use(
       onUnauthorized?.()
     }
 
-    const detail =
-      error.response?.data?.detail ?? error.message ?? 'An unexpected error occurred'
+    const detail = extractErrorDetail(
+      error.response?.data?.detail,
+      error.message || 'An unexpected error occurred',
+    )
     return Promise.reject(new ApiError(detail, status))
   },
 )

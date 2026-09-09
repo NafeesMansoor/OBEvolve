@@ -150,6 +150,14 @@ export interface CourseOutcomePOMapping {
   remarks: string | null
 }
 
+export interface CourseOutcomePIMapping {
+  id: string
+  course_outcome_id: string
+  performance_indicator_id: string
+  mapping_scale_level_id: string
+  remarks: string | null
+}
+
 export interface ProgramOutcomePEOMapping {
   id: string
   program_outcome_id: string
@@ -172,4 +180,100 @@ export type SectionKey = 'overview' | 'settings' | 'students' | 'assessments'
 export interface SectionConfig {
   section_key: SectionKey
   is_enabled: boolean
+}
+
+// --- Mission & Vision (Master_Architecture_Part1.md §7-9) ---
+export interface InstitutionalMission {
+  id: string
+  statement: string
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InstitutionalVision {
+  id: string
+  label: string
+  statement: string
+  sequence: number
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProgramMission {
+  id: string
+  program_version_id: string
+  statement: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ProgramVision {
+  id: string
+  program_version_id: string
+  label: string
+  statement: string
+  sequence: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface InstitutionalVisionProgramVisionMapping {
+  id: string
+  program_vision_id: string
+  institutional_vision_id: string
+  created_at: string
+}
+
+export interface PeoVisionMapping {
+  id: string
+  peo_id: string
+  program_vision_id: string
+  created_at: string
+}
+
+// --- Performance Indicators (Indicator-Based method, spec §18) ---
+export interface PerformanceIndicator {
+  id: string
+  program_outcome_id: string
+  code: string
+  statement: string
+  sequence: number
+  is_active: boolean
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+// --- PO/PI <-> Knowledge Profile / CEP / CEA mappings (spec §17/§19) ---
+export interface ProgramOutcomeKnowledgeProfileMapping {
+  id: string
+  program_outcome_id: string | null
+  performance_indicator_id: string | null
+  knowledge_profile_id: string
+  mapping_scale_level_id: string
+  remarks: string | null
+}
+
+export interface ProgramOutcomeProblemAttributeMapping {
+  id: string
+  program_outcome_id: string | null
+  performance_indicator_id: string | null
+  problem_attribute_id: string
+  mapping_scale_level_id: string
+  remarks: string | null
+}
+
+export interface ProgramOutcomeEngineeringActivityMapping {
+  id: string
+  program_outcome_id: string | null
+  performance_indicator_id: string | null
+  engineering_activity_id: string
+  mapping_scale_level_id: string
+  remarks: string | null
 }

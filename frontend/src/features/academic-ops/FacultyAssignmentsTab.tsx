@@ -1,11 +1,13 @@
 import * as React from 'react'
 import { Download, History, Plus, Trash2 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
 import { useAcademicTermLookup, useCourseVersionLookup } from '@/features/academic-ops/useLookups'
 import { ImportFromOfferingDialog } from '@/features/academic-ops/ImportFromOfferingDialog'
+import { ImportFromTermDialog } from '@/features/academic-ops/ImportFromTermDialog'
 import type { CourseOffering, CourseSection, FacultyAssignment } from '@/features/academic-ops/types'
 import { apiClient, ApiError } from '@/lib/api-client'
 import { useEntityCreate, useEntityDelete, useEntityList } from '@/lib/crud-hooks'
@@ -31,8 +33,9 @@ interface FacultyDirectoryEntry {
 export function FacultyAssignmentsTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('section.manage')
+  const queryClient = useQueryClient()
   const { labelFor } = useCourseVersionLookup()
-  const { termById } = useAcademicTermLookup()
+  const { termById, options: termOptions } = useAcademicTermLookup()
   // Default selector is current-semester only (spec §8); this flips to the
   // explicit "View Previous Semesters" action (spec §9).
   const [showPrevious, setShowPrevious] = React.useState(false)
@@ -64,6 +67,7 @@ export function FacultyAssignmentsTab() {
 
   const [createOpen, setCreateOpen] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
+  const [bulkImportOpen, setBulkImportOpen] = React.useState(false)
   const [viewAssignment, setViewAssignment] = React.useState<FacultyAssignment | null>(null)
 
   const currentOffering = React.useMemo(
@@ -185,6 +189,11 @@ export function FacultyAssignmentsTab() {
           <History className="size-4" />
           {showPrevious ? 'Showing all semesters' : 'View previous semesters'}
         </Button>
+        {canManage && (
+          <Button size="sm" variant="outline" onClick={() => setBulkImportOpen(true)}>
+            <Download className="size-4" /> Import all from trimester
+          </Button>
+        )}
         {canManage && sectionId && (
           <>
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
@@ -315,6 +324,40 @@ export function FacultyAssignmentsTab() {
             `Imported ${imported} assignment${imported === 1 ? '' : 's'}` +
               (skipped > 0 ? ` (${skipped} already existed)` : ''),
           )
+        }}
+      />
+
+      <ImportFromTermDialog
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+        termOptions={termOptions}
+        onImport={async (sourceTermId, targetTermId) => {
+          // Server-side bulk import (spec §34): matches by course + section
+          // code across every offering in the source term, never assigns an
+          // inactive faculty member, and never overwrites an existing
+          // target assignment — see academic_ops.py's
+          // `_faculty_assignment_import_candidates` for the exact rules.
+          try {
+            const { data } = await apiClient.post<{
+              assignments_created: number
+              skipped: { previous_faculty_name: string; skip_reason: string | null }[]
+            }>('/academic/faculty-assignments/import', {
+              from_academic_term_id: sourceTermId,
+              to_academic_term_id: targetTermId,
+            })
+            void queryClient.invalidateQueries({ queryKey: ['academic', 'faculty-assignments'] })
+            const skippedInactive = data.skipped.filter((s) => s.skip_reason?.includes('inactive')).length
+            toast.success(
+              `Imported ${data.assignments_created} assignment${data.assignments_created === 1 ? '' : 's'}` +
+                (data.skipped.length > 0
+                  ? ` (${data.skipped.length} skipped` +
+                    (skippedInactive > 0 ? `, ${skippedInactive} inactive faculty` : '') +
+                    ')'
+                  : ''),
+            )
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : 'Unable to import faculty assignments.')
+          }
         }}
       />
     </div>

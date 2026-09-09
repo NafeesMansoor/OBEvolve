@@ -60,6 +60,31 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef("outcome.create", "Create outcome definitions", "curriculum"),
     PermissionDef("outcome.approve", "Approve outcome definitions", "curriculum"),
     PermissionDef("mapping.create", "Create outcome mappings", "curriculum"),
+    # Program-level outcome framework (PEOs, POs, and PO<->PEO mappings) is a
+    # narrower, more privileged slice of the codes above: outcome.create/
+    # outcome.approve/mapping.create also gate course-level CourseOutcome and
+    # CO<->PO mapping work, which Program Coordinator legitimately needs for
+    # their trimester-side duties. Program Coordinator must NOT be able to
+    # edit PEOs/POs directly (Master_Architecture_Part1.md §25/§43 — view +
+    # feedback only there) so those specific endpoints require this separate
+    # code instead, held only by Institution/Program Administrator.
+    PermissionDef(
+        "program_outcome_framework.manage",
+        "Create/edit/publish program-level outcome framework (PEOs, POs, "
+        "and PO<->PEO mappings) — distinct from course-level "
+        "outcome.create/mapping.create",
+        "curriculum",
+    ),
+    # Program Coordinator has view-only access to the program-level outcome
+    # framework (spec §25) — this is their one write action at that level:
+    # submitting feedback, never editing the item itself. Reviewing feedback
+    # is gated on program_outcome_framework.manage instead of a separate
+    # code, since it's the same tier that already owns the framework.
+    PermissionDef(
+        "curriculum_feedback.create",
+        "Submit feedback on a read-only Program & Curriculum Level item",
+        "curriculum",
+    ),
     # --- Course delivery: sections, faculty assignment, students, grading ---
     PermissionDef(
         "section.manage",

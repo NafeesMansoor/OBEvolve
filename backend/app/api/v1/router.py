@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     course_files,
     course_types,
     curriculum,
+    curriculum_framework,
     grading,
     improvement,
     institutions,
@@ -36,6 +37,9 @@ api_router.include_router(institutions.router, prefix="/institutions", tags=["in
 api_router.include_router(org.router, prefix="/org", tags=["organization"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(curriculum.router, prefix="/curriculum", tags=["curriculum"])
+api_router.include_router(
+    curriculum_framework.router, prefix="/curriculum", tags=["curriculum-framework"]
+)
 api_router.include_router(academic_ops.router, prefix="/academic", tags=["academic"])
 api_router.include_router(grading.router, prefix="/grading", tags=["grading"])
 api_router.include_router(assessment.router, prefix="/assessment", tags=["assessment"])

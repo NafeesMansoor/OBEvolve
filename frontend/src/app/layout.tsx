@@ -11,11 +11,13 @@ import {
   LineChart,
   LogOut,
   Menu,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
   Target,
   User as UserIcon,
+  UserCog,
 } from 'lucide-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
@@ -89,11 +91,33 @@ const navItems: NavItem[] = [
     anyOfPermissions: ['outcome.create', 'outcome.approve'],
   },
   {
-    label: 'Program Level Setting',
+    // Curriculum-content editing only (curricula, mission/vision, PEOs,
+    // POs, PIs, feedback) — mapping matrices and program-administration
+    // actions live in their own nav items below (split out once this page
+    // grew to 12 tabs and became unusable as a single tab bar). Gate
+    // tightened to match what the page's own tabs actually check
+    // (curriculum.view/program.view/curriculum_feedback.create) — the old
+    // outcome.create/outcome.approve/program_outcome_framework.manage
+    // entries were never what gated any tab's visibility here.
+    label: 'Program & Curriculum',
     to: '/program-settings',
     icon: Target,
     sectionKey: 'programSettings',
-    anyOfPermissions: ['outcome.create', 'outcome.approve', 'program.view'],
+    anyOfPermissions: ['program.view', 'curriculum.view', 'curriculum_feedback.create'],
+  },
+  {
+    label: 'Outcome Mapping',
+    to: '/outcome-mapping',
+    icon: Network,
+    sectionKey: 'outcomeMapping',
+    anyOfPermissions: ['curriculum.view'],
+  },
+  {
+    label: 'Program Administration',
+    to: '/program-administration',
+    icon: UserCog,
+    sectionKey: 'programAdministration',
+    anyOfPermissions: ['program_role.manage', 'term_commit.manage'],
   },
   {
     // Institution/program-wide read-write over offerings, sections, faculty
@@ -102,7 +126,7 @@ const navItems: NavItem[] = [
     // hold) so faculty never see this module (Faculty Module spec §10: "not
     // displayed to faculty because faculty cannot read or write data
     // within that module" — they use Courses/Question Bank instead).
-    label: 'Academic Operations',
+    label: 'Trimester Management',
     to: '/academic',
     icon: ClipboardCheck,
     sectionKey: 'academic',

@@ -357,7 +357,7 @@ def populate(db, *, institution_id, program_id, department_id) -> None:
 
     # --- Faculty ---
     faculty_role = db.query(Role).filter(Role.name == "Faculty").one()
-    coordinator_role = db.query(Role).filter(Role.name == "Course Coordinator").one()
+    coordinator_role = db.query(Role).filter(Role.name == "Section Coordinator").one()
     program_coordinator_role = db.query(Role).filter(Role.name == "Program Coordinator").one()
 
     faculty_users = []

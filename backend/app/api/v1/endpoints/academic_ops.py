@@ -25,12 +25,20 @@ from app.models.tenant.courses.delivery import (
 from app.models.tenant.identity import StudentProfile, User
 from app.schemas.academic import (
     CourseOfferingCreate,
+    CourseOfferingImportCandidate,
+    CourseOfferingImportPreview,
+    CourseOfferingImportRequest,
+    CourseOfferingImportResult,
     CourseOfferingRead,
     CourseSectionCreate,
     CourseSectionRead,
     FacultyAssignmentContactInfoUpdate,
     FacultyAssignmentCreate,
+    FacultyAssignmentImportCandidate,
+    FacultyAssignmentImportRequest,
+    FacultyAssignmentImportResult,
     FacultyAssignmentRead,
+    ImportSectionPreview,
     StudentAlignmentUpdate,
     StudentCreate,
     StudentEnrollmentCreate,
@@ -126,6 +134,121 @@ def list_course_offerings(
     elif not include_previous:
         query = query.filter(CourseOffering.academic_term_id.in_(get_current_term_ids(db)))
     return query.order_by(CourseOffering.created_at.desc()).all()
+
+
+# --- Import course offerings from a previous trimester (spec §29) ---
+# "Import" always creates NEW rows in the target term — it never mutates
+# the source term's offerings/sections (spec §41: previous-trimester data
+# is immutable history). Declared here, before the `{offering_id}` routes
+# below, so FastAPI's path-matching doesn't treat "import-candidates" as an
+# `offering_id` path parameter (routes are matched in declaration order).
+@router.get(
+    "/course-offerings/import-candidates", response_model=CourseOfferingImportPreview
+)
+def preview_course_offering_import(
+    from_academic_term_id: uuid.UUID,
+    to_academic_term_id: uuid.UUID,
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> CourseOfferingImportPreview:
+    source_offerings = (
+        db.query(CourseOffering)
+        .filter(CourseOffering.academic_term_id == from_academic_term_id)
+        .all()
+    )
+    already_offered_versions = {
+        row[0]
+        for row in db.query(CourseOffering.course_version_id)
+        .filter(CourseOffering.academic_term_id == to_academic_term_id)
+        .all()
+    }
+    candidates = []
+    for offering in source_offerings:
+        sections = (
+            db.query(CourseSection)
+            .filter(CourseSection.course_offering_id == offering.id)
+            .order_by(CourseSection.section_code)
+            .all()
+        )
+        candidates.append(
+            CourseOfferingImportCandidate(
+                course_version_id=offering.course_version_id,
+                program_version_id=offering.program_version_id,
+                already_offered=offering.course_version_id in already_offered_versions,
+                sections=[
+                    ImportSectionPreview(section_code=s.section_code, max_students=s.max_students)
+                    for s in sections
+                ],
+            )
+        )
+    return CourseOfferingImportPreview(candidates=candidates)
+
+
+@router.post("/course-offerings/import", response_model=CourseOfferingImportResult)
+def import_course_offerings(
+    payload: CourseOfferingImportRequest,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> CourseOfferingImportResult:
+    source_offerings_query = db.query(CourseOffering).filter(
+        CourseOffering.academic_term_id == payload.from_academic_term_id
+    )
+    if payload.course_version_ids is not None:
+        source_offerings_query = source_offerings_query.filter(
+            CourseOffering.course_version_id.in_(payload.course_version_ids)
+        )
+    source_offerings = source_offerings_query.all()
+
+    already_offered_versions = {
+        row[0]
+        for row in db.query(CourseOffering.course_version_id)
+        .filter(CourseOffering.academic_term_id == payload.to_academic_term_id)
+        .all()
+    }
+
+    offerings_created = 0
+    sections_created = 0
+    for source in source_offerings:
+        if source.course_version_id in already_offered_versions:
+            continue
+        new_offering = CourseOffering(
+            course_version_id=source.course_version_id,
+            academic_term_id=payload.to_academic_term_id,
+            program_version_id=source.program_version_id,
+        )
+        db.add(new_offering)
+        db.flush()
+        offerings_created += 1
+        write_audit_log(
+            db,
+            user_id=current_user.id,
+            action="course_offering.imported",
+            entity_type="CourseOffering",
+            entity_id=new_offering.id,
+            new_value={
+                "course_version_id": str(source.course_version_id),
+                "imported_from_academic_term_id": str(payload.from_academic_term_id),
+            },
+            **get_request_context(request),
+        )
+
+        source_sections = (
+            db.query(CourseSection).filter(CourseSection.course_offering_id == source.id).all()
+        )
+        for source_section in source_sections:
+            new_section = CourseSection(
+                course_offering_id=new_offering.id,
+                section_code=source_section.section_code,
+                max_students=source_section.max_students,
+            )
+            db.add(new_section)
+            sections_created += 1
+        db.flush()
+
+    return CourseOfferingImportResult(
+        offerings_created=offerings_created, sections_created=sections_created
+    )
 
 
 @router.get("/course-offerings/{offering_id}", response_model=CourseOfferingRead)
@@ -320,7 +443,15 @@ def create_faculty_assignment(
     current_user: User = Depends(require_permission("section.manage", scope_type="program")),
 ) -> FacultyAssignment:
     _get_or_404(db, CourseSection, payload.course_section_id, "Course section")
-    _get_or_404(db, User, payload.faculty_user_id, "Faculty user")
+    faculty_user = _get_or_404(db, User, payload.faculty_user_id, "Faculty user")
+    if not faculty_user.is_active:
+        # spec §31: inactive faculty must never be selectable for a NEW
+        # assignment (existing historical assignments stay untouched — this
+        # only guards the create path).
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This faculty member is inactive and cannot be assigned to a new section.",
+        )
     assignment = FacultyAssignment(**payload.model_dump())
     db.add(assignment)
     db.flush()
@@ -399,6 +530,135 @@ def delete_faculty_assignment(
         entity_id=assignment_id,
         **get_request_context(request),
     )
+
+
+# --- Import faculty assignments from a previous trimester (spec §34) ---
+# Matching rules, applied in order: match the course (course_version_id),
+# match the section number (section_code) — a target section must already
+# exist (run the course-offering import first if needed, this endpoint
+# never creates sections itself); verify the previously assigned faculty
+# member still exists and is active; assign if eligible, otherwise leave
+# unassigned — an inactive faculty member is NEVER auto-assigned, and a
+# target section that already has an assignment is never overwritten
+# (rule 7: the coordinator can still modify anything imported afterwards
+# via the regular faculty-assignment endpoints).
+def _faculty_assignment_import_candidates(
+    db: Session, from_academic_term_id: uuid.UUID, to_academic_term_id: uuid.UUID
+) -> list[FacultyAssignmentImportCandidate]:
+    source_rows = (
+        db.query(FacultyAssignment, CourseSection, CourseOffering)
+        .join(CourseSection, FacultyAssignment.course_section_id == CourseSection.id)
+        .join(CourseOffering, CourseSection.course_offering_id == CourseOffering.id)
+        .filter(CourseOffering.academic_term_id == from_academic_term_id)
+        .all()
+    )
+    target_sections = (
+        db.query(CourseSection, CourseOffering)
+        .join(CourseOffering, CourseSection.course_offering_id == CourseOffering.id)
+        .filter(CourseOffering.academic_term_id == to_academic_term_id)
+        .all()
+    )
+    target_by_key = {(co.course_version_id, cs.section_code): cs for cs, co in target_sections}
+    target_section_ids = [cs.id for cs, _ in target_sections]
+    already_assigned_section_ids = (
+        {
+            row[0]
+            for row in db.query(FacultyAssignment.course_section_id)
+            .filter(FacultyAssignment.course_section_id.in_(target_section_ids))
+            .all()
+        }
+        if target_section_ids
+        else set()
+    )
+
+    faculty_ids = {fa.faculty_user_id for fa, _, _ in source_rows}
+    users_by_id = (
+        {u.id: u for u in db.query(User).filter(User.id.in_(faculty_ids)).all()}
+        if faculty_ids
+        else {}
+    )
+
+    candidates = []
+    for assignment, source_section, source_offering in source_rows:
+        target_section = target_by_key.get(
+            (source_offering.course_version_id, source_section.section_code)
+        )
+        if target_section is None:
+            continue
+        faculty_user = users_by_id.get(assignment.faculty_user_id)
+        faculty_active = bool(faculty_user and faculty_user.is_active)
+        already_assigned = target_section.id in already_assigned_section_ids
+        skip_reason = None
+        if already_assigned:
+            skip_reason = "Target section already has a faculty assignment."
+        elif not faculty_active:
+            skip_reason = "Faculty member is inactive."
+        candidates.append(
+            FacultyAssignmentImportCandidate(
+                target_course_section_id=target_section.id,
+                section_code=source_section.section_code,
+                course_version_id=source_offering.course_version_id,
+                previous_faculty_user_id=assignment.faculty_user_id,
+                previous_faculty_name=faculty_user.full_name if faculty_user else "Unknown",
+                previous_role=assignment.role,
+                faculty_active=faculty_active,
+                will_assign=faculty_active and not already_assigned,
+                skip_reason=skip_reason,
+            )
+        )
+    return candidates
+
+
+@router.get(
+    "/faculty-assignments/import-candidates",
+    response_model=list[FacultyAssignmentImportCandidate],
+)
+def preview_faculty_assignment_import(
+    from_academic_term_id: uuid.UUID,
+    to_academic_term_id: uuid.UUID,
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> list[FacultyAssignmentImportCandidate]:
+    return _faculty_assignment_import_candidates(db, from_academic_term_id, to_academic_term_id)
+
+
+@router.post("/faculty-assignments/import", response_model=FacultyAssignmentImportResult)
+def import_faculty_assignments(
+    payload: FacultyAssignmentImportRequest,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> FacultyAssignmentImportResult:
+    candidates = _faculty_assignment_import_candidates(
+        db, payload.from_academic_term_id, payload.to_academic_term_id
+    )
+    created = 0
+    skipped = []
+    for candidate in candidates:
+        if not candidate.will_assign:
+            skipped.append(candidate)
+            continue
+        assignment = FacultyAssignment(
+            course_section_id=candidate.target_course_section_id,
+            faculty_user_id=candidate.previous_faculty_user_id,
+            role=candidate.previous_role,
+        )
+        db.add(assignment)
+        db.flush()
+        created += 1
+        write_audit_log(
+            db,
+            user_id=current_user.id,
+            action="faculty_assignment.imported",
+            entity_type="FacultyAssignment",
+            entity_id=assignment.id,
+            new_value={
+                "faculty_user_id": str(candidate.previous_faculty_user_id),
+                "imported_from_academic_term_id": str(payload.from_academic_term_id),
+            },
+            **get_request_context(request),
+        )
+    return FacultyAssignmentImportResult(assignments_created=created, skipped=skipped)
 
 
 @router.patch(

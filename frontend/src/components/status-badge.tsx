@@ -6,15 +6,20 @@ import { cn } from '@/lib/utils'
  * app/db/base.py WorkflowStatus). */
 export type WorkflowStatus = 'draft' | 'submitted' | 'reviewed' | 'approved' | 'published'
 
+// Ink & Neon categorical recipe (docs/DESIGN_SYSTEM.md §4.3): a fixed hue per
+// status, reused everywhere WorkflowStatus appears. `reviewed` uses purple
+// (not the brand green) deliberately — green is the brand primary, so
+// reusing it here would read as "this status is the same thing as the
+// primary action."
 const STYLES: Record<WorkflowStatus, string> = {
   draft: 'bg-muted text-muted-foreground border-transparent',
   submitted: 'bg-blue-100 text-blue-800 border-transparent dark:bg-blue-950 dark:text-blue-300',
   reviewed:
-    'bg-amber-100 text-amber-800 border-transparent dark:bg-amber-950 dark:text-amber-300',
+    'bg-purple-100 text-purple-800 border-transparent dark:bg-purple-950 dark:text-purple-300',
   approved:
     'bg-emerald-100 text-emerald-800 border-transparent dark:bg-emerald-950 dark:text-emerald-300',
   published:
-    'bg-violet-100 text-violet-800 border-transparent dark:bg-violet-950 dark:text-violet-300',
+    'bg-teal-100 text-teal-800 border-transparent dark:bg-teal-950 dark:text-teal-300',
 }
 
 export const WORKFLOW_NEXT: Record<WorkflowStatus, WorkflowStatus | null> = {

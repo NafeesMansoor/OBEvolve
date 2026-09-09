@@ -28,6 +28,12 @@ class User(UUIDPKMixin, TimestampMixin, TenantBase):
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # spec §30/§37: an account created with a system-generated default
+    # password (new faculty/student) must be forced to change it after
+    # first login. Never set for a password an admin explicitly typed in
+    # (e.g. the generic `POST /users`) — only the flows that hand out a
+    # generated default set this True.
+    must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     roles: Mapped[list[UserRole]] = relationship(
@@ -127,6 +133,8 @@ class FacultyProfile(TenantBase):
     )
     employee_code: Mapped[str] = mapped_column(String(50), nullable=False)
     designation: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # spec §30: "Full Time" | "Part Time".
+    contract_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     department_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True
     )
@@ -187,6 +195,10 @@ class StudentProfile(TenantBase):
     program_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+    # Same no-DB-FK, app-layer-enforced reasoning as `program_version_id`
+    # above: `cohorts` (spec §5) is schema="program" too, so a real
+    # constraint here would only ever be able to target one fixed program.
+    cohort_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     batch_year: Mapped[int | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
 

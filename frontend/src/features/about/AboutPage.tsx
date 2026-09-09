@@ -87,8 +87,8 @@ function ExternalLinkRow({
 export function AboutPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8">
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="h-1.5 bg-brand-gradient" />
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <div className="h-1.5 bg-primary" />
         <div className="flex justify-center py-8">
           <Logo className="text-6xl" />
         </div>

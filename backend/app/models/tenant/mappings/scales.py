@@ -78,6 +78,39 @@ class CourseOutcomePOMapping(UUIDPKMixin, TimestampMixin, TenantBase):
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class CourseOutcomePIMapping(UUIDPKMixin, TimestampMixin, TenantBase):
+    """CO -> PI mapping, the Indicator-Based-method counterpart of
+    `CourseOutcomePOMapping` (spec §21) — used instead of, never alongside,
+    CO->PO for a curriculum whose `ProgramVersion.po_definition_method`
+    is "indicator_based"; the API enforces that choice, not this table.
+
+    schema="program": see `CourseOutcomePOMapping`'s docstring above.
+    """
+
+    __tablename__ = "course_outcome_pi_mappings"
+    __table_args__ = {"schema": "program"}
+
+    course_outcome_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("course_outcomes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    performance_indicator_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("program.performance_indicators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mapping_scale_level_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("mapping_scale_levels.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class ProgramOutcomePEOMapping(UUIDPKMixin, TimestampMixin, TenantBase):
     """schema="program": see docs/adr/0003-schema-per-program.md. Both
     `program_outcome_id` and `peo_id` target other schema="program" tables,

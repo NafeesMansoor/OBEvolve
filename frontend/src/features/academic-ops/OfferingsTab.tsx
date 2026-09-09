@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Download, History, Plus, Trash2 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -7,7 +8,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { useAcademicTermLookup, useCourseVersionLookup } from '@/features/academic-ops/useLookups'
 import type { CourseOffering } from '@/features/academic-ops/types'
 import { useProgramVersionOptions } from '@/features/curriculum/useProgramVersionOptions'
-import { ApiError } from '@/lib/api-client'
+import { apiClient, ApiError } from '@/lib/api-client'
 import { useEntityCreate, useEntityDelete, useEntityList, useEntityUpdate } from '@/lib/crud-hooks'
 import { Button } from '@/components/ui/button'
 import { ConfirmAction } from '@/components/confirm-action'
@@ -24,6 +25,7 @@ const schema = z.object({
 
 export function OfferingsTab() {
   const { hasPermission } = useAuth()
+  const queryClient = useQueryClient()
   const canManage = hasPermission('section.manage')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
@@ -45,14 +47,6 @@ export function OfferingsTab() {
     ['academic', 'course-offerings', showPrevious ? 'all-terms' : 'current-term'],
     '/academic/course-offerings',
     showPrevious ? { include_previous: 'true' } : undefined,
-  )
-  // Import needs cross-term visibility regardless of the toggle above —
-  // fetched once and cached separately from the (possibly current-only)
-  // display list.
-  const { data: allTermsData } = useEntityList<CourseOffering>(
-    ['academic', 'course-offerings', 'all-terms'],
-    '/academic/course-offerings',
-    { include_previous: 'true' },
   )
   const create = useEntityCreate<Record<string, unknown>, CourseOffering>(
     '/academic/course-offerings',
@@ -222,32 +216,25 @@ export function OfferingsTab() {
         onOpenChange={setImportOpen}
         termOptions={termOptions}
         onImport={async (sourceTermId, targetTermId) => {
-          const source = (allTermsData ?? []).filter((o) => o.academic_term_id === sourceTermId)
-          const alreadyInTarget = new Set(
-            (allTermsData ?? [])
-              .filter((o) => o.academic_term_id === targetTermId)
-              .map((o) => o.course_version_id),
-          )
-          const toImport = source.filter((o) => !alreadyInTarget.has(o.course_version_id))
-
-          let imported = 0
-          for (const offering of toImport) {
-            try {
-              await create.mutateAsync({
-                course_version_id: offering.course_version_id,
-                academic_term_id: targetTermId,
-                program_version_id: offering.program_version_id ?? null,
-              })
-              imported += 1
-            } catch {
-              // Best-effort: one failure doesn't abort the rest of the batch.
-            }
+          // Server-side import (spec §29): also copies each offering's
+          // sections, which the old client-side per-offering loop did not.
+          try {
+            const { data } = await apiClient.post<{
+              offerings_created: number
+              sections_created: number
+            }>('/academic/course-offerings/import', {
+              from_academic_term_id: sourceTermId,
+              to_academic_term_id: targetTermId,
+            })
+            void queryClient.invalidateQueries({ queryKey: ['academic', 'course-offerings'] })
+            void queryClient.invalidateQueries({ queryKey: ['academic', 'sections'] })
+            toast.success(
+              `Imported ${data.offerings_created} offering${data.offerings_created === 1 ? '' : 's'} ` +
+                `(${data.sections_created} section${data.sections_created === 1 ? '' : 's'})`,
+            )
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.detail : 'Unable to import offerings.')
           }
-          const skipped = source.length - toImport.length
-          toast.success(
-            `Imported ${imported} offering${imported === 1 ? '' : 's'}` +
-              (skipped > 0 ? ` (${skipped} already existed in the target term)` : ''),
-          )
         }}
       />
     </div>

@@ -97,7 +97,7 @@ export function DashboardPage() {
                 to={l.to}
                 className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <Card className="cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
+                <Card className="cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/60">
                   <CardContent className="flex items-center gap-3 py-5">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <l.icon className="size-4" />
@@ -244,7 +244,7 @@ function OverviewStats() {
               aria-label={`View ${s.label.toLowerCase()}`}
               className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <Card className="cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
+              <Card className="cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/60">
                 <CardContent className="flex items-center gap-3 py-5">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <s.icon className="size-5" />

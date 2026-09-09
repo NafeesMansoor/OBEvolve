@@ -1,5 +1,5 @@
 """Program-scoped role management: lets a Program Administrator/Coordinator
-grant/revoke Faculty, Course Coordinator, and Course Administrator roles for
+grant/revoke Faculty, Section Coordinator, and Course Administrator roles for
 people within their own program — the scoped counterpart to the
 institution-wide `role.manage` surface in `app.api.v1.endpoints.users`,
 which neither of those roles holds (see docs/course_level_settings_and_
@@ -36,11 +36,14 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.security import generate_temporary_password, hash_password
 from app.middleware.audit import get_request_context
 from app.models.tenant.courses.catalog import Course, CourseVersion
-from app.models.tenant.courses.delivery import CourseOffering, FacultyAssignment
-from app.models.tenant.identity import Role, User, UserRole
+from app.models.tenant.courses.delivery import CourseOffering, CourseSection, FacultyAssignment
+from app.models.tenant.identity import FacultyProfile, Role, User, UserRole
 from app.schemas.program_roles import (
+    FacultyCreate,
+    FacultyCreateResult,
     ProgramCourseRead,
     ProgramFacultyRead,
     ProgramRoleGrantCreate,
@@ -53,7 +56,13 @@ from app.services.rbac import get_program_scoped_db, require_permission
 router = APIRouter()
 
 #: The only roles grantable through this surface — see module docstring.
-ASSIGNABLE_ROLE_NAMES: tuple[str, ...] = ("Faculty", "Course Coordinator", "Course Administrator")
+ASSIGNABLE_ROLE_NAMES: tuple[str, ...] = ("Faculty", "Section Coordinator", "Course Administrator")
+
+#: Section Coordinator's real-world meaning is "faculty who already teaches
+#: this course, elevated to also own its assessment plan" — a grant without
+#: an existing FacultyAssignment on one of the course's sections would let
+#: someone approve marks entry for a course they have no teaching record on.
+_SECTION_COORDINATOR_ROLE_NAME = "Section Coordinator"
 
 
 def _program_course_ids(db: Session) -> list[uuid.UUID]:
@@ -150,6 +159,27 @@ def create_program_role_grant(
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, detail="That course is not offered in this program."
             )
+        if role.name == _SECTION_COORDINATOR_ROLE_NAME:
+            has_assignment = (
+                db.query(FacultyAssignment.id)
+                .join(CourseSection, FacultyAssignment.course_section_id == CourseSection.id)
+                .join(CourseOffering, CourseSection.course_offering_id == CourseOffering.id)
+                .join(CourseVersion, CourseOffering.course_version_id == CourseVersion.id)
+                .filter(
+                    FacultyAssignment.faculty_user_id == payload.user_id,
+                    CourseVersion.course_id == payload.course_id,
+                )
+                .first()
+                is not None
+            )
+            if not has_assignment:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "This user must already hold a faculty assignment on a section of "
+                        "this course before they can be made Section Coordinator for it."
+                    ),
+                )
         scope_id = payload.course_id
     else:
         scope_id = request.state.program_id
@@ -222,4 +252,80 @@ def revoke_program_role_grant(
         entity_id=grant_id,
         previous_value=previous_value,
         **get_request_context(request),
+    )
+
+
+# --- Faculty Management (spec §30: "Add Individually") ---
+# A brand-new user account, not a role grant on an existing one — the gap
+# this closes: `POST /users` (users.py) requires `user.manage`, which
+# Program Coordinator does not hold, so before this endpoint they could
+# only grant Faculty to a user an Institution Administrator had already
+# created, never bring a new faculty member into the tenant themselves.
+@router.post(
+    "/faculty", response_model=FacultyCreateResult, status_code=status.HTTP_201_CREATED
+)
+def create_faculty(
+    payload: FacultyCreate,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("program_role.manage", scope_type="program")),
+) -> FacultyCreateResult:
+    if db.query(User).filter(User.email == payload.email).one_or_none() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already in use")
+
+    faculty_role = db.query(Role).filter(Role.name == "Faculty").one_or_none()
+    if faculty_role is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The 'Faculty' system role is missing from this tenant.",
+        )
+
+    temporary_password = generate_temporary_password()
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(temporary_password),
+        full_name=payload.full_name,
+        is_active=True,
+        must_change_password=True,
+    )
+    db.add(user)
+    db.flush()
+
+    profile = FacultyProfile(
+        user_id=user.id,
+        employee_code=payload.employee_code,
+        designation=payload.designation,
+        contract_type=payload.contract_type,
+        department_id=payload.department_id,
+    )
+    db.add(profile)
+
+    grant = UserRole(
+        user_id=user.id,
+        role_id=faculty_role.id,
+        scope_type="program",
+        scope_id=request.state.program_id,
+    )
+    db.add(grant)
+    db.flush()
+
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="faculty.created",
+        entity_type="User",
+        entity_id=user.id,
+        new_value={
+            "email": payload.email,
+            "full_name": payload.full_name,
+            "employee_code": payload.employee_code,
+            "contract_type": payload.contract_type,
+        },
+        **get_request_context(request),
+    )
+    return FacultyCreateResult(
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        temporary_password=temporary_password,
     )

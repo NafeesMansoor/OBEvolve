@@ -24,13 +24,14 @@ pytestmark = pytest.mark.usefixtures("require_database")
 
 def _make_tenant(public_db, suffix: str) -> Institution:
     slug = f"iso-{suffix}-{uuid.uuid4().hex[:6]}"
-    return provision_tenant(
+    institution, _ = provision_tenant(
         public_db,
         name=f"Isolation Test {slug}",
         code=slug.upper(),
         slug=slug,
         contact_email=f"admin@{slug}.example.org",
     )
+    return institution
 
 
 def _drop_tenant(db_engine, public_db, institution: Institution) -> None:

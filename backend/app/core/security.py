@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+import string
 import uuid
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -22,6 +24,16 @@ def hash_password(plain_password: str) -> str:
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
     return _pwd_context.verify(plain_password, password_hash)
+
+
+def generate_temporary_password(length: int = 12) -> str:
+    """A random default password for a newly-created faculty/student
+    account (Master_Architecture_Part1.md §30/§37) — the caller is
+    responsible for setting `User.must_change_password = True` alongside
+    it and returning it to the admin exactly once (never stored raw,
+    never retrievable again after this call)."""
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 class TokenType(StrEnum):

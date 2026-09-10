@@ -30,7 +30,9 @@ class ReadAllResult(BaseModel):
     updated: int
 
 
-PendingApprovalType = Literal["assessment_document", "raw_data_change", "improvement_plan"]
+PendingApprovalType = Literal[
+    "assessment_document", "raw_data_change", "improvement_plan", "curriculum_feedback"
+]
 
 
 class PendingApprovalItem(BaseModel):

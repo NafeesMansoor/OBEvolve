@@ -9,6 +9,7 @@ the program-version workflow transition) — never a role-name check
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -18,16 +19,19 @@ from app.db.session import session_scope
 from app.db.tenancy import get_db
 from app.middleware.audit import get_request_context
 from app.models.public.institution import Institution
-from app.models.tenant.identity import User
+from app.models.tenant.identity import StudentProfile, User
 from app.models.tenant.org import (
     AcademicTerm,
     AcademicYear,
     Campus,
+    Cohort,
     Department,
     Program,
     ProgramVersion,
     School,
+    TermEffectiveCurriculum,
 )
+from app.schemas.academic import StudentRead
 from app.schemas.institution import InstitutionRead, InstitutionUpdate
 from app.schemas.org import (
     AcademicTermCreate,
@@ -37,6 +41,10 @@ from app.schemas.org import (
     AcademicYearRead,
     CampusCreate,
     CampusRead,
+    CohortChangeCurriculum,
+    CohortCreate,
+    CohortRead,
+    CohortUpdate,
     DepartmentCreate,
     DepartmentRead,
     ProgramCreate,
@@ -45,7 +53,10 @@ from app.schemas.org import (
     ProgramVersionRead,
     SchoolCreate,
     SchoolRead,
+    TermEffectiveCurriculumCreate,
+    TermEffectiveCurriculumRead,
 )
+from app.services.academic_terms import validate_calendar_order
 from app.services.audit import write_audit_log
 from app.services.rbac import get_current_user, get_program_scoped_db, require_permission
 from app.services.tenancy import ProgramProvisioningError, provision_program_schema
@@ -329,6 +340,8 @@ def create_program_version(
         )
     _get_or_404(db, Program, payload.program_id, "Program")
     _get_or_404(db, AcademicYear, payload.effective_academic_year_id, "Academic year")
+    if payload.previous_version_id is not None:
+        _get_or_404(db, ProgramVersion, payload.previous_version_id, "Previous program version")
     version = ProgramVersion(
         **payload.model_dump(), status=WorkflowStatus.DRAFT, created_by=current_user.id
     )
@@ -341,6 +354,7 @@ def create_program_version(
         entity_type="ProgramVersion",
         entity_id=version.id,
         new_value=payload.model_dump(mode="json"),
+        program_version_id=version.id,
         **get_request_context(request),
     )
     return version
@@ -394,6 +408,9 @@ def advance_program_version(
     version.status = next_status
     if next_status == WorkflowStatus.APPROVED:
         version.approved_by = current_user.id
+    if next_status == WorkflowStatus.PUBLISHED:
+        version.published_by = current_user.id
+        version.published_at = datetime.now(UTC)
     db.add(version)
     db.flush()
     write_audit_log(
@@ -404,6 +421,47 @@ def advance_program_version(
         entity_id=version.id,
         previous_value=previous_value,
         new_value={"status": next_status.value},
+        program_version_id=version.id,
+        **get_request_context(request),
+    )
+    return version
+
+
+@router.post("/program-versions/{version_id}/unpublish", response_model=ProgramVersionRead)
+def unpublish_program_version(
+    version_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("program.approve", scope_type="program")),
+) -> ProgramVersion:
+    """Explicit reverse transition out of `published` (spec §23) — never a
+    silent edit of a published curriculum. Distinct from the shared
+    `WorkflowStatus` forward-only `_NEXT_STATUS` table above: unpublishing
+    always lands back on `draft` (never `submitted`/`reviewed`/`approved`,
+    which would misrepresent an unpublished version as still mid-review), so
+    it does not reuse `advance_program_version`'s transition table.
+    """
+    version = _get_or_404(db, ProgramVersion, version_id, "Program version")
+    if WorkflowStatus(version.status) != WorkflowStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only a published program version can be unpublished.",
+        )
+    previous_value = {"status": version.status}
+    version.status = WorkflowStatus.DRAFT
+    version.unpublished_by = current_user.id
+    version.unpublished_at = datetime.now(UTC)
+    db.add(version)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="program_version.unpublished",
+        entity_type="ProgramVersion",
+        entity_id=version.id,
+        previous_value=previous_value,
+        new_value={"status": WorkflowStatus.DRAFT.value},
+        program_version_id=version.id,
         **get_request_context(request),
     )
     return version
@@ -458,6 +516,17 @@ def create_academic_term(
     current_user: User = Depends(require_permission("academic_calendar.manage")),
 ) -> AcademicTerm:
     _get_or_404(db, AcademicYear, payload.academic_year_id, "Academic year")
+    validate_calendar_order(
+        start_date=payload.start_date,
+        add_drop_last_date=payload.add_drop_last_date,
+        midterm_start_date=payload.midterm_start_date,
+        midterm_end_date=payload.midterm_end_date,
+        final_exam_start_date=payload.final_exam_start_date,
+        final_exam_end_date=payload.final_exam_end_date,
+        result_due_date=payload.result_due_date,
+        result_publication_date=payload.result_publication_date,
+        end_date=payload.end_date,
+    )
     term = AcademicTerm(**payload.model_dump())
     db.add(term)
     db.flush()
@@ -501,6 +570,17 @@ def update_academic_term(
     """Name/type/dates only — `is_active` is deliberately not editable here;
     see `activate_academic_term` for why."""
     term = _get_or_404(db, AcademicTerm, term_id, "Academic term")
+    validate_calendar_order(
+        start_date=payload.start_date,
+        add_drop_last_date=payload.add_drop_last_date,
+        midterm_start_date=payload.midterm_start_date,
+        midterm_end_date=payload.midterm_end_date,
+        final_exam_start_date=payload.final_exam_start_date,
+        final_exam_end_date=payload.final_exam_end_date,
+        result_due_date=payload.result_due_date,
+        result_publication_date=payload.result_publication_date,
+        end_date=payload.end_date,
+    )
     previous_value = {
         "name": term.name, "term_type": term.term_type,
         "start_date": term.start_date.isoformat(), "end_date": term.end_date.isoformat(),
@@ -559,3 +639,234 @@ def activate_academic_term(
         **get_request_context(request),
     )
     return term
+
+
+# --- Term effective curricula (spec §4) ---
+# `section.manage` (not `academic_calendar.manage`): this is the Program
+# Coordinator's own trimester-setup step (spec §27 "Select Effective
+# Curriculum(s)"), the same permission tier that already gates course
+# offerings/sections/faculty assignment for this program.
+@router.post(
+    "/term-effective-curricula",
+    response_model=TermEffectiveCurriculumRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_term_effective_curriculum(
+    payload: TermEffectiveCurriculumCreate,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> TermEffectiveCurriculum:
+    _get_or_404(db, AcademicTerm, payload.academic_term_id, "Academic term")
+    _get_or_404(db, ProgramVersion, payload.program_version_id, "Program version")
+    existing = (
+        db.query(TermEffectiveCurriculum)
+        .filter(
+            TermEffectiveCurriculum.academic_term_id == payload.academic_term_id,
+            TermEffectiveCurriculum.program_version_id == payload.program_version_id,
+        )
+        .one_or_none()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This curriculum is already marked effective for this term.",
+        )
+    effective = TermEffectiveCurriculum(**payload.model_dump(), created_by=current_user.id)
+    db.add(effective)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="term_effective_curriculum.created",
+        entity_type="TermEffectiveCurriculum",
+        entity_id=effective.id,
+        new_value=payload.model_dump(mode="json"),
+        academic_term_id=effective.academic_term_id,
+        program_version_id=effective.program_version_id,
+        **get_request_context(request),
+    )
+    return effective
+
+
+@router.get("/term-effective-curricula", response_model=list[TermEffectiveCurriculumRead])
+def list_term_effective_curricula(
+    academic_term_id: uuid.UUID | None = None,
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+) -> list[TermEffectiveCurriculum]:
+    query = db.query(TermEffectiveCurriculum)
+    if academic_term_id is not None:
+        query = query.filter(TermEffectiveCurriculum.academic_term_id == academic_term_id)
+    return query.all()
+
+
+@router.delete("/term-effective-curricula/{effective_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_term_effective_curriculum(
+    effective_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> None:
+    effective = _get_or_404(db, TermEffectiveCurriculum, effective_id, "Term effective curriculum")
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="term_effective_curriculum.deleted",
+        entity_type="TermEffectiveCurriculum",
+        entity_id=effective.id,
+        previous_value={"program_version_id": str(effective.program_version_id)},
+        academic_term_id=effective.academic_term_id,
+        program_version_id=effective.program_version_id,
+        **get_request_context(request),
+    )
+    db.delete(effective)
+
+
+# --- Cohorts (spec §5) ---
+@router.post("/cohorts", response_model=CohortRead, status_code=status.HTTP_201_CREATED)
+def create_cohort(
+    payload: CohortCreate,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> Cohort:
+    _get_or_404(db, AcademicTerm, payload.intake_term_id, "Academic term")
+    _get_or_404(db, ProgramVersion, payload.program_version_id, "Program version")
+    cohort = Cohort(**payload.model_dump(), status="active")
+    db.add(cohort)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="cohort.created",
+        entity_type="Cohort",
+        entity_id=cohort.id,
+        new_value=payload.model_dump(mode="json"),
+        academic_term_id=cohort.intake_term_id,
+        program_version_id=cohort.program_version_id,
+        **get_request_context(request),
+    )
+    return cohort
+
+
+@router.get("/cohorts", response_model=list[CohortRead])
+def list_cohorts(
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+) -> list[Cohort]:
+    return db.query(Cohort).order_by(Cohort.intake_year.desc(), Cohort.code).all()
+
+
+@router.get("/cohorts/{cohort_id}", response_model=CohortRead)
+def get_cohort(
+    cohort_id: uuid.UUID,
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+) -> Cohort:
+    return _get_or_404(db, Cohort, cohort_id, "Cohort")
+
+
+@router.patch("/cohorts/{cohort_id}", response_model=CohortRead)
+def update_cohort(
+    cohort_id: uuid.UUID,
+    payload: CohortUpdate,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("section.manage", scope_type="program")),
+) -> Cohort:
+    cohort = _get_or_404(db, Cohort, cohort_id, "Cohort")
+    changes = payload.model_dump(exclude_unset=True)
+    previous_value = {field: getattr(cohort, field) for field in changes}
+    for field, value in changes.items():
+        setattr(cohort, field, value)
+    db.add(cohort)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="cohort.updated",
+        entity_type="Cohort",
+        entity_id=cohort.id,
+        previous_value=previous_value,
+        new_value=changes,
+        academic_term_id=cohort.intake_term_id,
+        program_version_id=cohort.program_version_id,
+        **get_request_context(request),
+    )
+    return cohort
+
+
+@router.post("/cohorts/{cohort_id}/change-curriculum", response_model=CohortRead)
+def change_cohort_curriculum(
+    cohort_id: uuid.UUID,
+    payload: CohortChangeCurriculum,
+    request: Request,
+    db: Session = Depends(get_program_scoped_db),
+    current_user: User = Depends(require_permission("program.manage", scope_type="program")),
+) -> Cohort:
+    """spec §5: "not a routine operation" — deliberately gated on
+    `program.manage` (Institution/Program Administrator), one tier above the
+    `section.manage` that Program Coordinator uses for everyday cohort
+    CRUD above, and always requires a `reason` recorded in the audit trail.
+    """
+    cohort = _get_or_404(db, Cohort, cohort_id, "Cohort")
+    _get_or_404(db, ProgramVersion, payload.program_version_id, "Program version")
+    previous_program_version_id = cohort.program_version_id
+    cohort.program_version_id = payload.program_version_id
+    db.add(cohort)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="cohort.curriculum_changed",
+        entity_type="Cohort",
+        entity_id=cohort.id,
+        previous_value={"program_version_id": str(previous_program_version_id)},
+        new_value={
+            "program_version_id": str(payload.program_version_id),
+            "reason": payload.reason,
+        },
+        academic_term_id=cohort.intake_term_id,
+        program_version_id=cohort.program_version_id,
+        **get_request_context(request),
+    )
+    return cohort
+
+
+@router.get("/cohorts/{cohort_id}/students", response_model=list[StudentRead])
+def list_cohort_students(
+    cohort_id: uuid.UUID,
+    db: Session = Depends(get_program_scoped_db),
+    _current_user: User = Depends(require_permission("section.view", scope_type="program")),
+) -> list[StudentRead]:
+    """spec §36: "loading" a cohort surfaces its current member list for the
+    coordinator to work with in the current trimester context — cohort
+    membership itself isn't a per-term relationship in this data model (a
+    student stays in their cohort across terms), so there is nothing to
+    "move"; this just lists who is in it right now. Each member's `status`
+    is exactly whatever it already was (spec §38: never auto-reactivated
+    here)."""
+    _get_or_404(db, Cohort, cohort_id, "Cohort")
+    profiles = db.query(StudentProfile).filter(StudentProfile.cohort_id == cohort_id).all()
+    if not profiles:
+        return []
+    users_by_id = {
+        u.id: u
+        for u in db.query(User).filter(User.id.in_([p.user_id for p in profiles])).all()
+    }
+    return [
+        StudentRead(
+            user_id=p.user_id,
+            email=users_by_id[p.user_id].email,
+            full_name=users_by_id[p.user_id].full_name,
+            is_active=users_by_id[p.user_id].is_active,
+            student_code=p.student_code,
+            program_id=p.program_id,
+            program_version_id=p.program_version_id,
+            batch_year=p.batch_year,
+            status=p.status,
+        )
+        for p in profiles
+        if p.user_id in users_by_id
+    ]

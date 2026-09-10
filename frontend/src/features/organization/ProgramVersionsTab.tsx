@@ -1,17 +1,24 @@
 import * as React from 'react'
-import { ArrowRight, Plus } from 'lucide-react'
+import { ArrowRight, Plus, Settings2, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
 import type { AcademicYear, Program, ProgramVersion } from '@/features/organization/types'
 import { Button } from '@/components/ui/button'
+import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
 import { RecordDetailSheet } from '@/components/record-detail-sheet'
 import { StatusBadge, WORKFLOW_NEXT, type WorkflowStatus } from '@/components/status-badge'
-import { useEntityAction, useEntityCreate, useEntityList } from '@/lib/crud-hooks'
+import { useEntityAction, useEntityCreate, useEntityList, useEntityUpdate } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
+
+const configSchema = z.object({
+  po_definition_method: z.enum(['direct', 'indicator_based']),
+  peo_numbering_style: z.string().min(1).max(20),
+  po_numbering_style: z.string().min(1).max(20),
+})
 
 const schema = z.object({
   program_id: z.string().min(1, 'Program is required'),
@@ -25,6 +32,7 @@ export function ProgramVersionsTab() {
   const canApprove = hasPermission('program.approve')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [viewVersion, setViewVersion] = React.useState<ProgramVersion | null>(null)
+  const [configVersion, setConfigVersion] = React.useState<ProgramVersion | null>(null)
 
   const { data: programs } = useEntityList<Program>(['org', 'programs'], '/org/programs')
   const { data: years } = useEntityList<AcademicYear>(
@@ -41,6 +49,14 @@ export function ProgramVersionsTab() {
   )
   const advance = useEntityAction<ProgramVersion>(
     (id) => `/org/program-versions/${id}/advance`,
+    [['org', 'program-versions']],
+  )
+  const unpublish = useEntityAction<ProgramVersion>(
+    (id) => `/org/program-versions/${id}/unpublish`,
+    [['org', 'program-versions']],
+  )
+  const updateConfig = useEntityUpdate<Record<string, unknown>, ProgramVersion>(
+    (id) => `/curriculum/program-versions/${id}/framework-config`,
     [['org', 'program-versions']],
   )
 
@@ -100,22 +116,60 @@ export function ProgramVersionsTab() {
         onRowClick={(r) => setViewVersion(r)}
         actions={(r) => {
           const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
-          if (!canApprove || !next) return null
           return (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await advance.mutateAsync(r.id)
-                  toast.success(`Advanced to ${next}`)
-                } catch (err) {
-                  toast.error(err instanceof ApiError ? err.detail : 'Unable to advance.')
-                }
-              }}
-            >
-              Advance to {next} <ArrowRight className="size-3.5" />
-            </Button>
+            <div className="flex items-center justify-end gap-1.5">
+              {canManage && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Edit framework configuration"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setConfigVersion(r)
+                  }}
+                >
+                  <Settings2 className="size-3.5" />
+                </Button>
+              )}
+              {canApprove && r.status === 'published' && (
+                <ConfirmAction
+                  trigger={
+                    <Button size="sm" variant="outline" onClick={(e) => e.stopPropagation()}>
+                      <Undo2 className="size-3.5" /> Unpublish
+                    </Button>
+                  }
+                  title={`Unpublish ${r.version_label}?`}
+                  description="Moves this curriculum back to draft. It stops being the officially published version until republished — spec §23: never a silent edit of a published curriculum."
+                  confirmLabel="Unpublish"
+                  variant="destructive"
+                  onConfirm={async () => {
+                    try {
+                      await unpublish.mutateAsync(r.id)
+                      toast.success(`${r.version_label} unpublished`)
+                    } catch (err) {
+                      toast.error(err instanceof ApiError ? err.detail : 'Unable to unpublish.')
+                    }
+                  }}
+                />
+              )}
+              {canApprove && next && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    try {
+                      await advance.mutateAsync(r.id)
+                      toast.success(`Advanced to ${next}`)
+                    } catch (err) {
+                      toast.error(err instanceof ApiError ? err.detail : 'Unable to advance.')
+                    }
+                  }}
+                >
+                  Advance to {next} <ArrowRight className="size-3.5" />
+                </Button>
+              )}
+            </div>
           )
         }}
       />
@@ -134,6 +188,12 @@ export function ProgramVersionsTab() {
               value: yearById.get(viewVersion.effective_academic_year_id)?.label ?? '—',
             },
             { label: 'Status', value: viewVersion.status },
+            {
+              label: 'PO definition method',
+              value: viewVersion.po_definition_method === 'indicator_based' ? 'Indicator-Based' : 'Direct',
+            },
+            { label: 'PEO numbering style', value: viewVersion.peo_numbering_style },
+            { label: 'PO numbering style', value: viewVersion.po_numbering_style },
           ]}
         />
       )}
@@ -155,6 +215,42 @@ export function ProgramVersionsTab() {
           }
         }}
       />
+
+      {configVersion && (
+        <EntityFormDialog
+          open={Boolean(configVersion)}
+          onOpenChange={(open) => !open && setConfigVersion(null)}
+          title={`Framework configuration — ${configVersion.version_label}`}
+          description="Direct vs Indicator-Based drives whether course outcomes map to Program Outcomes or Performance Indicators (spec §21)."
+          fields={[
+            {
+              name: 'po_definition_method',
+              label: 'PO definition method',
+              type: 'select',
+              options: [
+                { label: 'Direct', value: 'direct' },
+                { label: 'Indicator-Based', value: 'indicator_based' },
+              ],
+            },
+            { name: 'peo_numbering_style', label: 'PEO numbering style', type: 'text', placeholder: 'e.g. numeric' },
+            { name: 'po_numbering_style', label: 'PO numbering style', type: 'text', placeholder: 'e.g. numeric' },
+          ]}
+          schema={configSchema}
+          defaultValues={{
+            po_definition_method: configVersion.po_definition_method,
+            peo_numbering_style: configVersion.peo_numbering_style,
+            po_numbering_style: configVersion.po_numbering_style,
+          }}
+          onSubmit={async (values) => {
+            try {
+              await updateConfig.mutateAsync({ id: configVersion.id, body: values })
+              toast.success('Framework configuration updated')
+            } catch (err) {
+              throw err instanceof ApiError ? err : new ApiError('Unable to update configuration.')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

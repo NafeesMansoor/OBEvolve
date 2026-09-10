@@ -1,35 +1,29 @@
 import { useAuth } from '@/features/auth/useAuth'
-import { CoPoMatrixTab } from '@/features/curriculum/CoPoMatrixTab'
-import { FrameworksTab } from '@/features/curriculum/FrameworksTab'
+import { CurriculumFeedbackTab } from '@/features/curriculum/CurriculumFeedbackTab'
+import { MissionVisionTab } from '@/features/curriculum/MissionVisionTab'
 import { PEOsTab } from '@/features/curriculum/PEOsTab'
-import { PeoPoMatrixTab } from '@/features/curriculum/PeoPoMatrixTab'
+import { PerformanceIndicatorsTab } from '@/features/curriculum/PerformanceIndicatorsTab'
 import { ProgramOutcomesTab } from '@/features/curriculum/ProgramOutcomesTab'
-import { FinalCommitTab } from '@/features/organization/FinalCommitTab'
-import { ProgramRoleMatrixTab } from '@/features/organization/ProgramRoleMatrixTab'
 import { ProgramVersionsTab } from '@/features/organization/ProgramVersionsTab'
 import { PageHeader } from '@/components/page-header'
 import { RequirePermission } from '@/components/require-permission'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-/** Program-level half of the old "Curriculum & Outcomes" page: everything
- * tied to PEOs and POs — curricula (program versions), PEOs, POs, the
- * CO-PO / PEO-PO mapping matrices, and the accreditation framework catalog
- * those POs are drawn from. Course-level configuration (the course catalog,
- * course versions, course outcomes) lives in Course Level Settings instead.
- * Attainment/analysis views for these same POs live under Analytics, not
- * here — this page is CRUD/configuration only. Faculty role assignment and
- * Final Commit (docs/course_level_settings_and_approval_workflow.md's
- * follow-ups) live here too, both scoped to this program — see
- * `app.api.v1.endpoints.program_roles`/`app.services.term_commit`'s module
- * docstrings for why each is a separate, narrower surface from its
- * institution-wide counterpart (or, for Final Commit, from the pre-existing
- * WorkflowStatus/GradeSubmission locks it deliberately supersedes). */
+/** Program & Curriculum Level content only (Master_Architecture_Part1.md §1A:
+ * "the strategic and relatively stable academic framework") — curricula
+ * (program versions, publish/unpublish/version history), mission & vision,
+ * PEOs, program outcomes, performance indicators, and the Program
+ * Coordinator feedback loop on all of the above.
+ *
+ * Split out of what used to be one 12-tab mega-page (mapping matrices moved
+ * to Outcome Mapping, faculty-role/final-commit administration moved to
+ * Program Administration — see those pages' own docstrings) once this page
+ * had grown too cluttered for a single tab bar to stay usable. */
 export function ProgramSettingsPage() {
   const { hasPermission } = useAuth()
   const canView = hasPermission('curriculum.view')
   const canViewProgram = hasPermission('program.view')
-  const canManageProgramRoles = hasPermission('program_role.manage')
-  const canManageTermCommit = hasPermission('term_commit.manage')
+  const canSeeFeedback = hasPermission('curriculum.view') || hasPermission('curriculum_feedback.create')
 
   const tabs = [
     {
@@ -38,32 +32,33 @@ export function ProgramSettingsPage() {
       show: canViewProgram,
       content: <ProgramVersionsTab />,
     },
+    {
+      value: 'mission-vision',
+      label: 'Mission & Vision',
+      show: canView,
+      content: <MissionVisionTab />,
+    },
     { value: 'peos', label: 'PEOs', show: canView, content: <PEOsTab /> },
     { value: 'program-outcomes', label: 'Program Outcomes', show: canView, content: <ProgramOutcomesTab /> },
-    { value: 'co-po-matrix', label: 'CO-PO Mapping', show: canView, content: <CoPoMatrixTab /> },
-    { value: 'peo-po-matrix', label: 'PEO-PO Mapping', show: canView, content: <PeoPoMatrixTab /> },
-    { value: 'frameworks', label: 'Accreditation Framework', show: canView, content: <FrameworksTab /> },
     {
-      value: 'faculty-roles',
-      label: 'Faculty roles',
-      show: canManageProgramRoles,
-      content: <ProgramRoleMatrixTab />,
+      value: 'performance-indicators',
+      label: 'Performance Indicators',
+      show: canView,
+      content: <PerformanceIndicatorsTab />,
     },
     {
-      value: 'final-commit',
-      label: 'Final Commit',
-      show: canManageTermCommit,
-      content: <FinalCommitTab />,
+      value: 'curriculum-feedback',
+      label: 'Feedback',
+      show: canSeeFeedback,
+      content: <CurriculumFeedbackTab />,
     },
   ].filter((t) => t.show)
 
   return (
-    <RequirePermission
-      anyOf={['curriculum.view', 'program.view', 'program_role.manage', 'term_commit.manage']}
-    >
+    <RequirePermission anyOf={['curriculum.view', 'program.view', 'curriculum_feedback.create']}>
       <PageHeader
-        title="Program Level Setting"
-        description="Curricula, PEOs, program outcomes, the outcome mapping matrices, and faculty roles."
+        title="Program & Curriculum"
+        description="Curricula, mission & vision, PEOs, program outcomes, performance indicators, and feedback."
       />
       {tabs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No program-level settings available.</p>

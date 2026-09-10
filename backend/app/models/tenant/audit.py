@@ -33,6 +33,24 @@ class AuditLog(UUIDPKMixin, TenantBase):
     )
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Master_Architecture_Part1.md §44: curriculum/trimester context on an
+    # audit row, so "everything that happened to this curriculum version" or
+    # "...during this term" is a filtered query, not a cross-reference hunt.
+    # `academic_terms` is institution-shared (the `None` translate-map key),
+    # so a real FK is fine; `program_versions` is schema="program" and an
+    # institution can have more than one program, so — same reasoning as
+    # `StudentProfile.program_version_id`'s docstring in `identity.py` — a
+    # real FK here would only ever be able to target one fixed program
+    # schema. This stays a plain UUID, enforced at the application layer.
+    academic_term_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("academic_terms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    program_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
 
 
 class Notification(UUIDPKMixin, TenantBase):

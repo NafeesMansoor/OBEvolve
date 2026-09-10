@@ -45,7 +45,17 @@ def main() -> None:
         action="store_true",
         help="Also seed a demo admin user and a small sample org structure",
     )
+    parser.add_argument(
+        "--admin-full-name", default=None, help="Full name for the tenant's Institute Admin account"
+    )
+    parser.add_argument(
+        "--admin-email", default=None, help="Email for the tenant's Institute Admin account"
+    )
     args = parser.parse_args()
+
+    if bool(args.admin_full_name) != bool(args.admin_email):
+        print("--admin-full-name and --admin-email must be given together.", file=sys.stderr)
+        raise SystemExit(1)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)-8s %(message)s")
 
@@ -54,7 +64,7 @@ def main() -> None:
 
     try:
         with session_scope() as db:
-            institution = provision_tenant(
+            institution, admin_temporary_password = provision_tenant(
                 db,
                 name=args.name,
                 code=code,
@@ -63,6 +73,8 @@ def main() -> None:
                 subscription_plan=args.subscription_plan,
                 timezone=args.timezone,
                 seed_demo=args.seed_demo,
+                admin_full_name=args.admin_full_name,
+                admin_email=args.admin_email,
             )
             # Read attributes now, while the session (and its identity map)
             # is still open.
@@ -79,6 +91,11 @@ def main() -> None:
     if args.seed_demo:
         print(
             f"Seeded demo admin: {DEMO_ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}  (rotate immediately)"
+        )
+    if admin_temporary_password:
+        print(
+            f"Institute Admin: {args.admin_email} / {admin_temporary_password}  "
+            "(must change password on first login)"
         )
 
 

@@ -21,4 +21,11 @@ export interface InstitutionCreateInput {
   subscription_plan?: string | null
   timezone?: string
   seed_demo?: boolean
+  admin_full_name?: string | null
+  admin_email?: string | null
+}
+
+export interface InstitutionCreateResult {
+  institution: InstitutionRead
+  admin_temporary_password: string | null
 }

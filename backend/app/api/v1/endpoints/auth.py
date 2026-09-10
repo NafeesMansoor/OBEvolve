@@ -186,6 +186,7 @@ def _build_current_user_read(db: Session, current_user: User) -> CurrentUserRead
         bio=current_user.bio,
         is_active=current_user.is_active,
         mfa_enabled=current_user.mfa_enabled,
+        must_change_password=current_user.must_change_password,
         permissions=permission_codes,
         roles=sorted(role_permissions),
         role_permissions=role_permissions,
@@ -251,6 +252,7 @@ def change_password(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect"
         )
     current_user.password_hash = hash_password(payload.new_password)
+    current_user.must_change_password = False
     db.add(current_user)
     db.flush()
     write_audit_log(

@@ -184,7 +184,7 @@ function CourseCard({
       to={`/courses/${course.course_section_id}`}
       className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
-      <Card className="cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
+      <Card className="cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/60">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-sm">

@@ -48,6 +48,14 @@ export interface ProgramVersion {
   status: string
   created_by: string | null
   approved_by: string | null
+  published_by: string | null
+  published_at: string | null
+  unpublished_by: string | null
+  unpublished_at: string | null
+  previous_version_id: string | null
+  po_definition_method: 'direct' | 'indicator_based'
+  peo_numbering_style: string
+  po_numbering_style: string
   created_at: string
   updated_at: string
 }
@@ -67,7 +75,22 @@ export interface AcademicTerm {
   term_type: string
   start_date: string
   end_date: string
+  add_drop_last_date: string | null
+  midterm_start_date: string | null
+  midterm_end_date: string | null
+  final_exam_start_date: string | null
+  final_exam_end_date: string | null
+  result_due_date: string | null
+  result_publication_date: string | null
   is_active: boolean
+}
+
+export interface TermEffectiveCurriculum {
+  id: string
+  academic_term_id: string
+  program_version_id: string
+  created_by: string | null
+  created_at: string
 }
 
 export interface AppUser {

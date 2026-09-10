@@ -8,10 +8,14 @@ accreditation.*, ...) are included where the role will need them once those
 phases ship, since the permission catalogue itself is already fixed
 (app/core/permissions.py) even though nothing enforces those codes yet.
 
-Seven roles are seeded `is_active=False` — disabled for ease of use per an
+Eight roles are seeded `is_active=False` — disabled for ease of use per an
 explicit request, not removed (existing grants, if any, keep working; they
 just don't show up in the assignable-roles list). Institution admins can
-re-enable any of them the same way they'd enable a custom role.
+re-enable any of them the same way they'd enable a custom role. Super
+Administrator is one of the eight: the role hierarchy now starts at
+Institution Administrator (created by the platform SuperAdmin at
+provisioning time), so no *new* Super Administrator grants should be made —
+existing holders are unaffected.
 """
 
 from __future__ import annotations
@@ -41,8 +45,12 @@ DEFAULT_ROLES: list[RoleDef] = [
         "Full control within the institution's tenant (distinct from the "
         "cross-institution platform_admins in the public schema). Includes "
         "raw_data.manage_all via the ALL sentinel: the raw-data console can "
-        "reach every institution's every table.",
+        "reach every institution's every table. Disabled for new assignment — "
+        "the role hierarchy now starts at Institution Administrator, itself "
+        "created by the single global platform SuperAdmin at institution "
+        "provisioning time; existing holders keep their grant unchanged.",
         _ALL,
+        is_active=False,
     ),
     RoleDef(
         "Institution Administrator",
@@ -68,6 +76,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "outcome.create",
             "outcome.approve",
             "mapping.create",
+            "program_outcome_framework.manage",
             "section.manage",
             "section.view",
             "student.manage",
@@ -162,6 +171,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "course_change_request.review",
             "program_role.manage",
             "term_commit.manage",
+            "program_outcome_framework.manage",
         ),
     ),
     RoleDef(
@@ -194,6 +204,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "course_change_request.review_program",
             "course_type.manage",
             "program_role.manage",
+            "curriculum_feedback.create",
         ),
     ),
     RoleDef(
@@ -242,8 +253,10 @@ DEFAULT_ROLES: list[RoleDef] = [
         ),
     ),
     RoleDef(
-        "Course Coordinator",
-        "Owns one course's assessment plan and approves marks entry for its sections.",
+        "Section Coordinator",
+        "Owns one course's assessment plan and approves marks entry for its sections. "
+        "Requires the holder to already have a FacultyAssignment on at least one "
+        "section of that course (enforced in app.api.v1.endpoints.program_roles).",
         (
             "curriculum.view",
             "mapping.create",
@@ -324,7 +337,7 @@ def seed_default_roles(
     Also re-syncs `is_active`/`description` on already-seeded roles against
     the current `DEFAULT_ROLES` definition, so changing a role's default
     active state here and re-running this against an existing tenant takes
-    effect (this is how the seven roles get retroactively disabled in
+    effect (this is how the eight roles get retroactively disabled in
     already-provisioned tenants, not just new ones).
 
     `permission_map` is the `code -> Permission` map returned by

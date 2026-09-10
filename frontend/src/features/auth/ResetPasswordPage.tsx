@@ -6,7 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-import { API_BASE_URL, type ApiErrorShape } from '@/lib/api-client'
+import { API_BASE_URL, type ApiErrorShape, extractErrorDetail } from '@/lib/api-client'
 import { Footer } from '@/components/footer'
 import { ThemeToggleButton } from '@/components/theme-toggle'
 import { Logo } from '@/components/logo'
@@ -76,7 +76,10 @@ export function ResetPasswordPage() {
     } catch (err) {
       const axiosError = err as AxiosError<ApiErrorShape>
       setServerError(
-        axiosError.response?.data?.detail ?? 'Unable to reset password. Please try again.',
+        extractErrorDetail(
+          axiosError.response?.data?.detail,
+          'Unable to reset password. Please try again.',
+        ),
       )
     }
   }

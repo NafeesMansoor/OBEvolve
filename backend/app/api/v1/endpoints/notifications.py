@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.db.tenancy import get_db
 from app.models.tenant.assessments.assessment import Assessment, AssessmentDocument
 from app.models.tenant.audit import Notification
+from app.models.tenant.curriculum_feedback import CurriculumFeedback
 from app.models.tenant.identity import User
 from app.models.tenant.obe.improvement import ImprovementPlan
 from app.models.tenant.org import Program
@@ -126,8 +127,9 @@ def get_pending_approvals(
     now, reusing the same query shape as each category's real "pending"
     endpoint (assessment.py's `list_pending_assessment_documents`,
     raw_data.py's `list_pending_changes`, improvement.py's
-    `status="proposed"` filter) but scoped to this one user's own grants
-    instead of returning full rows.
+    `status="proposed"` filter, curriculum_framework.py's
+    `list_curriculum_feedback` with `status="open"`) but scoped to this one
+    user's own grants instead of returning full rows.
 
     Bound to the currently-active program (`X-Program-Code`, same as every
     other program-scoped endpoint) since two of the three categories
@@ -190,6 +192,21 @@ def get_pending_approvals(
                     type="improvement_plan",
                     count=pending_plans,
                     label="Improvement plans pending review",
+                )
+            )
+
+    if grants_satisfy_permission(
+        grants, "program_outcome_framework.manage", scope_type="program", scope_id=program.id
+    ):
+        pending_feedback = (
+            db.query(CurriculumFeedback).filter(CurriculumFeedback.status == "open").count()
+        )
+        if pending_feedback:
+            items.append(
+                PendingApprovalItem(
+                    type="curriculum_feedback",
+                    count=pending_feedback,
+                    label="Curriculum feedback pending review",
                 )
             )
 

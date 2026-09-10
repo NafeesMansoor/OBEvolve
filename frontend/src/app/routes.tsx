@@ -15,10 +15,12 @@ import { AssessmentPage } from '@/features/assessment/AssessmentPage'
 import { CourseManagementPage } from '@/features/course-management/CourseManagementPage'
 import { MyCoursesPage } from '@/features/course-management/MyCoursesPage'
 import { CourseSettingsPage } from '@/features/curriculum/CourseSettingsPage'
+import { OutcomeMappingPage } from '@/features/curriculum/OutcomeMappingPage'
 import { ProgramSettingsPage } from '@/features/curriculum/ProgramSettingsPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { GradingPage } from '@/features/grading/GradingPage'
 import { InstituteSettingsPage } from '@/features/organization/InstituteSettingsPage'
+import { ProgramAdministrationPage } from '@/features/organization/ProgramAdministrationPage'
 import { PlatformDashboardPage } from '@/features/platform/PlatformDashboardPage'
 import { PlatformLoginPage } from '@/features/platform/PlatformLoginPage'
 import { PlatformRawDataPage } from '@/features/platform/PlatformRawDataPage'
@@ -61,6 +63,8 @@ export function AppRoutes() {
           <Route path="/question-bank" element={<QuestionBankPage />} />
           <Route path="/course-settings" element={<CourseSettingsPage />} />
           <Route path="/program-settings" element={<ProgramSettingsPage />} />
+          <Route path="/outcome-mapping" element={<OutcomeMappingPage />} />
+          <Route path="/program-administration" element={<ProgramAdministrationPage />} />
           <Route path="/academic" element={<AcademicOpsPage />} />
           <Route path="/grading" element={<GradingPage />} />
           <Route path="/assessment" element={<AssessmentPage />} />

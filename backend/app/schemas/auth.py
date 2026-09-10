@@ -49,6 +49,7 @@ class CurrentUserRead(BaseModel):
     bio: str | None = None
     is_active: bool
     mfa_enabled: bool
+    must_change_password: bool
     # Flat, deduplicated union across every role — unchanged, still what
     # every existing permission check in the app should keep using.
     permissions: list[str] = []

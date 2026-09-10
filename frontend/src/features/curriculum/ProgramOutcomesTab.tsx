@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
+import { CurriculumFeedbackDialog } from '@/features/curriculum/CurriculumFeedbackDialog'
 import type { AccreditationFramework, FrameworkDetail, ProgramOutcome } from '@/features/curriculum/types'
 import { useProgramVersionOptions } from '@/features/curriculum/useProgramVersionOptions'
 import { apiClient, ApiError } from '@/lib/api-client'
@@ -22,13 +23,15 @@ import { StatusBadge, WORKFLOW_NEXT, type WorkflowStatus } from '@/components/st
  * auto-suggested by text similarity (see docs/adr/0002-framework-aware-outcomes.md). */
 export function ProgramOutcomesTab() {
   const { hasPermission } = useAuth()
-  const canManage = hasPermission('outcome.create')
-  const canApprove = hasPermission('outcome.approve')
+  const canManage = hasPermission('program_outcome_framework.manage')
+  const canApprove = hasPermission('program_outcome_framework.manage')
+  const canGiveFeedback = hasPermission('curriculum_feedback.create')
   const { options: pvOptions } = useProgramVersionOptions()
   const [programVersionId, setProgramVersionId] = React.useState('')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editPO, setEditPO] = React.useState<ProgramOutcome | null>(null)
   const [viewPO, setViewPO] = React.useState<ProgramOutcome | null>(null)
+  const [feedbackPO, setFeedbackPO] = React.useState<ProgramOutcome | null>(null)
 
   const { data: frameworks } = useEntityList<AccreditationFramework>(
     ['curriculum', 'frameworks'],
@@ -119,6 +122,13 @@ export function ProgramOutcomesTab() {
           emptyMessage="No program outcomes yet for this program version."
           onRowClick={(r) => setViewPO(r)}
           actions={(r) => {
+            if (canGiveFeedback) {
+              return (
+                <Button size="sm" variant="outline" onClick={() => setFeedbackPO(r)}>
+                  Provide Feedback
+                </Button>
+              )
+            }
             const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
             if (!canApprove || !next) return null
             return (
@@ -202,6 +212,16 @@ export function ProgramOutcomesTab() {
               throw err instanceof ApiError ? err : new ApiError('Unable to update program outcome.')
             }
           }}
+        />
+      )}
+
+      {feedbackPO && (
+        <CurriculumFeedbackDialog
+          open={Boolean(feedbackPO)}
+          onOpenChange={(open) => !open && setFeedbackPO(null)}
+          entityType="program_outcome"
+          entityId={feedbackPO.id}
+          entityLabel={feedbackPO.code}
         />
       )}
     </div>

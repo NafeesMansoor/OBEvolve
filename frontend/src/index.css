@@ -44,35 +44,78 @@
  * color carry 100% of the brand hue). Light mode's warm tint is unaffected
  * — it works there because near-white easily stays "warm paper," not
  * "dirty," at 90%+ lightness.
+ *
+ * Revision 6 — "Ink & Amber" (docs/DESIGN_SYSTEM.md is now absorbed into
+ * this file; see design-system/obevolve/MASTER.md's own Revision 6 note for
+ * the full rationale). Supersedes Revision 5's red brand hue outright — one
+ * amber hue (38°, the doc's literal amber-500) now carries `--primary`
+ * across BOTH themes for continuity, only S/L retuned per theme (dark:
+ * amber-500 itself, 77% 50%, dark ink text on top; light: the same 38°/77%
+ * darkened to 34% lightness with white text on top — needed because
+ * amber-500 at full brightness fails AA as text/fill against a light
+ * canvas). All neutral tokens move from Revision 5.1's true-neutral gray to
+ * a cool ink-tinted neutral (~220° hue, the doc's literal ink-950..600
+ * scale) in dark mode — the opposite of 5.1's reasoning, deliberately: 5.1
+ * avoided a warm tint specifically because it fought a *warm red* accent;
+ * a cool ink neutral is the doc's actual designed pairing for a *warm
+ * amber* accent (cool bg + warm accent is the standard dark-UI convention
+ * this system is built around), so 5.1's rationale doesn't transfer.
+ * `--warning` moves off 38° (colliding with the new primary) to a distinct
+ * 12° burnt-orange — a 26°/24° hue gap from primary/destructive respectively,
+ * the same order of separation Revision 5 used between primary and
+ * destructive. `--destructive`/`--success` keep their existing hue families
+ * (348° rose, 152° emerald) — already far enough from 38°/12° that no
+ * change was needed, only --foreground pairings retuned to ink-950 in dark
+ * mode. `--brand-red-light`/`--brand-red-deep`/`bg-brand-gradient` are
+ * retired outright rather than recolored: the doc explicitly bans gradients
+ * ("no drop shadows, no gradients, no glassmorphism"), and they had exactly
+ * one consumer (the About page banner strip, now a flat `bg-primary` line).
+ * `--radius` drops from 0.75rem to 0.5rem to match the doc's flatter
+ * rounded-lg-max radius ladder. All pairs re-verified at ≥4.5:1 (text) via
+ * a one-off relative-luminance script, same method as prior revisions —
+ * see git history for the exact numbers.
+ *
+ * Revision 7 — "Ink & Neon" (explicit user hex request, 2026-09-10):
+ * retunes --primary/--ring off amber to a neon green, same structural
+ * pattern as Revision 6 (one hue family, only lightness differs per theme;
+ * every other token — neutrals, destructive, success, warning, radius —
+ * untouched). Dark: --primary/--ring -> 72 100% 50% (#CCFF00), the
+ * brightest of the three requested dark-mode swatches (#39FF14/#7FFF00/
+ * #CCFF00) and the one occupying amber-500's old role (pairs with the
+ * existing dark-ink --primary-foreground exactly as amber-500 did — 16.5:1,
+ * comfortably over AA). Light: --primary/--ring -> 130 55% 31% (#237A32),
+ * the darkest of the three requested light-mode swatches (#237A32/#2FA83F/
+ * #7FFF00) — the only one of the three that clears 4.5:1 against the
+ * existing white --primary-foreground (5.4:1); the brighter two
+ * (#2FA83F at 3.1:1, #7FFF00 at 1.3:1) fail AA as a text-bearing fill on a
+ * light canvas, the same reason Revision 6 darkened amber-500 to 34%
+ * lightness for light mode instead of using it at full brightness.
+ * #39FF14/#7FFF00 (dark) and #2FA83F/#7FFF00 (light) aren't separately
+ * wired as CSS tokens — like amber-300/400 before them, they're reference
+ * swatches for docs/DESIGN_SYSTEM.md's palette table, not live UI states.
  */
 @layer base {
   :root {
-    --background: 15 15% 98%;
-    --foreground: 15 20% 12%;
+    --background: 220 20% 98%;
+    --foreground: 220 30% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 15 20% 12%;
+    --card-foreground: 220 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 15 20% 12%;
+    --popover-foreground: 220 30% 12%;
 
-    --primary: 9 100% 44%;
+    --primary: 130 55% 31%;
     --primary-foreground: 0 0% 100%;
 
-    /* Brand tints/shades sampled from the OBEvolve logo (ref/logo.png) —
-       decorative use only (gradients, hero washes). Not wired into shadcn
-       component variants. */
-    --brand-red-light: 9 90% 68%;
-    --brand-red-deep: 9 85% 28%;
+    --secondary: 220 20% 95%;
+    --secondary-foreground: 220 30% 12%;
 
-    --secondary: 15 12% 95%;
-    --secondary-foreground: 15 20% 12%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 15% 40%;
 
-    --muted: 15 12% 95%;
-    --muted-foreground: 15 10% 40%;
-
-    --accent: 15 12% 94%;
-    --accent-foreground: 15 20% 12%;
+    --accent: 220 20% 95%;
+    --accent-foreground: 220 30% 12%;
 
     --destructive: 348 80% 44%;
     --destructive-foreground: 0 0% 100%;
@@ -80,59 +123,53 @@
     --success: 152 55% 32%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 45%;
-    --warning-foreground: 15 20% 12%;
+    --warning: 12 92% 34%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 15 12% 90%;
-    --input: 15 12% 90%;
-    --ring: 9 100% 44%;
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 130 55% 31%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
   }
 
   .dark {
-    /* True neutral (0% saturation), not a warm/red-tinted dark — at low
-       lightness a hue-tinted near-black reads as muddy/brownish rather
-       than crisp (confirmed against a real dark-mode-red-accent precedent:
-       cinema/OTT-style UIs keep the dark surface neutral and let one
-       accent color carry all the brand hue). Only --primary/--destructive/
-       --ring/--brand-red-* carry the brand red in dark mode. */
-    --background: 0 0% 7%;
-    --foreground: 0 0% 96%;
+    /* Cool ink-tinted neutral (~220° hue, the doc's literal ink-950..600
+       scale) — the intended pairing for a warm amber accent, see the
+       Revision 6 changelog note above for why this reverses 5.1. */
+    --background: 220 29% 6%;
+    --foreground: 220 20% 96%;
 
-    --card: 0 0% 11%;
-    --card-foreground: 0 0% 96%;
+    --card: 220 26% 9%;
+    --card-foreground: 220 20% 96%;
 
-    --popover: 0 0% 11%;
-    --popover-foreground: 0 0% 96%;
+    --popover: 220 26% 9%;
+    --popover-foreground: 220 20% 96%;
 
-    --primary: 9 95% 60%;
-    --primary-foreground: 0 0% 7%;
+    --primary: 72 100% 50%;
+    --primary-foreground: 220 29% 6%;
 
-    --brand-red-light: 9 90% 72%;
-    --brand-red-deep: 9 80% 32%;
+    --secondary: 220 25% 12%;
+    --secondary-foreground: 220 20% 96%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 96%;
+    --muted: 220 25% 12%;
+    --muted-foreground: 215 20% 65%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
-
-    --accent: 0 0% 17%;
-    --accent-foreground: 0 0% 96%;
+    --accent: 220 25% 12%;
+    --accent-foreground: 220 20% 96%;
 
     --destructive: 348 85% 62%;
-    --destructive-foreground: 0 0% 7%;
+    --destructive-foreground: 220 29% 6%;
 
     --success: 152 50% 52%;
-    --success-foreground: 0 0% 7%;
+    --success-foreground: 220 29% 6%;
 
-    --warning: 38 90% 58%;
-    --warning-foreground: 0 0% 7%;
+    --warning: 12 90% 55%;
+    --warning-foreground: 220 29% 6%;
 
-    --border: 0 0% 19%;
-    --input: 0 0% 19%;
-    --ring: 9 95% 60%;
+    --border: 220 24% 17%;
+    --input: 220 21% 22%;
+    --ring: 72 100% 50%;
   }
 }
 

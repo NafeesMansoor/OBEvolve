@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export function PeoPoMatrixTab() {
   const { hasPermission } = useAuth()
-  const canEdit = hasPermission('mapping.create')
+  const canEdit = hasPermission('program_outcome_framework.manage')
   const queryClient = useQueryClient()
 
   const { options: pvOptions } = useProgramVersionOptions()

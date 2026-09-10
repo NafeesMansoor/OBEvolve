@@ -32,7 +32,7 @@ import {
  * because the grant is meaningless without a scope. Everything else grants
  * institution-wide on check / revokes on uncheck. */
 const PROGRAM_SCOPED_ROLE_NAMES = new Set(['Program Administrator', 'Program Coordinator'])
-const COURSE_SCOPED_ROLE_NAMES = new Set(['Course Administrator', 'Course Coordinator'])
+const COURSE_SCOPED_ROLE_NAMES = new Set(['Course Administrator', 'Section Coordinator'])
 
 function scopeKindFor(roleName: string): 'program' | 'course' | 'institution' {
   if (PROGRAM_SCOPED_ROLE_NAMES.has(roleName)) return 'program'
@@ -44,7 +44,7 @@ function scopeKindFor(roleName: string): 'program' | 'course' | 'institution' {
  * matrix (users x roles) rather than the per-user "Roles" dialog in
  * UsersTab — a quicker way to see and change who holds what across
  * everyone at once. Checking a program/course-scoped role (Program
- * Coordinator, Course Coordinator, ...) opens a popup to pick one or more
+ * Coordinator, Section Coordinator, ...) opens a popup to pick one or more
  * programs/courses in a single action; unchecking removes every grant of
  * that role for that user, scoped or not.
  *

@@ -49,3 +49,22 @@ class ProgramRoleGrantCreate(BaseModel):
     # specific course within this program).
     scope_type: str = Field(pattern="^(program|course)$")
     course_id: uuid.UUID | None = None
+
+
+# --- Faculty Management (spec §30: "Add Individually") ---
+class FacultyCreate(BaseModel):
+    full_name: str = Field(min_length=1, max_length=255)
+    email: str = Field(min_length=3, max_length=255)
+    employee_code: str = Field(min_length=1, max_length=50)
+    designation: str | None = None
+    contract_type: str | None = Field(default=None, pattern="^(full_time|part_time)$")
+    department_id: uuid.UUID | None = None
+
+
+class FacultyCreateResult(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    full_name: str
+    # Returned exactly once, at creation time — never retrievable again
+    # (mirrors how a "forgot password" reset link is single-use/one-time).
+    temporary_password: str

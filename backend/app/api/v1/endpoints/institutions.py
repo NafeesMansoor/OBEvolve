@@ -16,7 +16,7 @@ from app.api.v1.endpoints.platform_auth import get_current_platform_admin
 from app.db.tenancy import get_public_db
 from app.models.public.institution import Institution
 from app.models.public.platform_admin import PlatformAdmin
-from app.schemas.institution import InstitutionCreate, InstitutionRead
+from app.schemas.institution import InstitutionCreate, InstitutionCreateResult, InstitutionRead
 from app.services.tenancy import (
     InvalidSlugError,
     TenantAlreadyExistsError,
@@ -27,14 +27,14 @@ from app.services.tenancy import (
 router = APIRouter()
 
 
-@router.post("", response_model=InstitutionRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=InstitutionCreateResult, status_code=status.HTTP_201_CREATED)
 def create_institution(
     payload: InstitutionCreate,
     db: Session = Depends(get_public_db),
     _admin: PlatformAdmin = Depends(get_current_platform_admin),
-) -> Institution:
+) -> InstitutionCreateResult:
     try:
-        return provision_tenant(
+        institution, admin_temporary_password = provision_tenant(
             db,
             name=payload.name,
             code=payload.code,
@@ -43,6 +43,12 @@ def create_institution(
             subscription_plan=payload.subscription_plan,
             timezone=payload.timezone,
             seed_demo=payload.seed_demo,
+            admin_full_name=payload.admin_full_name,
+            admin_email=payload.admin_email,
+        )
+        return InstitutionCreateResult(
+            institution=InstitutionRead.model_validate(institution),
+            admin_temporary_password=admin_temporary_password,
         )
     except InvalidSlugError as exc:
         raise HTTPException(

@@ -132,3 +132,57 @@ class StudentAlignmentUpdate(BaseModel):
     program_version_id: uuid.UUID | None = None
     batch_year: int | None = None
     status: str | None = Field(default=None, max_length=20)
+
+
+# --- Import from previous trimester (spec §29, §32, §34) ---
+class ImportSectionPreview(BaseModel):
+    section_code: str
+    max_students: int | None
+
+
+class CourseOfferingImportCandidate(BaseModel):
+    course_version_id: uuid.UUID
+    program_version_id: uuid.UUID | None
+    already_offered: bool
+    sections: list[ImportSectionPreview]
+
+
+class CourseOfferingImportRequest(BaseModel):
+    from_academic_term_id: uuid.UUID
+    to_academic_term_id: uuid.UUID
+    # Omit to import every eligible (not-already-offered) course from the
+    # source term.
+    course_version_ids: list[uuid.UUID] | None = None
+
+
+class CourseOfferingImportResult(BaseModel):
+    offerings_created: int
+    sections_created: int
+
+
+class FacultyAssignmentImportCandidate(BaseModel):
+    target_course_section_id: uuid.UUID
+    section_code: str
+    course_version_id: uuid.UUID
+    previous_faculty_user_id: uuid.UUID
+    previous_faculty_name: str
+    previous_role: str
+    faculty_active: bool
+    # spec §34 rule 6: never true for an inactive faculty member, and never
+    # true if the target section already has an assignment.
+    will_assign: bool
+    skip_reason: str | None = None
+
+
+class FacultyAssignmentImportRequest(BaseModel):
+    from_academic_term_id: uuid.UUID
+    to_academic_term_id: uuid.UUID
+
+
+class FacultyAssignmentImportResult(BaseModel):
+    assignments_created: int
+    skipped: list[FacultyAssignmentImportCandidate]
+
+
+class CourseOfferingImportPreview(BaseModel):
+    candidates: list[CourseOfferingImportCandidate]

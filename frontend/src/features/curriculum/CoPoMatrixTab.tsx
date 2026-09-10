@@ -7,9 +7,11 @@ import { useCourseVersionLookup } from '@/features/academic-ops/useLookups'
 import type {
   Course,
   CourseOutcome,
+  CourseOutcomePIMapping,
   CourseOutcomePOMapping,
   CourseVersion,
   MappingScale,
+  PerformanceIndicator,
   ProgramOutcome,
 } from '@/features/curriculum/types'
 import { MappingMatrix, type MatrixCell } from '@/features/curriculum/MappingMatrix'
@@ -25,9 +27,19 @@ export function CoPoMatrixTab() {
   const queryClient = useQueryClient()
 
   const [courseId, setCourseId] = React.useState('')
-  const { options: pvOptions } = useProgramVersionOptions()
+  const { options: pvOptions, versions: programVersions } = useProgramVersionOptions()
   const [programVersionId, setProgramVersionId] = React.useState('')
   const { labelFor: courseVersionLabelFor } = useCourseVersionLookup()
+
+  // spec §21/§42: the curriculum's PO definition method decides whether
+  // course outcomes map to Program Outcomes or Performance Indicators —
+  // never both, never the wrong one.
+  const selectedVersion = programVersions.find((v) => v.id === programVersionId)
+  const isIndicatorBased = selectedVersion?.po_definition_method === 'indicator_based'
+  const mappingEndpoint = isIndicatorBased
+    ? '/curriculum/course-outcome-pi-mappings'
+    : '/curriculum/course-outcome-po-mappings'
+  const colIdField = isIndicatorBased ? 'performance_indicator_id' : 'program_outcome_id'
 
   const { data: courses } = useEntityList<Course>(['curriculum', 'courses'], '/curriculum/courses')
   const { data: versions } = useEntityList<CourseVersion>(
@@ -62,8 +74,19 @@ export function CoPoMatrixTab() {
     ['curriculum', 'program-outcomes', programVersionId],
     '/curriculum/program-outcomes',
     { program_version_id: programVersionId || undefined },
-    { enabled: Boolean(programVersionId) },
+    { enabled: Boolean(programVersionId) && !isIndicatorBased },
   )
+  const { data: pis, isLoading: pisLoading } = useEntityList<PerformanceIndicator>(
+    ['curriculum', 'performance-indicators', 'by-version', programVersionId],
+    '/curriculum/performance-indicators',
+    { program_version_id: programVersionId || undefined },
+    { enabled: Boolean(programVersionId) && isIndicatorBased },
+  )
+  const cols = React.useMemo(
+    () => (isIndicatorBased ? (pis ?? []) : (pos ?? [])),
+    [isIndicatorBased, pis, pos],
+  )
+  const colsLoading = isIndicatorBased ? pisLoading : posLoading
   const { data: scales } = useEntityList<MappingScale>(
     ['curriculum', 'mapping-scales'],
     '/curriculum/mapping-scales',
@@ -73,19 +96,30 @@ export function CoPoMatrixTab() {
     [scales],
   )
 
-  // Complete view: fetch mappings per PO (few) rather than per CO (many —
-  // every course's COs) — far fewer requests for the same coverage.
-  const poIds = React.useMemo(() => (pos ?? []).map((p) => p.id), [pos])
+  // Complete view: fetch mappings per column (PO or PI — few) rather than
+  // per CO (many — every course's COs) — far fewer requests for the same
+  // coverage.
+  const colIds = React.useMemo(() => cols.map((c) => c.id), [cols])
   const coIds = React.useMemo(() => (cos ?? []).map((c) => c.id), [cos])
-  const byCourseQueryKeys = isCompleteView ? poIds : coIds
+  const byCourseQueryKeys = isCompleteView ? colIds : coIds
   const mappingQueries = useQueries({
     queries: byCourseQueryKeys.map((id) => ({
-      queryKey: ['curriculum', 'co-po-mappings', isCompleteView ? 'by-po' : 'by-co', id],
+      queryKey: [
+        'curriculum',
+        isIndicatorBased ? 'co-pi-mappings' : 'co-po-mappings',
+        isCompleteView ? 'by-col' : 'by-co',
+        id,
+      ],
       queryFn: async () =>
         (
-          await apiClient.get<CourseOutcomePOMapping[]>('/curriculum/course-outcome-po-mappings', {
-            params: isCompleteView ? { program_outcome_id: id } : { course_outcome_id: id },
-          })
+          await apiClient.get<(CourseOutcomePOMapping | CourseOutcomePIMapping)[]>(
+            mappingEndpoint,
+            {
+              params: isCompleteView
+                ? { [colIdField]: id }
+                : { course_outcome_id: id },
+            },
+          )
         ).data,
       enabled: byCourseQueryKeys.length > 0,
     })),
@@ -96,19 +130,27 @@ export function CoPoMatrixTab() {
     const map = new Map<string, MatrixCell>()
     mappingQueries.forEach((q) => {
       ;(q.data ?? []).forEach((m) => {
-        map.set(`${m.course_outcome_id}:${m.program_outcome_id}`, {
+        const colId = isIndicatorBased
+          ? (m as CourseOutcomePIMapping).performance_indicator_id
+          : (m as CourseOutcomePOMapping).program_outcome_id
+        map.set(`${m.course_outcome_id}:${colId}`, {
           mappingId: m.id,
           levelId: m.mapping_scale_level_id,
         })
       })
     })
     return map
-  }, [mappingQueries])
+  }, [mappingQueries, isIndicatorBased])
 
   function invalidateAll() {
     byCourseQueryKeys.forEach((id) =>
       void queryClient.invalidateQueries({
-        queryKey: ['curriculum', 'co-po-mappings', isCompleteView ? 'by-po' : 'by-co', id],
+        queryKey: [
+          'curriculum',
+          isIndicatorBased ? 'co-pi-mappings' : 'co-po-mappings',
+          isCompleteView ? 'by-col' : 'by-co',
+          id,
+        ],
       }),
     )
   }
@@ -127,11 +169,11 @@ export function CoPoMatrixTab() {
     const existing = cells.get(`${rowId}:${colId}`)
     try {
       if (existing) {
-        await apiClient.delete(`/curriculum/course-outcome-po-mappings/${existing.mappingId}`)
+        await apiClient.delete(`${mappingEndpoint}/${existing.mappingId}`)
       }
-      await apiClient.post('/curriculum/course-outcome-po-mappings', {
+      await apiClient.post(mappingEndpoint, {
         course_outcome_id: rowId,
-        program_outcome_id: colId,
+        [colIdField]: colId,
         mapping_scale_level_id: levelId,
       })
       invalidateAll()
@@ -142,7 +184,7 @@ export function CoPoMatrixTab() {
 
   async function handleClear(_rowId: string, _colId: string, mappingId: string) {
     try {
-      await apiClient.delete(`/curriculum/course-outcome-po-mappings/${mappingId}`)
+      await apiClient.delete(`${mappingEndpoint}/${mappingId}`)
       invalidateAll()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.detail : 'Unable to clear mapping.')
@@ -198,12 +240,13 @@ export function CoPoMatrixTab() {
 
       {!programVersionId ? (
         <p className="text-sm text-muted-foreground">
-          Select a program version to see the CO-PO mapping matrix.
+          Select a program version to see the CO-PO/CO-PI mapping matrix.
         </p>
       ) : isCompleteView ? (
         <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-          Showing every course&apos;s outcomes mapped against this program&apos;s outcomes. Select a
-          course above to switch to that course&apos;s editable mapping.
+          Showing every course&apos;s outcomes mapped against this program&apos;s{' '}
+          {isIndicatorBased ? 'performance indicators' : 'outcomes'}. Select a course above to
+          switch to that course&apos;s editable mapping.
         </p>
       ) : !canEdit ? (
         <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
@@ -215,12 +258,12 @@ export function CoPoMatrixTab() {
       {programVersionId && (
         <MappingMatrix
           rows={coRows}
-          cols={(pos ?? []).map((p) => ({ id: p.id, code: p.code, label: p.statement }))}
+          cols={cols.map((c) => ({ id: c.id, code: c.code, label: c.statement }))}
           rowHeader="Course Outcome"
-          colHeader="Program Outcome"
+          colHeader={isIndicatorBased ? 'Performance Indicator' : 'Program Outcome'}
           scale={defaultScale}
           cells={cells}
-          isLoading={cosLoading || posLoading || mappingsLoading}
+          isLoading={cosLoading || colsLoading || mappingsLoading}
           readOnly={!canEdit || isCompleteView}
           onSetCell={handleSet}
           onClearCell={handleClear}

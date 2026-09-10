@@ -44,16 +44,27 @@ import { Logo } from '@/components/logo'
 import { ThemeToggleButton } from '@/components/theme-toggle'
 import { PageHeader } from '@/components/page-header'
 
-const createInstitutionSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  code: z.string().min(1, 'Code is required'),
-  slug: z
-    .string()
-    .min(1, 'Slug is required')
-    .regex(/^[a-z0-9-]+$/, 'Lowercase letters, digits, and hyphens only'),
-  contact_email: z.string().min(1, 'Contact email is required').email('Enter a valid email'),
-  seed_demo: z.boolean(),
-})
+const createInstitutionSchema = z
+  .object({
+    name: z.string().min(1, 'Name is required'),
+    code: z.string().min(1, 'Code is required'),
+    slug: z
+      .string()
+      .min(1, 'Slug is required')
+      .regex(/^[a-z0-9-]+$/, 'Lowercase letters, digits, and hyphens only'),
+    contact_email: z.string().min(1, 'Contact email is required').email('Enter a valid email'),
+    seed_demo: z.boolean(),
+    admin_full_name: z.string().optional(),
+    admin_email: z.string().optional(),
+  })
+  .refine((v) => Boolean(v.admin_full_name?.trim()) === Boolean(v.admin_email?.trim()), {
+    message: 'Provide both the Institute Admin name and email, or neither.',
+    path: ['admin_email'],
+  })
+  .refine(
+    (v) => !v.admin_email?.trim() || z.string().email().safeParse(v.admin_email.trim()).success,
+    { message: 'Enter a valid email', path: ['admin_email'] },
+  )
 
 type CreateInstitutionFormValues = z.infer<typeof createInstitutionSchema>
 
@@ -65,105 +76,190 @@ function statusVariant(status: string): 'default' | 'secondary' | 'destructive' 
 
 function CreateInstitutionDialog() {
   const [open, setOpen] = React.useState(false)
+  const [created, setCreated] = React.useState<{
+    name: string
+    adminEmail: string
+    temporaryPassword: string
+  } | null>(null)
   const createInstitution = useCreateInstitution()
 
   const form = useForm<CreateInstitutionFormValues>({
     resolver: zodResolver(createInstitutionSchema),
-    defaultValues: { name: '', code: '', slug: '', contact_email: '', seed_demo: false },
+    defaultValues: {
+      name: '',
+      code: '',
+      slug: '',
+      contact_email: '',
+      seed_demo: false,
+      admin_full_name: '',
+      admin_email: '',
+    },
   })
 
   async function onSubmit(values: CreateInstitutionFormValues) {
     try {
-      await createInstitution.mutateAsync(values)
+      const result = await createInstitution.mutateAsync({
+        ...values,
+        admin_full_name: values.admin_full_name?.trim() || null,
+        admin_email: values.admin_email?.trim() || null,
+      })
       toast.success(`Institution "${values.name}" provisioned.`)
       form.reset()
       setOpen(false)
+      if (result.admin_temporary_password) {
+        setCreated({
+          name: values.name,
+          adminEmail: values.admin_email!.trim(),
+          temporaryPassword: result.admin_temporary_password,
+        })
+      }
     } catch (err) {
       toast.error(err instanceof ApiError ? err.detail : 'Failed to create institution.')
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="size-4" />
-          New institution
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Provision a new institution</DialogTitle>
-          <DialogDescription>
-            Creates a new tenant schema with its default roles and permissions.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="University of Example" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Code</FormLabel>
-                  <FormControl>
-                    <Input placeholder="UOE" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="slug"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Slug</FormLabel>
-                  <FormControl>
-                    <Input placeholder="uoe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="contact_email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contact email</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="admin@uoe.edu" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="size-4" />
+            New institution
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Provision a new institution</DialogTitle>
+            <DialogDescription>
+              Creates a new tenant schema with its default roles and permissions.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="University of Example" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="UOE" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slug</FormLabel>
+                    <FormControl>
+                      <Input placeholder="uoe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contact_email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="admin@uoe.edu" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="space-y-4 rounded-md border bg-muted/30 p-3">
+                <p className="text-sm text-muted-foreground">
+                  Optionally create the Institute Admin account for this institution now — the
+                  top of its role hierarchy (Institute Admin → Program Admin → Program
+                  Coordinator → Section Coordinator → Faculty → Student).
+                </p>
+                <FormField
+                  control={form.control}
+                  name="admin_full_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Institute Admin name (optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Jane Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="admin_email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Institute Admin email (optional)</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="registrar@uoe.edu" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Provisioning…' : 'Provision'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {created && (
+        <Dialog open onOpenChange={(o) => !o && setCreated(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Institute Admin account created</DialogTitle>
+              <DialogDescription>
+                Share this temporary password for {created.name} — it will not be shown again.
+                They must change it after signing in for the first time.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
+              <p className="text-sm">
+                <span className="font-medium">Email:</span> {created.adminEmail}
+              </p>
+              <p className="font-mono text-sm">
+                <span className="font-sans font-medium">Temporary password:</span>{' '}
+                {created.temporaryPassword}
+              </p>
+            </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Provisioning…' : 'Provision'}
-              </Button>
+              <Button onClick={() => setCreated(null)}>Done</Button>
             </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   )
 }
 

@@ -28,12 +28,19 @@ def write_audit_log(
     new_value: dict[str, Any] | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,
+    academic_term_id: uuid.UUID | None = None,
+    program_version_id: uuid.UUID | None = None,
 ) -> AuditLog:
     """Create (and flush) an `audit_logs` row in the caller's session/transaction.
 
     Does not commit — it is meant to run inside the same transaction as the
     mutation it is recording, so a failure after this call rolls the audit
     row back too (no orphaned "audit says X happened" when X didn't commit).
+
+    `academic_term_id`/`program_version_id` are optional curriculum/trimester
+    context (spec §44) — pass them whenever the mutation is naturally scoped
+    to one, so a caller can later filter "everything that happened to this
+    curriculum version" without cross-referencing entity_id by hand.
     """
     entry = AuditLog(
         user_id=user_id,
@@ -44,6 +51,8 @@ def write_audit_log(
         new_value_json=new_value,
         ip_address=ip_address,
         user_agent=user_agent,
+        academic_term_id=academic_term_id,
+        program_version_id=program_version_id,
     )
     db.add(entry)
     db.flush()

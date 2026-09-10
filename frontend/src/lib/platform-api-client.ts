@@ -1,6 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
 
-import { API_BASE_URL, type ApiErrorShape, ApiError } from '@/lib/api-client'
+import { API_BASE_URL, type ApiErrorShape, ApiError, extractErrorDetail } from '@/lib/api-client'
 
 /**
  * A separate axios instance for the platform-admin surface
@@ -109,8 +109,10 @@ platformApiClient.interceptors.response.use(
       onUnauthorized?.()
     }
 
-    const detail =
-      error.response?.data?.detail ?? error.message ?? 'An unexpected error occurred'
+    const detail = extractErrorDetail(
+      error.response?.data?.detail,
+      error.message || 'An unexpected error occurred',
+    )
     return Promise.reject(new ApiError(detail, status))
   },
 )

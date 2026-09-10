@@ -49,11 +49,12 @@ def seed_demo_data(
     db.add(admin)
     db.flush()
 
-    super_admin_role = db.query(Role).filter(Role.name == "Super Administrator").one_or_none()
-    if super_admin_role is not None:
-        db.add(
-            UserRole(user_id=admin.id, role_id=super_admin_role.id, scope_type=None, scope_id=None)
-        )
+    # Institution Administrator, not Super Administrator: the role hierarchy
+    # starts here now (see app.seed.institution_admin) — Super Administrator
+    # is seeded disabled and reserved for existing pre-revamp holders only.
+    admin_role = db.query(Role).filter(Role.name == "Institution Administrator").one_or_none()
+    if admin_role is not None:
+        db.add(UserRole(user_id=admin.id, role_id=admin_role.id, scope_type=None, scope_id=None))
 
     campus = Campus(institution_id=institution_id, name="Main Campus", code="MAIN")
     db.add(campus)

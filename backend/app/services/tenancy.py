@@ -39,6 +39,7 @@ from app.seed.course_file_defaults import seed_default_course_file_types
 from app.seed.default_permissions import seed_default_permissions
 from app.seed.default_roles import seed_default_roles
 from app.seed.demo_institution import seed_demo_data
+from app.seed.institution_admin import create_institution_admin
 from app.seed.mapping_defaults import seed_default_mapping_scale
 
 logger = logging.getLogger(__name__)
@@ -172,9 +173,16 @@ def provision_tenant(
     subscription_plan: str | None = None,
     timezone: str = "UTC",
     seed_demo: bool = False,
-) -> Institution:
+    admin_full_name: str | None = None,
+    admin_email: str | None = None,
+) -> tuple[Institution, str | None]:
     """Create a new institution end-to-end. `db` must be a session bound to
-    the `public` schema (see `app.db.tenancy.get_public_db`)."""
+    the `public` schema (see `app.db.tenancy.get_public_db`).
+
+    When `admin_full_name`/`admin_email` are both supplied, also creates that
+    tenant's Institute Admin account (see `app.seed.institution_admin`) and
+    returns its one-time temporary password as the second tuple element —
+    `None` when no admin was requested."""
     slug = slug.strip().lower()
     if not _SLUG_PATTERN.match(slug):
         raise InvalidSlugError(
@@ -215,6 +223,7 @@ def provision_tenant(
     # referenced table too, and has to wait for this session's lingering
     # AccessShareLock to clear first — which it never does mid-request).
 
+    admin_temporary_password: str | None = None
     engine = get_engine()
     try:
         with engine.begin() as connection:
@@ -231,6 +240,10 @@ def provision_tenant(
             seed_default_mapping_scale(tenant_db)
             if seed_demo:
                 seed_demo_data(tenant_db, institution_id=institution.id)
+            if admin_full_name and admin_email:
+                _, admin_temporary_password = create_institution_admin(
+                    tenant_db, full_name=admin_full_name, email=admin_email
+                )
 
     except Exception as exc:
         logger.exception("tenancy.provisioning_failed", extra={"slug": slug})
@@ -240,7 +253,7 @@ def provision_tenant(
         ) from exc
 
     logger.info("tenancy.provisioned", extra={"slug": slug, "schema_name": schema_name})
-    return institution
+    return institution, admin_temporary_password
 
 
 def _cleanup_failed_provisioning(db: Session, institution_id: uuid.UUID, schema_name: str) -> None:

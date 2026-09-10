@@ -1,3 +1,12 @@
+> **For OBEvolve:** this is the origin reference. It was adopted and absorbed into
+> [`design-system/obevolve/MASTER.md`](../design-system/obevolve/MASTER.md)'s Revision 6,
+> then Revision 7 retuned the one accent hue off amber to a neon green (explicit user hex
+> request) — read that file as the live spec (exact HSL tokens, WCAG numbers, and the
+> handful of deliberate deltas from this doc, e.g. one accent hue carried across both
+> light/dark instead of dark-only). The swatch table below is updated to match Revision 7's
+> dark-mode values so this reference stays internally consistent, but this file remains
+> portable reference/history, not a second source of truth for this repo.
+
 # Design System — "Ink & Amber"
 
 A portable design language extracted from SQL Case Files. Drop this file into any
@@ -66,9 +75,14 @@ export default {
           600: "#2c3444", // input borders, subtle dividers, scrollbar thumb
         },
         amber: {
-          300: "#f6c877", // rare: bright inline highlight text on dark success/info banners
-          400: "#f2b544", // links, hover accent, secondary emphasis text
-          500: "#e29a1f", // primary button fill, active/selected state
+          // OBEvolve Revision 7 ("Ink & Neon"): these three swatches were
+          // retuned from amber to a neon green per explicit user hex
+          // request — the `amber` key name is kept (this doc is meant to
+          // be re-skinned in place per §10, not renamed) but the values
+          // are OBEvolve's live dark-mode palette.
+          300: "#39FF14", // rare: bright inline highlight text on dark success/info banners
+          400: "#7FFF00", // links, hover accent, secondary emphasis text
+          500: "#CCFF00", // primary button fill, active/selected state
         },
         case: {
           blue: "#4c8dff", // secondary accent for one recurring "go/run" action

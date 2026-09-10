@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
+import { CurriculumFeedbackDialog } from '@/features/curriculum/CurriculumFeedbackDialog'
 import type { PEO } from '@/features/curriculum/types'
 import { useProgramVersionOptions } from '@/features/curriculum/useProgramVersionOptions'
 import { ApiError } from '@/lib/api-client'
@@ -25,13 +26,15 @@ const createSchema = z.object({
 /** Program Educational Objectives, scoped to a selected program version. */
 export function PEOsTab() {
   const { hasPermission } = useAuth()
-  const canManage = hasPermission('outcome.create')
-  const canApprove = hasPermission('outcome.approve')
+  const canManage = hasPermission('program_outcome_framework.manage')
+  const canApprove = hasPermission('program_outcome_framework.manage')
+  const canGiveFeedback = hasPermission('curriculum_feedback.create')
   const { options: pvOptions } = useProgramVersionOptions()
   const [programVersionId, setProgramVersionId] = React.useState('')
   const [createOpen, setCreateOpen] = React.useState(false)
   const [editPeo, setEditPeo] = React.useState<PEO | null>(null)
   const [viewPeo, setViewPeo] = React.useState<PEO | null>(null)
+  const [feedbackPeo, setFeedbackPeo] = React.useState<PEO | null>(null)
 
   const {
     data: peos,
@@ -103,6 +106,13 @@ export function PEOsTab() {
           emptyMessage="No PEOs yet for this program version."
           onRowClick={(r) => setViewPeo(r)}
           actions={(r) => {
+            if (canGiveFeedback) {
+              return (
+                <Button size="sm" variant="outline" onClick={() => setFeedbackPeo(r)}>
+                  Provide Feedback
+                </Button>
+              )
+            }
             const next = WORKFLOW_NEXT[r.status as WorkflowStatus]
             if (!canApprove || !next) return null
             return (
@@ -192,6 +202,16 @@ export function PEOsTab() {
               throw err instanceof ApiError ? err : new ApiError('Unable to update PEO.')
             }
           }}
+        />
+      )}
+
+      {feedbackPeo && (
+        <CurriculumFeedbackDialog
+          open={Boolean(feedbackPeo)}
+          onOpenChange={(open) => !open && setFeedbackPeo(null)}
+          entityType="peo"
+          entityId={feedbackPeo.id}
+          entityLabel={feedbackPeo.code}
         />
       )}
     </div>

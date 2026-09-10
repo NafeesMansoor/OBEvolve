@@ -1,5 +1,5 @@
 """`app.api.v1.endpoints.program_roles` — the scoped surface that lets a
-Program Coordinator/Administrator grant Faculty/Course Coordinator/Course
+Program Coordinator/Administrator grant Faculty/Section Coordinator/Course
 Administrator roles within their own program, without the privilege-
 escalation risk of just adding `scope_type="program"` to the
 institution-wide `role.manage` endpoints (see that module's docstring for
@@ -26,7 +26,7 @@ from app.db.session import session_scope
 from app.main import app
 from app.models.public.institution import Institution
 from app.models.tenant.courses.catalog import Course, CourseVersion
-from app.models.tenant.courses.delivery import CourseOffering
+from app.models.tenant.courses.delivery import CourseOffering, CourseSection, FacultyAssignment
 from app.models.tenant.identity import Permission, Role, RolePermission, User, UserRole
 from app.models.tenant.org import AcademicTerm, AcademicYear, Campus, Department, Program, School
 from app.services.tenancy import provision_program_schema
@@ -95,7 +95,10 @@ def _setup_two_programs(institution: Institution) -> dict[str, object]:
     with session_scope(
         schema_translate_map={None: institution.schema_name, "program": program_a_schema}
     ) as pdb:
-        pdb.add(CourseOffering(course_version_id=cv_a_id, academic_term_id=term_id))
+        offering_a = CourseOffering(course_version_id=cv_a_id, academic_term_id=term_id)
+        pdb.add(offering_a)
+        pdb.flush()
+        offering_a_id = offering_a.id
 
     with session_scope(
         schema_translate_map={None: institution.schema_name, "program": program_b_schema}
@@ -105,6 +108,7 @@ def _setup_two_programs(institution: Institution) -> dict[str, object]:
     return {
         "program_a_id": program_a_id, "program_b_id": program_b_id,
         "course_a_id": course_a_id, "course_b_id": course_b_id,
+        "program_a_schema": program_a_schema, "offering_a_id": offering_a_id,
     }
 
 
@@ -128,7 +132,7 @@ def _login(client: TestClient, slug: str, email: str) -> dict[str, str]:
     return {**_tenant_headers(slug), "Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
-def test_program_coordinator_can_grant_course_coordinator_within_own_program(
+def test_program_coordinator_can_grant_section_coordinator_within_own_program(
     client: TestClient, provisioned_tenant: Institution
 ) -> None:
     ctx = _setup_two_programs(provisioned_tenant)
@@ -140,8 +144,21 @@ def test_program_coordinator_can_grant_course_coordinator_within_own_program(
         db.add(faculty)
         db.flush()
         faculty_id = faculty.id
-        course_coordinator_role_id = (
-            db.query(Role).filter(Role.name == "Course Coordinator").one().id
+        section_coordinator_role_id = (
+            db.query(Role).filter(Role.name == "Section Coordinator").one().id
+        )
+    with session_scope(
+        schema_translate_map={
+            None: provisioned_tenant.schema_name, "program": ctx["program_a_schema"],
+        }
+    ) as pdb:
+        section = CourseSection(course_offering_id=ctx["offering_a_id"], section_code="A")
+        pdb.add(section)
+        pdb.flush()
+        pdb.add(
+            FacultyAssignment(
+                course_section_id=section.id, faculty_user_id=faculty_id, role="instructor",
+            )
         )
 
     headers = _login(client, provisioned_tenant.slug, "coord-a@example.org")
@@ -150,7 +167,7 @@ def test_program_coordinator_can_grant_course_coordinator_within_own_program(
     resp = client.post(
         "/api/v1/program-roles/user-roles",
         json={
-            "user_id": str(faculty_id), "role_id": str(course_coordinator_role_id),
+            "user_id": str(faculty_id), "role_id": str(section_coordinator_role_id),
             "scope_type": "course", "course_id": str(ctx["course_a_id"]),
         },
         headers=headers,
@@ -158,6 +175,42 @@ def test_program_coordinator_can_grant_course_coordinator_within_own_program(
     assert resp.status_code == 201, resp.text
     assert resp.json()["scope_type"] == "course"
     assert resp.json()["scope_id"] == str(ctx["course_a_id"])
+
+
+def test_program_coordinator_cannot_grant_section_coordinator_without_faculty_assignment(
+    client: TestClient, provisioned_tenant: Institution
+) -> None:
+    """Section Coordinator without a prior FacultyAssignment on that course
+    must be rejected — the role's real-world meaning is "faculty who
+    already teaches this course, elevated to also own its assessment
+    plan"."""
+    ctx = _setup_two_programs(provisioned_tenant)
+    _make_program_a_coordinator(
+        provisioned_tenant.schema_name, "coord-a1b@example.org", ctx["program_a_id"]
+    )
+    with session_scope(schema_translate_map={None: provisioned_tenant.schema_name}) as db:
+        faculty = User(
+            email="faculty1b@example.org", password_hash="x", full_name="Faculty One B",
+        )
+        db.add(faculty)
+        db.flush()
+        faculty_id = faculty.id
+        section_coordinator_role_id = (
+            db.query(Role).filter(Role.name == "Section Coordinator").one().id
+        )
+
+    headers = _login(client, provisioned_tenant.slug, "coord-a1b@example.org")
+    headers["X-Program-Code"] = "pra"
+
+    resp = client.post(
+        "/api/v1/program-roles/user-roles",
+        json={
+            "user_id": str(faculty_id), "role_id": str(section_coordinator_role_id),
+            "scope_type": "course", "course_id": str(ctx["course_a_id"]),
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 400, resp.text
 
 
 def test_program_coordinator_cannot_grant_course_from_another_program(
@@ -172,8 +225,8 @@ def test_program_coordinator_cannot_grant_course_from_another_program(
         db.add(faculty)
         db.flush()
         faculty_id = faculty.id
-        course_coordinator_role_id = (
-            db.query(Role).filter(Role.name == "Course Coordinator").one().id
+        section_coordinator_role_id = (
+            db.query(Role).filter(Role.name == "Section Coordinator").one().id
         )
 
     headers = _login(client, provisioned_tenant.slug, "coord-a2@example.org")
@@ -183,7 +236,7 @@ def test_program_coordinator_cannot_grant_course_from_another_program(
     resp = client.post(
         "/api/v1/program-roles/user-roles",
         json={
-            "user_id": str(faculty_id), "role_id": str(course_coordinator_role_id),
+            "user_id": str(faculty_id), "role_id": str(section_coordinator_role_id),
             "scope_type": "course", "course_id": str(ctx["course_b_id"]),
         },
         headers=headers,
@@ -230,7 +283,7 @@ def test_program_coordinator_cannot_revoke_grant_from_another_program(
         faculty = User(email="faculty4@example.org", password_hash="x", full_name="Faculty Four")
         db.add(faculty)
         db.flush()
-        cc_role = db.query(Role).filter(Role.name == "Course Coordinator").one()
+        cc_role = db.query(Role).filter(Role.name == "Section Coordinator").one()
         grant = UserRole(
             user_id=faculty.id, role_id=cc_role.id, scope_type="course",
             scope_id=ctx["course_b_id"],

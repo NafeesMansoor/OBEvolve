@@ -7,12 +7,15 @@ shadcn/Radix primitives, `class-variance-authority`, `lucide-react` icons.
 
 ## Style
 **Primary:** Data-Dense Dashboard. **Secondary:** Minimalism & Swiss Style, Accessible & Ethical.
-As of Revision 3, cards use the shadcn default `shadow-sm` + 0.75rem radius (soft-elevated,
-rounded-xl) rather than a flat 1px border — this is the modern analytics-SaaS-dashboard
-convention (see Revision 3 note below) and reads as more "product," less "spreadsheet," without
-adding real elevation depth. Heavier elevation (`shadow-md`/`shadow-lg`) stays reserved for
-truly-floating layers (dialog, popover, dropdown, sheet). No glassmorphism/blur — this app is
-read constantly at a desk; blur hurts table legibility even though Framer's own site uses it.
+As of Revision 6 ("Ink & Amber," see the Color tokens section below), cards, buttons, badges,
+and form fields are flat — a 1px `border` is the only definition, no `shadow-sm` — following
+`docs/DESIGN_SYSTEM.md`'s "borders separate, backgrounds elevate" principle. This reverses
+Revision 3's soft-elevated/shadow-sm direction. `--radius` also dropped from 0.75rem to 0.5rem
+(`rounded-lg` max — nothing bigger, e.g. no `rounded-xl`/`2xl` anywhere). Heavier elevation
+(`shadow-md`/`shadow-lg`) stays reserved for truly-floating layers (dialog, popover, dropdown,
+sheet, select, command, tooltip) — the one place real elevation is earned. No gradients and no
+glassmorphism/blur anywhere — this app is read constantly at a desk; blur hurts table legibility
+and a gradient reads as decoration in a "one accent, used deliberately" system.
 
 ## Do NOT change
 - Any data-fetching, mutation, API call, prop, or business-logic branch. Redesign is
@@ -21,7 +24,8 @@ read constantly at a desk; blur hurts table legibility even though Framer's own 
 - The permission-gating logic in nav/pages (`hasPermission`, `anyOfPermissions`, `require-permission.tsx`).
 
 ## Color tokens (already wired via `hsl(var(--token))` in `tailwind.config.ts` — edit ONLY `src/index.css`)
-**Revision 3** (current — supersedes Revision 2's cream/sage/rose palette below): a real
+**Revision 3** (superseded by Revision 5, itself superseded by Revision 6 below — kept for
+history; supersedes Revision 2's cream/sage/rose palette below): a real
 visual-direction change, not a refresh, requested explicitly by the user to align with
 `docs/UI_UX_redesign.md` §2-3, which names two references —
 a Dribbble SaaS-analytics-dashboard light theme (cool near-white canvas, white cards, single
@@ -104,7 +108,8 @@ Warm cream + sage/olive + raspberry-rose, per explicit reference hexes from the 
 icon+gradient wordmark). That logo was replaced; none of Revision 4's values are live — see
 git history on this file if the indigo direction is ever needed again.
 
-**Revision 5** (current — red rebrand, 2026-08): the OBEvolve logo changed to a plain red
+**Revision 5** (superseded by Revision 6 below — kept for history; red rebrand, 2026-08):
+the OBEvolve logo changed to a plain red
 wordmark (`ref/logo.png` — "OBE" set in white with a red keyline, "volve" solid red; no icon
 glyph, no gradient). `--primary`/`--ring` were retuned to the logo's exact sampled red — 9°
 hue, fully saturated (RGB 222,29,0, sampled directly from the "volve" pixels) — re-verified
@@ -132,20 +137,130 @@ top accent strip) — never for body text, buttons, or anything already carrying
 token, and never as a backdrop directly behind the white-filled "OBE" half of the wordmark
 (the white fill needs a neutral or dark backdrop to read — see Logo assets below).
 
+**Revision 6** (current — "Ink & Amber," 2026-09): supersedes Revision 5's red brand hue
+outright, adopting `docs/DESIGN_SYSTEM.md` (a portable dark-first system: neutral `ink`
+elevation scale, one amber accent, flat borders instead of shadows, monospace for data) as
+this app's design language. That doc is now absorbed into this file rather than read
+separately — treat this section, not `docs/DESIGN_SYSTEM.md`, as the live spec. One amber
+hue (38°, the doc's literal `amber-500`, `#e29a1f`) carries `--primary` across **both**
+themes for continuity, only S/L retuned per theme:
+```
+Dark:  --primary: 38 77% 50%   (amber-500 itself; dark ink text on top)
+Light: --primary: 38 77% 34%   (same hue/sat, darkened for AA text on a light canvas;
+                                 white text on top — amber-500 at full brightness fails
+                                 AA as text/fill against white, so light mode needs a
+                                 richer/darker shade while dark mode uses the bright one)
+```
+All neutral tokens move from Revision 5.1's true-neutral (0% saturation) gray to a cool
+ink-tinted neutral (~220° hue, the doc's literal `ink-950`→`ink-600` hex scale) in dark
+mode — the **opposite** of 5.1's reasoning, deliberately: 5.1 avoided a warm tint because it
+fought a *warm red* accent; a cool ink neutral is the doc's actual designed pairing for a
+*warm amber* accent (cool background + warm accent is the standard dark-UI convention this
+system is built around), so 5.1's rationale doesn't transfer to an amber brand.
+```
+Dark:
+--background: 220 29% 6%   (ink-950)      --foreground: 220 20% 96%
+--card/--popover: 220 26% 9%  (ink-900)   --card-foreground: 220 20% 96%
+--secondary/--muted/--accent: 220 25% 12% (ink-800)
+--muted-foreground: 215 20% 65%           --border: 220 24% 17%  (ink-700)
+--input: 220 21% 22%  (ink-600)           --ring: 38 77% 50%
+--destructive: 348 85% 62% (unchanged)    --destructive-foreground: 220 29% 6%
+--success: 152 50% 52% (unchanged)        --success-foreground: 220 29% 6%
+--warning: 12 90% 55%                     --warning-foreground: 220 29% 6%
+
+Light:
+--background: 220 20% 98%                 --foreground: 220 30% 12%
+--card/--popover: 0 0% 100%               --card-foreground: 220 30% 12%
+--secondary/--muted/--accent: 220 20% 95% --muted-foreground: 220 15% 40%
+--border/--input: 220 15% 90%             --ring: 38 77% 34%
+--destructive: 348 80% 44% (unchanged)    --destructive-foreground: 0 0% 100%
+--success: 152 55% 32% (unchanged)        --success-foreground: 0 0% 100%
+--warning: 12 92% 34%                     --warning-foreground: 0 0% 100%
+--radius: 0.5rem  (was 0.75rem — rounded-lg is now the largest radius used anywhere;
+                    no rounded-xl/2xl)
+```
+`--warning` moves off 38° (which would otherwise collide with the new primary) to a
+distinct 12° burnt-orange — a 26°/24° hue gap from primary/destructive respectively, the
+same order of separation Revision 5 used between primary and destructive (21°) to keep a
+"Save" button and a caution banner from reading as the same color. `--destructive` (348°
+rose) and `--success` (152° emerald) keep their existing hue families unchanged — already
+far enough from 38°/12° that no retuning was needed, only their `-foreground` pairings
+switched to the new ink-950/white values. All pairs re-verified at ≥4.5:1 for text via a
+one-off relative-luminance script (same method as prior revisions) — see git history on
+this file for the exact numbers if re-deriving.
+
+`--brand-red-light`/`--brand-red-deep`/`bg-brand-gradient` are **retired outright**, not
+recolored: `docs/DESIGN_SYSTEM.md` explicitly bans gradients ("no drop shadows, no
+gradients, no glassmorphism"), and they had exactly one consumer — the About page banner's
+top strip, now a flat `bg-primary` line instead of a gradient wash. No `case-blue`
+secondary-accent token was introduced either: that pattern is reserved for one recurring
+*paired* secondary action (e.g. "Run" next to "Submit") and no such pattern exists in this
+app — per the doc's own §4.2 guidance, stay single-accent (amber only) when that pattern is
+absent.
+
+**Revision 7** (current — "Ink & Neon," explicit user hex request, 2026-09-10): retunes
+`--primary`/`--ring` off amber to a neon green — same structural pattern as Revision 6 (one
+hue family carries `--primary` across both themes, only S/L differs; every other token —
+neutrals, `--destructive`, `--success`, `--warning`, `--radius`, elevation, status badges —
+untouched). Requested as three hex swatches per theme (mirroring `docs/DESIGN_SYSTEM.md`'s
+amber-300/400/500 three-step reference ramp), with only one swatch per theme actually wired
+into a live token — the one occupying amber-500/34%-lightness-amber's old `--primary` role:
+```
+Dark:  --primary: 72 100% 50%   (#CCFF00 — brightest of #39FF14/#7FFF00/#CCFF00; pairs with
+                                  the existing dark-ink --primary-foreground at 16.5:1)
+Light: --primary: 130 55% 31%   (#237A32 — darkest of #237A32/#2FA83F/#7FFF00; the only one
+                                  of the three that clears 4.5:1 against the existing white
+                                  --primary-foreground (5.4:1) — #2FA83F manages only 3.1:1
+                                  and #7FFF00 only 1.3:1, same reason Revision 6 darkened
+                                  amber-500 to 34% lightness for light mode instead of using
+                                  it at full brightness)
+```
+`--ring` mirrors `--primary` in both themes, as it always has. The remaining two swatches per
+theme (#39FF14/#7FFF00 dark, #2FA83F/#7FFF00 light) are not separately wired as CSS
+tokens — like amber-300/400 before them, they exist as `docs/DESIGN_SYSTEM.md` reference
+swatches, not live UI states; there is no live "bright highlight" or "hover-only" token
+distinct from `--primary` in this app today. The icon's red portion (`favicon-32.png`/
+`favicon-48.png`/`apple-touch-icon.png` — a solid-red rounded badge with a white "O", never
+actually recolored during the Revision 5/6 rebrands despite the wordmark itself moving off
+red) is directly recolored pixel-for-pixel to `#39FF14`, projecting each pixel onto the
+old red-to-white blend axis and remapping it onto a new-green-to-white axis so
+anti-aliasing/alpha stays smooth — the white "O" glyph is unchanged. `logo.tsx`/`LogoMark`
+need no code change — both already read `--primary` via `hsl(var(--primary))`/`text-primary`/
+`bg-primary`, so they repaint automatically.
+
+**Elevation — flat, border-only.** `shadow-sm` is removed from `Card`, `Button`,
+`Badge`, `Input`, `Select`, `Textarea`, and `Switch` — a 1px `border` is now the only
+definition for every resting surface, per the doc's "borders separate, backgrounds
+elevate" principle. `shadow-md`/`shadow-lg` remain **only** on floating overlay layers
+(`Dialog`, `AlertDialog`, `Sheet`, `Popover`, `DropdownMenu`, `Select` content, `Command`,
+`Tooltip`, `Sonner`) — the doc's one allowed shadow exception, since those layers are
+genuinely floating above content. Interactive/clickable cards (e.g. dashboard quick-link
+cards) use `hover:border-primary/60` instead of `hover:shadow-md` for their hover cue.
+
+**Status badges (`status-badge.tsx`).** Recolored to the doc's §4.3 categorical recipe —
+`draft`=neutral/muted, `submitted`=blue, `reviewed`=**purple** (moved off amber to avoid
+reading as the same color as the new primary), `approved`=emerald, `published`=teal (a
+fifth hue not already in use). Any future fixed-category badge set (tiers, plan levels,
+etc.) should follow the same fixed-hue-per-category convention rather than reusing amber.
+
+**Fonts, `next-themes`, and everything not named above are unchanged** — Plus Jakarta Sans
+(`font-display`)/Inter (`font-sans`) stay, the light/dark toggle and its `system` default
+stay, `lucide-react` icons stay. This revision is a color/elevation/radius swap only.
+
 ### Logo assets
 
 `ref/logo.png` (source, 145×52 after trim — too small to use as a raster UI asset above
 favicon size) is reproduced as real text, not an image: `frontend/src/components/logo.tsx`
 exports `Logo` (the full "OBEvolve" wordmark — "OBE" white with a `-webkit-text-stroke` in
-`--primary` reproducing the source's red keyline, `paint-order: stroke fill` so the stroke
-doesn't eat into the fill; "volve" solid `text-primary`; sized via font-size utilities like
-`text-lg`/`text-3xl`, not `size-*`) and `LogoMark` (a compact single-letter "O" monogram badge
-for spaces too tight for the full wordmark — collapsed sidebar, favicon-adjacent contexts;
-sized via `size-*`, it's a square). The source logo has no separate icon glyph, so `LogoMark`
-is a derived monogram, not a cropped asset. Because "OBE" relies on its red stroke for contrast,
-never place `Logo` directly on a `bg-primary`/`bg-brand-gradient`/other red surface — the white
-fill and stroke both read as the same hue as the background and the wordmark disappears; only
-neutral (`bg-card`, `bg-background`, `bg-popover`) or dark surfaces are safe backdrops. Favicon
+`--primary` (Revision 6: amber, was the Revision 5 red keyline), `paint-order: stroke fill`
+so the stroke doesn't eat into the fill; "volve" solid `text-primary`; sized via font-size
+utilities like `text-lg`/`text-3xl`, not `size-*`) and `LogoMark` (a compact single-letter "O"
+monogram badge for spaces too tight for the full wordmark — collapsed sidebar, favicon-adjacent
+contexts; sized via `size-*`, it's a square). The source logo has no separate icon glyph, so
+`LogoMark` is a derived monogram, not a cropped asset. Because "OBE" relies on its `--primary`
+stroke for contrast, never place `Logo` directly on a `bg-primary` surface — the white fill and
+stroke both read as the same hue as the background and the wordmark disappears; only neutral
+(`bg-card`, `bg-background`, `bg-popover`) or dark surfaces are safe backdrops. Favicon
 PNGs (`frontend/public/favicon-32.png`/`-48.png`/`apple-touch-icon.png`) are regenerated
 straight from the trimmed source raster (`sips`/Pillow, LANCZOS upscale, centered on a padded
 transparent square) since a 32-48px tab icon is small enough that the low source resolution
@@ -187,11 +302,14 @@ Comfortable-dense, not cramped: table rows ~40px, header row ~36-40px, card padd
 `p-5`/`p-6` (unchanged), page container gutter `p-4 md:p-8` (unchanged). Sidebar stays 256px
 (`w-64`). Header stays `h-16` (keeps room for program/role switchers + avatar on desktop).
 
-## Elevation
-- `Card`: `rounded-lg border bg-card text-card-foreground shadow-sm` → drop the heavier
-  `shadow` default, keep only `shadow-sm`, rely on the border for definition.
-- Dialog/Sheet/Popover/DropdownMenu content: keep/increase to `shadow-lg` — these are the
-  layers allowed real elevation.
+## Elevation (Revision 6 — see the Color tokens section for the full rationale)
+- `Card`/`Button`/`Badge`/`Input`/`Select`/`Textarea`/`Switch`: no `shadow-sm` — a 1px
+  `border` is the only definition for every resting surface.
+- Dialog/AlertDialog/Sheet/Popover/DropdownMenu/Select-content/Command/Tooltip/Sonner: keep
+  `shadow-md`/`shadow-lg` — these floating overlay layers are the one place real elevation
+  is earned.
+- Interactive/clickable cards: `hover:border-primary/60` (+ existing `hover:-translate-y-0.5`
+  lift where already present) instead of `hover:shadow-md`.
 - Table container: `rounded-md border` (unchanged pattern), no shadow.
 
 ## Icons

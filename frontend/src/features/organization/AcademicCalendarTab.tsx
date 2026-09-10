@@ -1,10 +1,11 @@
 import * as React from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { useAuth } from '@/features/auth/useAuth'
-import type { AcademicTerm, AcademicYear } from '@/features/organization/types'
+import { useProgramVersionOptions } from '@/features/curriculum/useProgramVersionOptions'
+import type { AcademicTerm, AcademicYear, TermEffectiveCurriculum } from '@/features/organization/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +13,7 @@ import { ConfirmAction } from '@/components/confirm-action'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
 import { RecordDetailSheet } from '@/components/record-detail-sheet'
-import { useEntityAction, useEntityCreate, useEntityList } from '@/lib/crud-hooks'
+import { useEntityAction, useEntityCreate, useEntityDelete, useEntityList } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
 
 const yearSchema = z.object({
@@ -33,6 +34,19 @@ const termSchema = z.object({
   term_type: z.string().min(1, 'Term type is required').max(30),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().min(1, 'End date is required'),
+  // spec §3: the rest of the academic calendar. All optional — a term is
+  // normally created before every milestone date is known and filled in
+  // over time; the backend enforces the chronological order once dates
+  // are supplied (Class Start -> Add/Drop -> Midterm -> Final -> Result
+  // Due -> Result Publication -> Term End), surfaced here as a plain
+  // server-error message if violated.
+  add_drop_last_date: z.string().optional(),
+  midterm_start_date: z.string().optional(),
+  midterm_end_date: z.string().optional(),
+  final_exam_start_date: z.string().optional(),
+  final_exam_end_date: z.string().optional(),
+  result_due_date: z.string().optional(),
+  result_publication_date: z.string().optional(),
 })
 
 /** Academic years + terms ("define semesters") — small enough to combine on
@@ -44,6 +58,8 @@ export function AcademicCalendarTab() {
   const [termDialogOpen, setTermDialogOpen] = React.useState(false)
   const [viewYear, setViewYear] = React.useState<AcademicYear | null>(null)
   const [viewTerm, setViewTerm] = React.useState<AcademicTerm | null>(null)
+  const [effectiveCurriculumDialogOpen, setEffectiveCurriculumDialogOpen] = React.useState(false)
+  const { options: pvOptions, versions: programVersions, programById } = useProgramVersionOptions()
 
   const { data: years, isLoading: yearsLoading, error: yearsError } = useEntityList<AcademicYear>(
     ['org', 'academic-years'],
@@ -66,6 +82,23 @@ export function AcademicCalendarTab() {
     [['org', 'academic-terms']],
   )
 
+  const { data: effectiveCurricula, isLoading: effectiveCurriculaLoading } = useEntityList<
+    TermEffectiveCurriculum
+  >(
+    ['org', 'term-effective-curricula', viewTerm?.id ?? ''],
+    '/org/term-effective-curricula',
+    { academic_term_id: viewTerm?.id },
+    { enabled: Boolean(viewTerm) },
+  )
+  const createEffectiveCurriculum = useEntityCreate<Record<string, unknown>, TermEffectiveCurriculum>(
+    '/org/term-effective-curricula',
+    [['org', 'term-effective-curricula', viewTerm?.id ?? '']],
+  )
+  const deleteEffectiveCurriculum = useEntityDelete(
+    (id) => `/org/term-effective-curricula/${id}`,
+    [['org', 'term-effective-curricula', viewTerm?.id ?? '']],
+  )
+
   const yearById = React.useMemo(() => new Map((years ?? []).map((y) => [y.id, y])), [years])
 
   const termFields: EntityField[] = [
@@ -77,8 +110,15 @@ export function AcademicCalendarTab() {
     },
     { name: 'name', label: 'Name', type: 'text', placeholder: 'e.g. Fall 2025' },
     { name: 'term_type', label: 'Term type', type: 'text', placeholder: 'e.g. semester, summer' },
-    { name: 'start_date', label: 'Start date', type: 'date' },
-    { name: 'end_date', label: 'End date', type: 'date' },
+    { name: 'start_date', label: 'Class start date', type: 'date' },
+    { name: 'add_drop_last_date', label: 'Add/drop last date', type: 'date' },
+    { name: 'midterm_start_date', label: 'Midterm start date', type: 'date' },
+    { name: 'midterm_end_date', label: 'Midterm end date', type: 'date' },
+    { name: 'final_exam_start_date', label: 'Final exam start date', type: 'date' },
+    { name: 'final_exam_end_date', label: 'Final exam end date', type: 'date' },
+    { name: 'result_due_date', label: 'Result due date', type: 'date' },
+    { name: 'result_publication_date', label: 'Result publication date', type: 'date' },
+    { name: 'end_date', label: 'Trimester end date', type: 'date' },
   ]
 
   const yearColumns: DataTableColumn<AcademicYear>[] = [
@@ -220,9 +260,91 @@ export function AcademicCalendarTab() {
             { label: 'Status', value: viewTerm.is_active ? 'Current' : 'Previous' },
             { label: 'Type', value: viewTerm.term_type },
             { label: 'Academic year', value: yearById.get(viewTerm.academic_year_id)?.label ?? '—' },
-            { label: 'Start date', value: viewTerm.start_date },
-            { label: 'End date', value: viewTerm.end_date },
+            { label: 'Class start date', value: viewTerm.start_date },
+            { label: 'Add/drop last date', value: viewTerm.add_drop_last_date ?? '—' },
+            { label: 'Midterm start date', value: viewTerm.midterm_start_date ?? '—' },
+            { label: 'Midterm end date', value: viewTerm.midterm_end_date ?? '—' },
+            { label: 'Final exam start date', value: viewTerm.final_exam_start_date ?? '—' },
+            { label: 'Final exam end date', value: viewTerm.final_exam_end_date ?? '—' },
+            { label: 'Result due date', value: viewTerm.result_due_date ?? '—' },
+            { label: 'Result publication date', value: viewTerm.result_publication_date ?? '—' },
+            { label: 'Trimester end date', value: viewTerm.end_date },
           ]}
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">
+                Effective curricula
+                <span className="ml-1 font-normal text-muted-foreground">
+                  (spec §4 — a term may have more than one, for different cohorts)
+                </span>
+              </h4>
+              {canManage && (
+                <Button size="sm" variant="outline" onClick={() => setEffectiveCurriculumDialogOpen(true)}>
+                  <Plus className="size-4" /> Add
+                </Button>
+              )}
+            </div>
+            {effectiveCurriculaLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : (effectiveCurricula ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No effective curriculum assigned yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {(effectiveCurricula ?? []).map((ec) => {
+                  const version = programVersions.find((v) => v.id === ec.program_version_id)
+                  const label = version
+                    ? `${programById.get(version.program_id)?.name ?? 'Unknown program'} — ${version.version_label}`
+                    : 'Unknown curriculum'
+                  return (
+                    <li key={ec.id} className="flex items-center justify-between text-sm">
+                      <span>{label}</span>
+                      {canManage && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Remove effective curriculum"
+                          onClick={async () => {
+                            try {
+                              await deleteEffectiveCurriculum.mutateAsync(ec.id)
+                            } catch (err) {
+                              toast.error(
+                                err instanceof ApiError ? err.detail : 'Unable to remove.',
+                              )
+                            }
+                          }}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </RecordDetailSheet>
+      )}
+
+      {viewTerm && (
+        <EntityFormDialog
+          open={effectiveCurriculumDialogOpen}
+          onOpenChange={setEffectiveCurriculumDialogOpen}
+          title={`Add effective curriculum — ${viewTerm.name}`}
+          fields={[{ name: 'program_version_id', label: 'Curriculum', type: 'select', options: pvOptions }]}
+          schema={z.object({ program_version_id: z.string().min(1, 'Required') })}
+          defaultValues={{ program_version_id: '' }}
+          onSubmit={async (values) => {
+            try {
+              await createEffectiveCurriculum.mutateAsync({
+                academic_term_id: viewTerm.id,
+                program_version_id: values.program_version_id,
+              })
+              toast.success('Effective curriculum added')
+            } catch (err) {
+              throw err instanceof ApiError ? err : new ApiError('Unable to add effective curriculum.')
+            }
+          }}
         />
       )}
 
@@ -255,11 +377,32 @@ export function AcademicCalendarTab() {
           name: '',
           term_type: '',
           start_date: '',
+          add_drop_last_date: '',
+          midterm_start_date: '',
+          midterm_end_date: '',
+          final_exam_start_date: '',
+          final_exam_end_date: '',
+          result_due_date: '',
+          result_publication_date: '',
           end_date: '',
         }}
         onSubmit={async (values) => {
           try {
-            await createTerm.mutateAsync(values)
+            // Optional date fields: an empty string from the form must
+            // become null, not "", before it reaches the API.
+            const body = { ...values }
+            for (const key of [
+              'add_drop_last_date',
+              'midterm_start_date',
+              'midterm_end_date',
+              'final_exam_start_date',
+              'final_exam_end_date',
+              'result_due_date',
+              'result_publication_date',
+            ] as const) {
+              if (!body[key]) body[key] = null
+            }
+            await createTerm.mutateAsync(body)
             toast.success('Academic term created')
           } catch (err) {
             throw err instanceof ApiError ? err : new ApiError('Unable to create academic term.')

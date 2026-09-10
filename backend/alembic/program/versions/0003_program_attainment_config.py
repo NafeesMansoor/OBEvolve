@@ -31,7 +31,9 @@ def upgrade() -> None:
             nullable=False,
             unique=True,
         ),
-        sa.Column("min_po_attainment_percent", sa.Numeric(5, 2), nullable=False, server_default="60"),
+        sa.Column(
+            "min_po_attainment_percent", sa.Numeric(5, 2), nullable=False, server_default="60"
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

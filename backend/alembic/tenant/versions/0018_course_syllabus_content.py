@@ -29,8 +29,12 @@ def _target_schema() -> str | None:
 
 def upgrade() -> None:
     schema = _target_schema()
-    op.add_column("course_versions", sa.Column("objectives", sa.Text(), nullable=True), schema=schema)
-    op.add_column("course_versions", sa.Column("tla_items", sa.Text(), nullable=True), schema=schema)
+    op.add_column(
+        "course_versions", sa.Column("objectives", sa.Text(), nullable=True), schema=schema
+    )
+    op.add_column(
+        "course_versions", sa.Column("tla_items", sa.Text(), nullable=True), schema=schema
+    )
     op.add_column(
         "course_versions", sa.Column("learning_materials", sa.Text(), nullable=True), schema=schema
     )

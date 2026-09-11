@@ -66,7 +66,7 @@ function RolesCell({ user, roles, grants }: { user: AppUser; roles: Role[]; gran
 }
 
 /** Users + role assignment, including scoped grants (Program
- * Administrator/Coordinator, Course Administrator) — previously these
+ * Administrator/Coordinator, Section Coordinator) — previously these
  * could only be created institution-wide from this console, since the
  * assign form never offered a scope_type/scope_id at all even though the
  * backend has always accepted them (app/schemas/identity.py

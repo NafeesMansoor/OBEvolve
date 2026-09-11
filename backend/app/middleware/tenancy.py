@@ -36,6 +36,7 @@ TENANT_EXEMPT_PREFIXES: tuple[str, ...] = (
     f"{settings.api_v1_prefix}/institutions",
     f"{settings.api_v1_prefix}/platform-auth",
     f"{settings.api_v1_prefix}/platform-raw-data",
+    f"{settings.api_v1_prefix}/role-templates",
 )
 
 

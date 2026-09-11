@@ -1234,7 +1234,7 @@ This is outside the tenant RBAC system.
 
 ## Active by Default
 
-### Super Administrator
+### Legacy Tenant Administrator
 
 Scope:
 
@@ -1318,7 +1318,7 @@ Responsible primarily for:
 
 ---
 
-### Course Administrator
+### Section Coordinator
 
 Scope:
 
@@ -1326,14 +1326,19 @@ Scope:
 One course
 ```
 
+Merges what were previously two separate roles ("Course Administrator" and "Section
+Coordinator") whose responsibilities had grown to overlap.
+
 Responsible for:
 
 * Course information
 * Course outcomes
 * Course delivery
-* Assessment
+* Assessment, including approval
 * Marks
-* Attainment
+* Attainment, including review
+* Document review
+* Pending document queue
 * Course-scoped raw data
 
 ---
@@ -1363,23 +1368,6 @@ View Attainment
 ```
 
 Faculty should not be presented with unnecessary administrative controls.
-
----
-
-### Course Coordinator
-
-Scope:
-
-```text
-One course
-```
-
-Faculty capabilities plus:
-
-* Assessment approval
-* Document review
-* Attainment review
-* Pending document queue
 
 ---
 
@@ -1909,8 +1897,7 @@ This is particularly important for:
 
 * Program Administrator
 * Program Coordinator
-* Course Administrator
-* Course Coordinator
+* Section Coordinator
 * Faculty
 * Student
 
@@ -2025,7 +2012,7 @@ should see program-level OBE management.
 A:
 
 ```text
-Super Administrator
+Legacy Tenant Administrator
 ```
 
 can access the full institutional system.

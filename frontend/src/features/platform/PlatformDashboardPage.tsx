@@ -1,6 +1,16 @@
 import * as React from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertCircle, Building2, Database, LogOut, Plus } from 'lucide-react'
+import {
+  AlertCircle,
+  Building2,
+  Database,
+  KeyRound,
+  LogOut,
+  MoreHorizontal,
+  Plus,
+  ShieldCheck,
+  UserPlus,
+} from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -8,7 +18,15 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-client'
 import { usePlatformAuth } from '@/lib/platform-auth-context'
-import { useCreateInstitution, useInstitutions } from '@/features/platform/api'
+import {
+  useCreateInstitution,
+  useCreateInstitutionAdmin,
+  useInstitutionAdmins,
+  useInstitutions,
+  useResetInstitutionAdminPassword,
+  useUpdateInstitutionStatus,
+} from '@/features/platform/api'
+import type { InstitutionRead, InstitutionStatus } from '@/features/platform/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -21,6 +39,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Form,
   FormControl,
@@ -43,6 +72,8 @@ import { Footer } from '@/components/footer'
 import { Logo } from '@/components/logo'
 import { ThemeToggleButton } from '@/components/theme-toggle'
 import { PageHeader } from '@/components/page-header'
+
+const INSTITUTION_STATUSES: InstitutionStatus[] = ['trial', 'active', 'suspended', 'archived']
 
 const createInstitutionSchema = z
   .object({
@@ -263,14 +294,194 @@ function CreateInstitutionDialog() {
   )
 }
 
+const addAdminSchema = z.object({
+  full_name: z.string().min(1, 'Name is required'),
+  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+})
+
+type AddAdminFormValues = z.infer<typeof addAdminSchema>
+
+function ManageAdminsDialog({
+  institution,
+  onOpenChange,
+}: {
+  institution: InstitutionRead
+  onOpenChange: (open: boolean) => void
+}) {
+  const { data: admins, isLoading } = useInstitutionAdmins(institution.id)
+  const createAdmin = useCreateInstitutionAdmin(institution.id)
+  const resetPassword = useResetInstitutionAdminPassword(institution.id)
+  const [revealed, setRevealed] = React.useState<{ email: string; password: string } | null>(null)
+
+  const form = useForm<AddAdminFormValues>({
+    resolver: zodResolver(addAdminSchema),
+    defaultValues: { full_name: '', email: '' },
+  })
+
+  async function onSubmit(values: AddAdminFormValues) {
+    try {
+      const result = await createAdmin.mutateAsync(values)
+      toast.success(`Institution Administrator account created for ${institution.name}.`)
+      form.reset()
+      setRevealed({ email: result.admin.email, password: result.temporary_password })
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Failed to create admin account.')
+    }
+  }
+
+  async function handleReset(userId: string, email: string) {
+    try {
+      const result = await resetPassword.mutateAsync({ userId })
+      setRevealed({ email, password: result.temporary_password })
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Failed to reset password.')
+    }
+  }
+
+  return (
+    <>
+      <Dialog open onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Institution Administrators — {institution.name}</DialogTitle>
+            <DialogDescription>
+              Create or reset the top-level admin account for this institution&apos;s tenant.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoading ? (
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : admins && admins.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {admins.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between gap-3 rounded-md border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{a.full_name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{a.email}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {a.must_change_password && (
+                      <Badge variant="secondary" className="whitespace-nowrap">
+                        Password not yet set
+                      </Badge>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={resetPassword.isPending}
+                      onClick={() => handleReset(a.id, a.email)}
+                    >
+                      <KeyRound className="size-3.5" />
+                      Reset password
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No Institution Administrator account exists yet for this institution.
+            </p>
+          )}
+
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-3 rounded-md border bg-muted/30 p-3"
+              noValidate
+            >
+              <p className="text-sm text-muted-foreground">Add another admin account</p>
+              <FormField
+                control={form.control}
+                name="full_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Jane Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="registrar@uoe.edu" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" size="sm" disabled={form.formState.isSubmitting}>
+                <UserPlus className="size-3.5" />
+                {form.formState.isSubmitting ? 'Creating…' : 'Create admin account'}
+              </Button>
+            </form>
+          </Form>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {revealed && (
+        <Dialog open onOpenChange={(o) => !o && setRevealed(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Temporary password</DialogTitle>
+              <DialogDescription>
+                Share this with {revealed.email} — it will not be shown again. They must change it
+                after signing in for the first time.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
+              <p className="font-mono text-sm">{revealed.password}</p>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setRevealed(null)}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  )
+}
+
 export function PlatformDashboardPage() {
   const { admin, logout } = usePlatformAuth()
   const navigate = useNavigate()
   const { data: institutions, isLoading, isError } = useInstitutions()
+  const updateStatus = useUpdateInstitutionStatus()
+  const [managingAdmins, setManagingAdmins] = React.useState<InstitutionRead | null>(null)
 
   function handleLogout() {
     logout()
     navigate('/platform-login', { replace: true })
+  }
+
+  async function handleStatusChange(institution: InstitutionRead, status: InstitutionStatus) {
+    if (status === institution.status) return
+    try {
+      await updateStatus.mutateAsync({ institutionId: institution.id, status })
+      toast.success(`${institution.name} is now ${status}.`)
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Failed to update institution status.')
+    }
   }
 
   return (
@@ -285,6 +496,12 @@ export function PlatformDashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/platform/role-templates">
+              <ShieldCheck className="size-4" />
+              Role templates
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/platform/raw-data">
               <Database className="size-4" />
@@ -331,6 +548,7 @@ export function PlatformDashboardPage() {
                       <TableHead>Status</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Created</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -347,6 +565,42 @@ export function PlatformDashboardPage() {
                         <TableCell>{inst.contact_email}</TableCell>
                         <TableCell>
                           {new Date(inst.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal className="size-4" />
+                                <span className="sr-only">Institution actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>{inst.name}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onSelect={() => setManagingAdmins(inst)}>
+                                <UserPlus className="size-4" />
+                                Manage admins
+                              </DropdownMenuItem>
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  <ShieldCheck className="size-4" />
+                                  Change status
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  {INSTITUTION_STATUSES.map((s) => (
+                                    <DropdownMenuItem
+                                      key={s}
+                                      disabled={s === inst.status}
+                                      onSelect={() => handleStatusChange(inst, s)}
+                                      className="capitalize"
+                                    >
+                                      {s}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -365,6 +619,13 @@ export function PlatformDashboardPage() {
           </Card>
         </div>
       </main>
+
+      {managingAdmins && (
+        <ManageAdminsDialog
+          institution={managingAdmins}
+          onOpenChange={(open) => !open && setManagingAdmins(null)}
+        />
+      )}
 
       <Footer />
     </div>

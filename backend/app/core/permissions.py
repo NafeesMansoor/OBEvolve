@@ -44,7 +44,7 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef("role.view", "View roles and permissions", "identity"),
     PermissionDef(
         "program_role.manage",
-        "Grant/revoke Faculty, Course Coordinator, and Course Administrator roles "
+        "Grant/revoke Faculty and Section Coordinator roles "
         "for people within one's own program — a narrower, program-scoped peer of "
         "role.manage, not a proxy for institution-wide user/role administration",
         "identity",
@@ -181,7 +181,7 @@ PERMISSIONS: list[PermissionDef] = [
     ),
     PermissionDef(
         "course_change_request.review_admin",
-        "Stage-1 (Course Administrator) review of a course change request",
+        "Stage-1 (Section Coordinator) review of a course change request",
         "course_change_request",
     ),
     PermissionDef(

@@ -101,7 +101,7 @@ export function OverviewTab({ course }: { course: MyCourseCard }) {
           <CardTitle className="text-base">Description &amp; objectives</CardTitle>
           <CardDescription>
             {overviewEnabled && course.is_current_term
-              ? 'Double-click a field to propose a change — your Course Administrator approves and it becomes final.'
+              ? 'Double-click a field to propose a change — your Section Coordinator approves and it becomes final.'
               : 'Not enabled for editing on this course type.'}
           </CardDescription>
         </CardHeader>
@@ -123,7 +123,7 @@ export function OverviewTab({ course }: { course: MyCourseCard }) {
                     proposed_value_json: { value: newValue },
                     reason: message,
                   })
-                  toast.success('Sent to your Course Administrator for review')
+                  toast.success('Sent to your Section Coordinator for review')
                 } catch (err) {
                   toast.error(err instanceof ApiError ? err.detail : 'Unable to submit change')
                   throw err
@@ -149,7 +149,7 @@ export function OverviewTab({ course }: { course: MyCourseCard }) {
                     proposed_value_json: { value: newValue },
                     reason: message,
                   })
-                  toast.success('Sent to your Course Administrator for review')
+                  toast.success('Sent to your Section Coordinator for review')
                 } catch (err) {
                   toast.error(err instanceof ApiError ? err.detail : 'Unable to submit change')
                   throw err

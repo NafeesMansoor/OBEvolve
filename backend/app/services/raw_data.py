@@ -90,8 +90,8 @@ PROGRAM_SCHEMA_TABLES: frozenset[str] = frozenset(
 )
 
 # Everything else in the tenant schema — Institution Administrator and
-# Super Administrator only, never Program/Course Administrator or Program
-# Coordinator regardless of their scope.
+# Legacy Tenant Administrator only, never Program Administrator, Section
+# Coordinator, or Program Coordinator regardless of their scope.
 _PUBLIC_TABLE_NAMES: frozenset[str] = frozenset({"institutions", "platform_admins"})
 
 

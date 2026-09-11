@@ -60,6 +60,15 @@ class Role(UUIDPKMixin, TimestampMixin, TenantBase):
         back_populates="role", cascade="all, delete-orphan"
     )
 
+    @property
+    def permission_codes(self) -> list[str]:
+        """Convenience accessor for `RoleRead.permission_codes` — the
+        custom-role edit form needs to know what a role currently holds to
+        pre-check its permission checkboxes. Small numbers of roles/grants
+        per tenant, so the per-row lazy-load this implies isn't worth
+        eager-loading away."""
+        return [rp.permission.code for rp in self.permissions]
+
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Role {self.name!r}>"
 

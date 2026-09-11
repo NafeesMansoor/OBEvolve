@@ -7,12 +7,22 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.permissions import PERMISSION_CODES
 from app.core.security import hash_password
 from app.db.tenancy import get_db
 from app.middleware.audit import get_request_context
-from app.models.tenant.identity import FacultyProfile, Role, User, UserRole
+from app.models.tenant.identity import (
+    FacultyProfile,
+    Permission,
+    Role,
+    RolePermission,
+    User,
+    UserRole,
+)
 from app.schemas.identity import (
     FacultyDirectoryEntry,
+    PermissionRead,
+    RoleCreate,
     RoleRead,
     RoleUpdate,
     UserCreate,
@@ -111,6 +121,25 @@ def list_faculty_directory(
     return [FacultyDirectoryEntry(id=row.id, full_name=row.full_name) for row in rows]
 
 
+@router.get("/permissions", response_model=list[PermissionRead])
+def list_permissions(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("role.view")),
+) -> list[Permission]:
+    """The fixed permission catalogue, tenant-seeded from
+    `app.core.permissions.PERMISSIONS` — read-only, never created ad hoc
+    (see `Permission`'s docstring). Powers the permission-checkbox list a
+    custom-role-creation form needs; gated the same as `list_roles` since
+    both feed the same role-management UI.
+
+    MUST be registered before `GET /{user_id}` below — same single-path-
+    segment collision `GET /user-roles` already hit (see that route's
+    docstring): `/permissions` would otherwise be swallowed by `/{user_id}`
+    trying (and failing) to parse "permissions" as a UUID, 422'ing instead
+    of ever reaching this handler."""
+    return db.query(Permission).order_by(Permission.module, Permission.code).all()
+
+
 @router.get("/{user_id}", response_model=UserRead)
 def get_user(
     user_id: uuid.UUID,
@@ -170,6 +199,58 @@ def list_roles(
     return query.order_by(Role.name).all()
 
 
+def _sync_role_permissions(db: Session, role: Role, permission_codes: list[str]) -> None:
+    """Replace `role`'s permission grants with exactly `permission_codes`
+    (silently dropping any code not in the fixed catalogue — same defensive
+    posture `app.seed.default_roles.seed_default_roles` takes toward its own
+    input, since this is now user-supplied rather than a trusted seed
+    file)."""
+    valid_codes = [c for c in permission_codes if c in PERMISSION_CODES]
+    permissions = (
+        db.query(Permission).filter(Permission.code.in_(valid_codes)).all() if valid_codes else []
+    )
+    db.query(RolePermission).filter(RolePermission.role_id == role.id).delete()
+    for permission in permissions:
+        db.add(RolePermission(role_id=role.id, permission_id=permission.id))
+
+
+@router.post("/roles", response_model=RoleRead, status_code=status.HTTP_201_CREATED)
+def create_role(
+    payload: RoleCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("role.manage")),
+) -> Role:
+    """Institution-level custom "user type" — always `is_system_role=False`.
+    The platform's own default role catalogue (app/seed/default_roles.py) is
+    never touched by this endpoint, and a role created here is a row in
+    THIS tenant's own schema only — structurally invisible to every other
+    institution and to the platform level (schema-per-institution)."""
+    if db.query(Role).filter(Role.name == payload.name).one_or_none() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Role name already in use")
+
+    role = Role(
+        name=payload.name,
+        description=payload.description,
+        is_system_role=False,
+        is_active=True,
+    )
+    db.add(role)
+    db.flush()
+    _sync_role_permissions(db, role, payload.permission_codes)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="role.created",
+        entity_type="Role",
+        entity_id=role.id,
+        new_value={"name": payload.name, "permission_codes": payload.permission_codes},
+        **get_request_context(request),
+    )
+    return role
+
+
 @router.patch("/roles/{role_id}", response_model=RoleRead)
 def update_role(
     role_id: uuid.UUID,
@@ -182,11 +263,25 @@ def update_role(
     if role is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
 
-    previous_value = {"is_active": role.is_active, "description": role.description}
     updates = payload.model_dump(exclude_unset=True)
+    if role.is_system_role and ("name" in updates or "permission_codes" in updates):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A system role's name/permissions are fixed — only is_active/description "
+            "may change.",
+        )
+
+    previous_value = {
+        "is_active": role.is_active,
+        "description": role.description,
+        "name": role.name,
+    }
+    permission_codes = updates.pop("permission_codes", None)
     for field, value in updates.items():
         setattr(role, field, value)
     db.add(role)
+    if permission_codes is not None:
+        _sync_role_permissions(db, role, permission_codes)
     db.flush()
     write_audit_log(
         db,
@@ -195,7 +290,7 @@ def update_role(
         entity_type="Role",
         entity_id=role.id,
         previous_value=previous_value,
-        new_value=updates,
+        new_value=payload.model_dump(exclude_unset=True, mode="json"),
         **get_request_context(request),
     )
     return role

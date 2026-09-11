@@ -37,7 +37,7 @@ export function ProgramAdministrationPage() {
     <RequirePermission anyOf={['program_role.manage', 'term_commit.manage']}>
       <PageHeader
         title="Program Administration"
-        description="Assign Faculty/Section Coordinator/Course Administrator roles and commit a finished term."
+        description="Assign Faculty/Section Coordinator roles and commit a finished term."
       />
       {tabs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No program administration sections available.</p>

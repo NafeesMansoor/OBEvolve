@@ -41,8 +41,8 @@ from app.models.tenant.courses.catalog import Course, CourseVersion
 from app.models.tenant.courses.delivery import CourseOffering, CourseSection, StudentEnrollment
 from app.models.tenant.obe.outcomes import CourseOutcome
 
-# overview/students: Course Teacher -> Course Administrator -> final.
-# settings/assessments: Course Teacher -> Course Administrator -> Program
+# overview/students: Course Teacher -> Section Coordinator -> final.
+# settings/assessments: Course Teacher -> Section Coordinator -> Program
 # Coordinator -> final. Fixed by the spec (§5), not admin-configurable.
 SECTION_APPROVAL_TIERS: dict[str, int] = {
     "overview": 1,
@@ -123,7 +123,7 @@ def ensure_direct_enrollment_write_allowed(is_section_authority: bool) -> None:
     """Enrollment writes (spec §2/§4/§11) move from direct-write to
     submit-for-approval for a personally-assigned Course Teacher once
     "Students" is a gated section — only a section authority (Program
-    Coordinator, Program/Course Administrator, via
+    Coordinator, Section Coordinator, via
     `app.services.faculty_scope.is_section_authority`) may still write the
     roster directly, mirroring how Course Overview/Settings already work:
     the admin/coordinator tier finalizes directly, the teacher tier

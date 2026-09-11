@@ -13,7 +13,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export function AcademicOpsPage() {
   const { hasPermission } = useAuth()
 
+  // Academic calendar leads the list: a trimester must be defined (and
+  // activated) before offerings/sections/faculty/enrollments/cohorts can
+  // reference it, so the tab that defines it comes before the tabs that
+  // operate within it — also makes it the default-open tab (tabs[0]) an
+  // Institution Administrator lands on here, since term setup is their job,
+  // not the Program Coordinator's operational tabs that follow.
   const tabs = [
+    {
+      value: 'calendar',
+      label: 'Academic calendar',
+      show: hasPermission('academic_calendar.view'),
+      content: <AcademicCalendarTab />,
+    },
     { value: 'offerings', label: 'Course offerings', show: hasPermission('section.view'), content: <OfferingsTab /> },
     { value: 'sections', label: 'Sections', show: hasPermission('section.view'), content: <SectionsTab /> },
     {
@@ -29,12 +41,6 @@ export function AcademicOpsPage() {
       label: 'Student cohorts',
       show: hasPermission('section.view'),
       content: <CohortsTab />,
-    },
-    {
-      value: 'calendar',
-      label: 'Academic calendar',
-      show: hasPermission('academic_calendar.view'),
-      content: <AcademicCalendarTab />,
     },
   ].filter((t) => t.show)
 

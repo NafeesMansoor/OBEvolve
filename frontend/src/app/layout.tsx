@@ -61,6 +61,22 @@ interface NavItem {
   anyOfPermissions: string[]
 }
 
+// Ordered by where each section sits in OBEvolve's own stated pipeline
+// (CLAUDE.md: curriculum design → outcome mapping → course delivery →
+// assessment → attainment calculation → continuous improvement →
+// accreditation reporting), not by when each page was split off from a
+// larger one. Every role's nav is a role-gated subset (anyOfPermissions
+// below) of this SAME order — there's no per-role reordering, so this list
+// is the one place that sets everyone's order at once. Rationale per item:
+// program-level curriculum first (nothing downstream exists without it) →
+// outcome mapping (maps what curriculum just defined) → course-level
+// curriculum (maps into the program curriculum) → program administration
+// (role/term-commit setup) → trimester management (definition, then
+// delivery) → courses (a faculty member's own delivery view, same pipeline
+// stage) → question bank → grading policy (needed before assessments
+// produce marks) → assessment → analytics (needs assessment data to exist)
+// → the always-available admin tier (Institute Settings, Raw Data Console)
+// → About, always last.
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
@@ -68,27 +84,6 @@ const navItems: NavItem[] = [
     icon: LayoutDashboard,
     sectionKey: 'dashboard',
     anyOfPermissions: [],
-  },
-  {
-    label: 'Courses',
-    to: '/courses',
-    icon: GraduationCap,
-    sectionKey: 'courses',
-    anyOfPermissions: ['section.view'],
-  },
-  {
-    // curriculum.view is deliberately NOT the gate here — Faculty holds it
-    // too (needed internally for CO-mapping dropdowns etc.), which would
-    // otherwise leak this institution-wide admin page into the Faculty nav
-    // (spec §30: Faculty's own nav is Dashboard/Courses/Question Bank
-    // only). outcome.create/outcome.approve are held by curriculum
-    // administrators and reviewers (Program/Course Administrator, Head of
-    // Department, Dean, Program Coordinator) but not by Faculty.
-    label: 'Course Level Settings',
-    to: '/course-settings',
-    icon: BookOpen,
-    sectionKey: 'courseSettings',
-    anyOfPermissions: ['outcome.create', 'outcome.approve'],
   },
   {
     // Curriculum-content editing only (curricula, mission/vision, PEOs,
@@ -113,6 +108,21 @@ const navItems: NavItem[] = [
     anyOfPermissions: ['curriculum.view'],
   },
   {
+    // curriculum.view is deliberately NOT the gate here — Faculty holds it
+    // too (needed internally for CO-mapping dropdowns etc.), which would
+    // otherwise leak this institution-wide admin page into the Faculty nav
+    // (spec §30: Faculty's own nav is Dashboard/Courses/Question Bank
+    // only). outcome.create/outcome.approve are held by curriculum
+    // administrators and reviewers (Program Administrator, Section
+    // Coordinator, Head of Department, Dean, Program Coordinator) but not by
+    // Faculty.
+    label: 'Course Level Settings',
+    to: '/course-settings',
+    icon: BookOpen,
+    sectionKey: 'courseSettings',
+    anyOfPermissions: ['outcome.create', 'outcome.approve'],
+  },
+  {
     label: 'Program Administration',
     to: '/program-administration',
     icon: UserCog,
@@ -131,6 +141,20 @@ const navItems: NavItem[] = [
     icon: ClipboardCheck,
     sectionKey: 'academic',
     anyOfPermissions: ['section.manage', 'academic_calendar.view'],
+  },
+  {
+    label: 'Courses',
+    to: '/courses',
+    icon: GraduationCap,
+    sectionKey: 'courses',
+    anyOfPermissions: ['section.view'],
+  },
+  {
+    label: 'Question Bank',
+    to: '/question-bank',
+    icon: BookMarked,
+    sectionKey: 'questionBank',
+    anyOfPermissions: ['assessment.view'],
   },
   {
     // grading.manage, not grading.view — Faculty/Course Coordinator hold
@@ -154,13 +178,6 @@ const navItems: NavItem[] = [
     icon: ClipboardCheck,
     sectionKey: 'assessment',
     anyOfPermissions: ['assessment.approve'],
-  },
-  {
-    label: 'Question Bank',
-    to: '/question-bank',
-    icon: BookMarked,
-    sectionKey: 'questionBank',
-    anyOfPermissions: ['assessment.view'],
   },
   {
     // assessment.view included so Faculty sees this too — AnalyticsPage

@@ -33,11 +33,13 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_engine, session_scope
 from app.models.public.institution import Institution
+from app.models.public.role_template import RoleTemplate
+from app.models.tenant.identity import Permission
 from app.seed.assessment_defaults import seed_default_assessment_types
 from app.seed.bloom_defaults import seed_default_bloom_levels
 from app.seed.course_file_defaults import seed_default_course_file_types
 from app.seed.default_permissions import seed_default_permissions
-from app.seed.default_roles import seed_default_roles
+from app.seed.default_roles import _ALL, RoleDef, seed_default_roles
 from app.seed.demo_institution import seed_demo_data
 from app.seed.institution_admin import create_institution_admin
 from app.seed.mapping_defaults import seed_default_mapping_scale
@@ -163,6 +165,54 @@ def _slugify_schema(slug: str) -> str:
     return f"{settings.tenant_schema_prefix}{slug}"
 
 
+def _role_defs_from_templates(db: Session) -> list[RoleDef] | None:
+    """The live `public.role_templates` catalogue, converted to the
+    `RoleDef` shape `seed_default_roles` already knows how to consume —
+    `None` (not an empty list) when the table has nothing in it yet, so
+    `seed_default_roles` falls back to its own hardcoded `DEFAULT_ROLES`
+    constant (local dev / a deployment that hasn't been seeded via
+    `POST /role-templates` yet) rather than provisioning a tenant with zero
+    roles. `db` is the public-schema session `provision_tenant` already
+    holds — no extra session needed."""
+    templates = db.query(RoleTemplate).all()
+    if not templates:
+        return None
+    return [
+        RoleDef(
+            name=t.name,
+            description=t.description or "",
+            permission_codes=_ALL if t.all_permissions else tuple(t.permission_codes),
+            is_active=t.is_active,
+        )
+        for t in templates
+    ]
+
+
+def resync_role_templates(schema_name: str) -> None:
+    """Re-apply the live `public.role_templates` catalogue to one
+    already-provisioned tenant schema.
+
+    `provision_tenant` only reads the catalogue once, at creation time — a
+    platform admin editing a template afterwards (`PATCH /role-templates/
+    {id}`) has no effect on institutions that already exist until this is
+    run against them. `seed_default_roles` is already idempotent and
+    re-syncs `is_active`/`description`/`permission_codes` on system-seeded
+    roles every time it's called (see its own docstring) — this function is
+    just "call it again" for one tenant, with the current template catalogue
+    instead of the hardcoded `DEFAULT_ROLES` fallback. A no-op (does not
+    touch the tenant's roles at all) if the catalogue is empty, matching
+    `provision_tenant`'s own fallback-to-`DEFAULT_ROLES` behavior — resync
+    is only ever meant to push real template edits, never to blow away an
+    existing tenant's roles because nobody has created any templates yet."""
+    with session_scope() as public_db:
+        role_defs = _role_defs_from_templates(public_db)
+    if role_defs is None:
+        return
+    with session_scope(schema_translate_map={None: schema_name}) as tenant_db:
+        permission_map = {p.code: p for p in tenant_db.query(Permission).all()}
+        seed_default_roles(tenant_db, permission_map, role_defs)
+
+
 def provision_tenant(
     db: Session,
     *,
@@ -224,6 +274,7 @@ def provision_tenant(
     # AccessShareLock to clear first — which it never does mid-request).
 
     admin_temporary_password: str | None = None
+    role_defs = _role_defs_from_templates(db)
     engine = get_engine()
     try:
         with engine.begin() as connection:
@@ -233,7 +284,7 @@ def provision_tenant(
 
         with session_scope(schema_translate_map={None: schema_name}) as tenant_db:
             permission_map = seed_default_permissions(tenant_db)
-            seed_default_roles(tenant_db, permission_map)
+            seed_default_roles(tenant_db, permission_map, role_defs)
             seed_default_assessment_types(tenant_db)
             seed_default_course_file_types(tenant_db)
             seed_default_bloom_levels(tenant_db)

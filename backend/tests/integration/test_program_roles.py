@@ -1,6 +1,6 @@
 """`app.api.v1.endpoints.program_roles` — the scoped surface that lets a
-Program Coordinator/Administrator grant Faculty/Section Coordinator/Course
-Administrator roles within their own program, without the privilege-
+Program Coordinator/Administrator grant Faculty/Section Coordinator
+roles within their own program, without the privilege-
 escalation risk of just adding `scope_type="program"` to the
 institution-wide `role.manage` endpoints (see that module's docstring for
 why). The whole point of these tests is verifying the escalation paths are
@@ -177,13 +177,13 @@ def test_program_coordinator_can_grant_section_coordinator_within_own_program(
     assert resp.json()["scope_id"] == str(ctx["course_a_id"])
 
 
-def test_program_coordinator_cannot_grant_section_coordinator_without_faculty_assignment(
+def test_program_coordinator_can_grant_section_coordinator_without_faculty_assignment(
     client: TestClient, provisioned_tenant: Institution
 ) -> None:
-    """Section Coordinator without a prior FacultyAssignment on that course
-    must be rejected — the role's real-world meaning is "faculty who
-    already teaches this course, elevated to also own its assessment
-    plan"."""
+    """Section Coordinator absorbed the old "Course Administrator" role
+    (administrative control over a course, not tied to actually teaching
+    it), so unlike before the merge, granting it no longer requires a prior
+    FacultyAssignment on that course."""
     ctx = _setup_two_programs(provisioned_tenant)
     _make_program_a_coordinator(
         provisioned_tenant.schema_name, "coord-a1b@example.org", ctx["program_a_id"]
@@ -210,7 +210,7 @@ def test_program_coordinator_cannot_grant_section_coordinator_without_faculty_as
         },
         headers=headers,
     )
-    assert resp.status_code == 400, resp.text
+    assert resp.status_code == 201, resp.text
 
 
 def test_program_coordinator_cannot_grant_course_from_another_program(

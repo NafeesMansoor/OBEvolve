@@ -80,11 +80,13 @@ def public_schema_ready(db_engine, require_database: None) -> None:
     from app.db.base import PublicBase
     from app.models.public.institution import Institution
     from app.models.public.platform_admin import PlatformAdmin
+    from app.models.public.role_template import RoleTemplate
 
     with db_engine.begin() as connection:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
     PublicBase.metadata.create_all(
-        db_engine, tables=[Institution.__table__, PlatformAdmin.__table__]
+        db_engine,
+        tables=[Institution.__table__, PlatformAdmin.__table__, RoleTemplate.__table__],
     )
 
 

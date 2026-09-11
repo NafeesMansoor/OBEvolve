@@ -1,5 +1,5 @@
 """Schemas for program-scoped role management (a Program Administrator/
-Coordinator managing Faculty/Course Coordinator/Course Administrator roles
+Coordinator managing Faculty/Section Coordinator roles
 within their own program — see
 app.api.v1.endpoints.program_roles's module docstring)."""
 

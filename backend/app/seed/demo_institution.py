@@ -49,9 +49,10 @@ def seed_demo_data(
     db.add(admin)
     db.flush()
 
-    # Institution Administrator, not Super Administrator: the role hierarchy
-    # starts here now (see app.seed.institution_admin) — Super Administrator
-    # is seeded disabled and reserved for existing pre-revamp holders only.
+    # Institution Administrator, not Legacy Tenant Administrator: the role
+    # hierarchy starts here now (see app.seed.institution_admin) — Legacy
+    # Tenant Administrator is seeded disabled and reserved for existing
+    # pre-revamp holders only.
     admin_role = db.query(Role).filter(Role.name == "Institution Administrator").one_or_none()
     if admin_role is not None:
         db.add(UserRole(user_id=admin.id, role_id=admin_role.id, scope_type=None, scope_id=None))

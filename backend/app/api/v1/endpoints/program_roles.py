@@ -1,5 +1,5 @@
 """Program-scoped role management: lets a Program Administrator/Coordinator
-grant/revoke Faculty, Section Coordinator, and Course Administrator roles for
+grant/revoke Faculty and Section Coordinator roles for
 people within their own program — the scoped counterpart to the
 institution-wide `role.manage` surface in `app.api.v1.endpoints.users`,
 which neither of those roles holds (see docs/course_level_settings_and_
@@ -14,7 +14,7 @@ Two restrictions keep this safe regardless of what `program_role.manage`
 grant shape a caller holds:
 
 1. `ASSIGNABLE_ROLE_NAMES` is a fixed allowlist — never Institution
-   Administrator, Super Administrator, or any other role, no matter what
+   Administrator, Legacy Tenant Administrator, or any other role, no matter what
    `role_id` a caller passes. This is a business-policy restriction on top
    of the (permission-code-based, per ARCHITECTURE.md §3) authorization
    check, not a role-name-based auth decision — callers still need a real
@@ -39,7 +39,7 @@ from sqlalchemy.orm import Session
 from app.core.security import generate_temporary_password, hash_password
 from app.middleware.audit import get_request_context
 from app.models.tenant.courses.catalog import Course, CourseVersion
-from app.models.tenant.courses.delivery import CourseOffering, CourseSection, FacultyAssignment
+from app.models.tenant.courses.delivery import CourseOffering, FacultyAssignment
 from app.models.tenant.identity import FacultyProfile, Role, User, UserRole
 from app.schemas.program_roles import (
     FacultyCreate,
@@ -56,13 +56,7 @@ from app.services.rbac import get_program_scoped_db, require_permission
 router = APIRouter()
 
 #: The only roles grantable through this surface — see module docstring.
-ASSIGNABLE_ROLE_NAMES: tuple[str, ...] = ("Faculty", "Section Coordinator", "Course Administrator")
-
-#: Section Coordinator's real-world meaning is "faculty who already teaches
-#: this course, elevated to also own its assessment plan" — a grant without
-#: an existing FacultyAssignment on one of the course's sections would let
-#: someone approve marks entry for a course they have no teaching record on.
-_SECTION_COORDINATOR_ROLE_NAME = "Section Coordinator"
+ASSIGNABLE_ROLE_NAMES: tuple[str, ...] = ("Faculty", "Section Coordinator")
 
 
 def _program_course_ids(db: Session) -> list[uuid.UUID]:
@@ -159,27 +153,6 @@ def create_program_role_grant(
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, detail="That course is not offered in this program."
             )
-        if role.name == _SECTION_COORDINATOR_ROLE_NAME:
-            has_assignment = (
-                db.query(FacultyAssignment.id)
-                .join(CourseSection, FacultyAssignment.course_section_id == CourseSection.id)
-                .join(CourseOffering, CourseSection.course_offering_id == CourseOffering.id)
-                .join(CourseVersion, CourseOffering.course_version_id == CourseVersion.id)
-                .filter(
-                    FacultyAssignment.faculty_user_id == payload.user_id,
-                    CourseVersion.course_id == payload.course_id,
-                )
-                .first()
-                is not None
-            )
-            if not has_assignment:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        "This user must already hold a faculty assignment on a section of "
-                        "this course before they can be made Section Coordinator for it."
-                    ),
-                )
         scope_id = payload.course_id
     else:
         scope_id = request.state.program_id

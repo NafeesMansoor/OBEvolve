@@ -56,9 +56,10 @@ def list_institutions(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_grant("raw_data.manage_all")),
 ) -> list[Institution]:
-    """Super Administrator only — the cross-institution switcher. Uses a
-    fresh unscoped session (public schema), not the tenant-bound `db` this
-    endpoint's own permission check ran against."""
+    """Legacy Tenant Administrator only (raw_data.manage_all) — the
+    cross-institution switcher. Uses a fresh unscoped session (public
+    schema), not the tenant-bound `db` this endpoint's own permission check
+    ran against."""
     del current_user  # only needed for the permission gate above
     with session_scope() as public_db:
         return public_db.query(Institution).order_by(Institution.slug).all()
@@ -69,8 +70,8 @@ def _resolve_institution_schema(
 ) -> tuple[str, bool]:
     """Resolve which tenant SCHEMA NAME this request actually operates
     against — same institution as the caller logged into (the common case)
-    returns the request's own schema; a *different* institution is Super
-    Administrator (raw_data.manage_all) only. Returns
+    returns the request's own schema; a *different* institution is Legacy
+    Tenant Administrator (raw_data.manage_all) only. Returns
     (schema_name, is_cross_institution) — the latter matters for audit
     logging, see `_resolve_target`'s callers below: writing to another
     institution's audit_logs with *this* user's id would violate that
@@ -85,7 +86,7 @@ def _resolve_institution_schema(
     if not any(code == "raw_data.manage_all" for code, _st, _sid in grants):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only a Super Administrator may access a different institution's data.",
+            detail="Only a Legacy Tenant Administrator may access a different institution's data.",
         )
 
     with session_scope() as public_db:

@@ -135,7 +135,7 @@ per tenant, never edited per-institution.
 (`app.models.tenant.identity.ScopeType`: `institution|campus|school|
 department|program|course` — `null`/`institution` both mean unscoped),
 `scope_id nullable` — lets "Program Coordinator" be scoped to one program,
-"Course Administrator" to one course. Real and UI-assignable (Institute
+"Section Coordinator" to one course. Real and UI-assignable (Institute
 Settings → Users & roles), not just a schema field: `scope_type="program"`
 grants are what `get_program_context` checks before letting a request touch
 that program's schema at all ([ADR 0003](adr/0003-schema-per-program.md)).

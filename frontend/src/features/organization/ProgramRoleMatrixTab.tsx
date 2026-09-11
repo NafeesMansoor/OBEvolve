@@ -36,13 +36,13 @@ const createFacultySchema = z.object({
   contract_type: z.enum(['full_time', 'part_time', '']).optional(),
 })
 
-const ROLES_NEEDING_COURSE_PICKER = new Set(['Section Coordinator', 'Course Administrator'])
+const ROLES_NEEDING_COURSE_PICKER = new Set(['Section Coordinator'])
 
 /** Program Administrator/Coordinator's own scoped counterpart to the
  * institution-wide Role matrix (RoleMatrixTab) — same checkbox-matrix
  * idea, but backed by `/program-roles/*` (app.api.v1.endpoints.
  * program_roles), which only ever shows/grants within this one program:
- * Faculty (program-wide) and Section Coordinator/Course Administrator (per
+ * Faculty (program-wide) and Section Coordinator (per
  * course, multi-select popup), never any other role. */
 export function ProgramRoleMatrixTab() {
   const [search, setSearch] = React.useState('')
@@ -117,10 +117,9 @@ export function ProgramRoleMatrixTab() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Grant or revoke Faculty, Section Coordinator, and Course Administrator roles for people in
-        this program. Checking Section Coordinator/Course Administrator lets you pick one or more
-        courses at once. Section Coordinator requires the person to already hold a faculty
-        assignment on a section of that course.
+        Grant or revoke Faculty and Section Coordinator roles for people in
+        this program. Checking Section Coordinator lets you pick one or more
+        courses at once.
       </p>
       <div className="flex items-center justify-between gap-2">
         <Input
@@ -169,7 +168,7 @@ export function ProgramRoleMatrixTab() {
                     {roles.map((r) => {
                       const held = grantsFor(f.id, r.id)
                       const courseCodes =
-                        r.name === 'Section Coordinator' || r.name === 'Course Administrator'
+                        r.name === 'Section Coordinator'
                           ? held.map(
                               (g) =>
                                 (roster.courses ?? []).find((c) => c.id === g.scope_id)?.code ?? '?',

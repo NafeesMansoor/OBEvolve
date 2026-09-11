@@ -4,7 +4,7 @@ Implement the following functionality for **Course Level Settings** and course c
 
 ### 1. Course Type Management
 
-Under **Course Level Settings**, the **Program Coordinator and/or Course Coordinator** should be able to:
+Under **Course Level Settings**, the **Program Coordinator and/or Section Coordinator** should be able to:
 
 * Add a new Course Type.
 * Remove an existing Course Type.
@@ -55,9 +55,9 @@ The system should:
 * Record who made the change and when.
 * Clearly indicate that the change is awaiting approval.
 
-#### Step 2: Course Administrator / Course Coordinator
+#### Step 2: Section Coordinator
 
-The submitted change first goes to the **Course Administrator/Course Coordinator** for review.
+The submitted change first goes to the **Section Coordinator** for review.
 
 The approver should be able to:
 
@@ -74,21 +74,21 @@ Not all changes require the same approval level.
 
 #### A. Course Overview
 
-Changes to **Course Overview** can be directly accepted by the Course Administrator/Course Coordinator.
+Changes to **Course Overview** can be directly accepted by the Section Coordinator.
 
 Workflow:
 
-**Course Teacher → Course Administrator → Final**
+**Course Teacher → Section Coordinator → Final**
 
 Once accepted, the changes become the current course data.
 
 #### B. Student Enrollment
 
-Changes related to **Student Enrollment** can also be directly accepted by the Course Administrator/Course Coordinator.
+Changes related to **Student Enrollment** can also be directly accepted by the Section Coordinator.
 
 Workflow:
 
-**Course Teacher → Course Administrator → Final**
+**Course Teacher → Section Coordinator → Final**
 
 #### C. Other Course-Level Changes
 
@@ -100,11 +100,11 @@ Changes to:
 
 must follow a two-stage approval process:
 
-**Course Teacher → Course Administrator → Program Coordinator → Final**
+**Course Teacher → Section Coordinator → Program Coordinator → Final**
 
-The Course Administrator first reviews and approves the proposed change.
+The Section Coordinator first reviews and approves the proposed change.
 
-After the Course Administrator accepts it, the request moves to the **Program Coordinator** for final approval.
+After the Section Coordinator accepts it, the request moves to the **Program Coordinator** for final approval.
 
 Only after the Program Coordinator approves the request should the proposed change become the final/current course configuration.
 
@@ -114,13 +114,13 @@ An **Edit** option must be available to the approver during every approval stage
 
 For example:
 
-**Course Teacher submits → Course Administrator reviews → Edit/Accept/Reject**
+**Course Teacher submits → Section Coordinator reviews → Edit/Accept/Reject**
 
 If accepted:
 
-**Course Administrator approves → Program Coordinator reviews → Edit/Accept/Reject**
+**Section Coordinator approves → Program Coordinator reviews → Edit/Accept/Reject**
 
-If the Course Administrator or Program Coordinator edits the proposed change, the system should maintain a clear audit trail showing:
+If the Section Coordinator or Program Coordinator edits the proposed change, the system should maintain a clear audit trail showing:
 
 * Original value
 * Proposed value
@@ -136,7 +136,7 @@ The system should never silently overwrite previous values.
 Each pending change should have a clear status, such as:
 
 * Draft
-* Pending Course Administrator
+* Pending Section Coordinator
 * Pending Program Coordinator
 * Approved
 * Rejected
@@ -243,8 +243,8 @@ Do not rely solely on hiding buttons.
 The system must verify that:
 
 * Course Teachers can only edit sections enabled for their Course Type.
-* Course Administrators can review and approve teacher submissions.
-* Course Administrators can directly finalize Course Overview and Student Enrollment changes.
+* Section Coordinators can review and approve teacher submissions.
+* Section Coordinators can directly finalize Course Overview and Student Enrollment changes.
 * Program Coordinators can provide final approval for changes requiring program-level approval.
 * Users cannot bypass the approval workflow through direct API/database operations.
 
@@ -263,10 +263,10 @@ Before implementing this functionality:
 
 After implementation, verify the complete workflow using realistic scenarios, including:
 
-* Teacher edits Course Overview → Course Administrator approves → finalized.
-* Teacher edits Student Enrollment → Course Administrator approves → finalized.
-* Teacher edits Course Settings → Course Administrator approves → Program Coordinator approves → finalized.
-* Course Administrator edits a pending request before approval.
+* Teacher edits Course Overview → Section Coordinator approves → finalized.
+* Teacher edits Student Enrollment → Section Coordinator approves → finalized.
+* Teacher edits Course Settings → Section Coordinator approves → Program Coordinator approves → finalized.
+* Section Coordinator edits a pending request before approval.
 * Program Coordinator edits a pending request before final approval.
 * Teacher attempts to edit a disabled section.
 * Previous-semester courses are hidden from default current-semester lists.

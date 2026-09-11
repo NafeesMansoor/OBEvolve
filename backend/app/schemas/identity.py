@@ -49,16 +49,35 @@ class RoleRead(BaseModel):
     description: str | None
     is_system_role: bool
     is_active: bool
+    permission_codes: list[str]
+
+
+class RoleCreate(BaseModel):
+    """Institution-level custom role ("user type") — always created with
+    `is_system_role=False`. `permission_codes` must be a subset of the fixed
+    catalogue (`app.core.permissions.PERMISSION_CODES`); an institution
+    can't invent new permission codes, only compose existing ones into a
+    new named role."""
+
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = None
+    permission_codes: list[str] = Field(default_factory=list)
 
 
 class RoleUpdate(BaseModel):
-    """Only `is_active` is editable for a system-seeded role — name/
-    description/permissions for the built-in roles are defined in
-    app/seed/default_roles.py, not per-tenant. This exists so a disabled
-    role (see that module's docstring) can be re-enabled from the UI."""
+    """`is_active`/`description` are editable for every role — this is how a
+    disabled system-seeded role gets re-enabled from the UI. `name` and
+    `permission_codes` are additionally editable, but ONLY for a custom
+    (`is_system_role=False`) role: a system role's name/permissions are
+    defined in app/seed/default_roles.py (or, once seeded from it, the
+    platform-level role-template catalogue), not per-tenant — the endpoint
+    rejects attempts to set either field on a system role rather than
+    silently ignoring them."""
 
-    is_active: bool | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = None
+    is_active: bool | None = None
+    permission_codes: list[str] | None = None
 
 
 class UserRoleCreate(BaseModel):

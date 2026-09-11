@@ -24,6 +24,7 @@ from app.api.v1.endpoints import (
     platform_raw_data,
     program_roles,
     raw_data,
+    role_templates,
     search,
     term_commit,
     users,
@@ -34,6 +35,9 @@ api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(platform_auth.router, prefix="/platform-auth", tags=["platform-auth"])
 api_router.include_router(institutions.router, prefix="/institutions", tags=["institutions"])
+api_router.include_router(
+    role_templates.router, prefix="/role-templates", tags=["role-templates"]
+)
 api_router.include_router(org.router, prefix="/org", tags=["organization"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(curriculum.router, prefix="/curriculum", tags=["curriculum"])

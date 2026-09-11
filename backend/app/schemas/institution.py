@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -70,3 +71,48 @@ class InstitutionCreateResult(BaseModel):
 
     institution: InstitutionRead
     admin_temporary_password: str | None = None
+
+
+class InstitutionStatusUpdate(BaseModel):
+    """Platform-admin-only lifecycle control. `TenancyMiddleware` already
+    blocks every tenant request for any status other than "active"/"trial"
+    (`app/middleware/tenancy.py`) — this schema doesn't add new enforcement,
+    just a surface to flip the switch on an existing institution."""
+
+    status: Literal["trial", "active", "suspended", "archived"]
+
+
+class InstitutionAdminCreate(BaseModel):
+    """Create an Institution Administrator for an EXISTING institution —
+    the same "all-or-nothing" account this institution would have gotten at
+    provisioning time via `InstitutionCreate.admin_full_name`/`admin_email`,
+    for institutions that didn't get one then (or need a second one)."""
+
+    full_name: str = Field(min_length=1, max_length=255)
+    email: EmailStr
+
+
+class InstitutionAdminRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str
+    full_name: str
+    is_active: bool
+    must_change_password: bool
+    created_at: datetime
+
+
+class InstitutionAdminCreateResult(BaseModel):
+    """One-time-reveal shape, same as `InstitutionCreateResult` /
+    `program_roles.FacultyCreateResult` — the temporary password is never
+    retrievable again after this response."""
+
+    admin: InstitutionAdminRead
+    temporary_password: str
+
+
+class InstitutionAdminResetPasswordResult(BaseModel):
+    """One-time-reveal shape for `POST .../admins/{user_id}/reset-password`."""
+
+    temporary_password: str

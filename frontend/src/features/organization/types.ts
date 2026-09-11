@@ -109,6 +109,31 @@ export interface Role {
   name: string
   description: string | null
   is_system_role: boolean
+  is_active: boolean
+  permission_codes: string[]
+}
+
+/** A permission catalogue entry — fixed, never created ad hoc (see
+ * backend `Permission` model docstring). Grouped by `module` in the
+ * role-creation/edit UI. */
+export interface Permission {
+  id: string
+  code: string
+  description: string
+  module: string
+}
+
+export interface RoleCreateInput {
+  name: string
+  description?: string | null
+  permission_codes: string[]
+}
+
+export interface RoleUpdateInput {
+  name?: string
+  description?: string | null
+  is_active?: boolean
+  permission_codes?: string[]
 }
 
 export interface UserRoleGrant {

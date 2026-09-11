@@ -11,15 +11,19 @@ phases ship, since the permission catalogue itself is already fixed
 Eight roles are seeded `is_active=False` — disabled for ease of use per an
 explicit request, not removed (existing grants, if any, keep working; they
 just don't show up in the assignable-roles list). Institution admins can
-re-enable any of them the same way they'd enable a custom role. Super
-Administrator is one of the eight: the role hierarchy now starts at
-Institution Administrator (created by the platform SuperAdmin at
-provisioning time), so no *new* Super Administrator grants should be made —
-existing holders are unaffected.
+re-enable any of them the same way they'd enable a custom role. Legacy
+Tenant Administrator is one of the eight: the role hierarchy now starts at
+Institution Administrator (created by the platform Super Administrator at
+provisioning time), so no *new* Legacy Tenant Administrator grants should be
+made — existing holders are unaffected. Renamed from "Super Administrator"
+(migration 0027) once the platform-level `public.platform_admins` role
+started using that name too — the two are unrelated accounts in unrelated
+schemas, but the shared name was confusing in practice.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -28,7 +32,7 @@ from sqlalchemy.orm import Session
 from app.core.permissions import PERMISSION_CODES
 from app.models.tenant.identity import Permission, Role, RolePermission
 
-_ALL = "ALL"
+_ALL: Literal["ALL"] = "ALL"
 
 
 @dataclass(frozen=True)
@@ -41,23 +45,25 @@ class RoleDef:
 
 DEFAULT_ROLES: list[RoleDef] = [
     RoleDef(
-        "Super Administrator",
+        "Legacy Tenant Administrator",
         "Full control within the institution's tenant (distinct from the "
-        "cross-institution platform_admins in the public schema). Includes "
-        "raw_data.manage_all via the ALL sentinel: the raw-data console can "
-        "reach every institution's every table. Disabled for new assignment — "
-        "the role hierarchy now starts at Institution Administrator, itself "
-        "created by the single global platform SuperAdmin at institution "
-        "provisioning time; existing holders keep their grant unchanged.",
+        "cross-institution Super Administrator, public.platform_admins in "
+        "the public schema). Includes raw_data.manage_all via the ALL "
+        "sentinel: the raw-data console can reach every institution's every "
+        "table. Disabled for new assignment — the role hierarchy now starts "
+        "at Institution Administrator, itself created by the single global "
+        "platform Super Administrator at institution provisioning time; "
+        "existing holders keep their grant unchanged.",
         _ALL,
         is_active=False,
     ),
     RoleDef(
         "Institution Administrator",
         "Manages organizational structure, programs, curriculum, course "
-        "delivery, and users for the institution — the day-to-day "
-        "administrator a Super Administrator delegates setup to. Raw-data "
-        "console access is scoped to this institution only.",
+        "delivery, and users for the institution — created by the platform "
+        "Super Administrator at provisioning time, and the top of the "
+        "tenant's own role hierarchy. Raw-data console access is scoped to "
+        "this institution only.",
         (
             "institution.view",
             "org.manage",
@@ -208,33 +214,6 @@ DEFAULT_ROLES: list[RoleDef] = [
         ),
     ),
     RoleDef(
-        "Course Administrator",
-        "Full administrative control over one course's data (typically "
-        "scoped to one course via UserRole.scope_type='course') — the "
-        "raw-data-console peer of Program Administrator, but scoped to a "
-        "single course.",
-        (
-            "curriculum.view",
-            "outcome.create",
-            "outcome.approve",
-            "mapping.create",
-            "section.manage",
-            "section.view",
-            "student.view",
-            "grading.view",
-            "assessment.create",
-            "assessment.approve",
-            "assessment.view",
-            "marks.enter",
-            "raw_data.manage_scoped",
-            "course_file.configure",
-            "course_file.review",
-            "course_file.view",
-            "course_change_request.review",
-            "course_change_request.review_admin",
-        ),
-    ),
-    RoleDef(
         "Faculty",
         "Delivers courses: creates assessments and enters marks for sections they teach.",
         (
@@ -254,12 +233,23 @@ DEFAULT_ROLES: list[RoleDef] = [
     ),
     RoleDef(
         "Section Coordinator",
-        "Owns one course's assessment plan and approves marks entry for its sections. "
-        "Requires the holder to already have a FacultyAssignment on at least one "
-        "section of that course (enforced in app.api.v1.endpoints.program_roles).",
+        "Full administrative control over one course's data (typically scoped to "
+        "one course via UserRole.scope_type='course') — the raw-data-console peer "
+        "of Program Administrator, but scoped to a single course. Also owns that "
+        "course's assessment plan and approves marks entry for its sections. "
+        "Formerly two separate roles ('Course Administrator' and 'Section "
+        "Coordinator'); merged because their responsibilities overlapped in "
+        "practice. Unlike the original Section Coordinator, granting this role no "
+        "longer requires the holder to already have a FacultyAssignment on a "
+        "section of that course — it carries section.manage, the same "
+        "program/institution-wide section authority Course Administrator held "
+        "(see app.services.faculty_scope.is_section_authority).",
         (
             "curriculum.view",
+            "outcome.create",
+            "outcome.approve",
             "mapping.create",
+            "section.manage",
             "section.view",
             "student.view",
             "student.manage",
@@ -268,6 +258,8 @@ DEFAULT_ROLES: list[RoleDef] = [
             "assessment.approve",
             "assessment.view",
             "marks.enter",
+            "raw_data.manage_scoped",
+            "course_file.configure",
             "course_file.upload",
             "course_file.review",
             "course_file.view",
@@ -330,25 +322,31 @@ DEFAULT_ROLES: list[RoleDef] = [
 
 
 def seed_default_roles(
-    db: Session, permission_map: dict[str, Permission]
+    db: Session,
+    permission_map: dict[str, Permission],
+    role_defs: Sequence[RoleDef] | None = None,
 ) -> dict[str, Role]:
     """Create default roles + their role_permissions grants. Idempotent.
 
     Also re-syncs `is_active`/`description` on already-seeded roles against
-    the current `DEFAULT_ROLES` definition, so changing a role's default
-    active state here and re-running this against an existing tenant takes
-    effect (this is how the eight roles get retroactively disabled in
-    already-provisioned tenants, not just new ones).
+    the current role definitions, so changing a role's default active state
+    and re-running this against an existing tenant takes effect (this is
+    how the eight roles get retroactively disabled in already-provisioned
+    tenants, not just new ones).
 
     `permission_map` is the `code -> Permission` map returned by
     `seed_default_permissions` (called first so every code here resolves).
-    """
+    `role_defs` defaults to the hardcoded `DEFAULT_ROLES` constant, but
+    `provision_tenant` normally passes the live `public.role_templates`
+    catalogue instead (see `app.models.public.role_template.RoleTemplate`) —
+    this function itself doesn't care where the definitions came from."""
+    role_defs = role_defs if role_defs is not None else DEFAULT_ROLES
     existing_roles = {role.name: role for role in db.query(Role).all()}
     existing_grants: set[tuple] = {
         (rp.role_id, rp.permission_id) for rp in db.query(RolePermission).all()
     }
 
-    for role_def in DEFAULT_ROLES:
+    for role_def in role_defs:
         role = existing_roles.get(role_def.name)
         if role is None:
             role = Role(

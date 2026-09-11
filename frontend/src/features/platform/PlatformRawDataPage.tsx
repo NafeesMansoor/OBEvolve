@@ -1,5 +1,14 @@
 import * as React from 'react'
-import { Database, LayoutDashboard, LogOut, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import {
+  Database,
+  LayoutDashboard,
+  LogOut,
+  Pencil,
+  Plus,
+  Search,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -158,6 +167,12 @@ export function PlatformRawDataPage() {
             <Link to="/platform">
               <LayoutDashboard className="size-4" />
               Dashboard
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/platform/role-templates">
+              <ShieldCheck className="size-4" />
+              Role templates
             </Link>
           </Button>
           <span className="hidden text-sm text-muted-foreground sm:inline">{admin?.email}</span>

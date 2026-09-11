@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   BarChart3,
   BookOpen,
+  CalendarClock,
   ClipboardCheck,
   GraduationCap,
   LineChart,
@@ -14,6 +15,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/useAuth'
 import { MyAttainmentPanel } from '@/features/dashboard/MyAttainmentPanel'
 import { FacultyCoursesPanel } from '@/features/faculty-dashboard/FacultyCoursesPanel'
+import { useAcademicTermLookup } from '@/features/academic-ops/useLookups'
 import type { Student } from '@/features/academic-ops/types'
 import type { PendingAssessmentDocument } from '@/features/assessment/types'
 import type { Course } from '@/features/curriculum/types'
@@ -21,20 +23,24 @@ import type { Program } from '@/features/organization/types'
 import { useActiveProgram } from '@/lib/active-program-context'
 import { useEntityList } from '@/lib/crud-hooks'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 
-// Kept in lockstep with app/layout.tsx's navItems gating — a quick link a
-// user can't actually see in the sidebar is a broken link, not a shortcut.
+// Kept in lockstep with app/layout.tsx's navItems gating (labels and order
+// both — a quick link a user can't actually see in the sidebar is a broken
+// link, not a shortcut, and a mismatched label reads as a bug) and its
+// pipeline-stage order (curriculum → delivery → assessment → analytics →
+// admin).
 const QUICK_LINKS = [
+  { to: '/program-settings', label: 'Program & Curriculum', icon: Target, permission: 'program.view' },
   { to: '/course-settings', label: 'Course Level Settings', icon: BookOpen, permission: 'outcome.create' },
-  { to: '/program-settings', label: 'Program Level Setting', icon: Target, permission: 'program.view' },
-  { to: '/academic', label: 'Academic Operations', icon: ClipboardCheck, permission: 'section.manage' },
+  { to: '/academic', label: 'Trimester Management', icon: ClipboardCheck, permission: 'section.manage' },
   { to: '/grading', label: 'Grading', icon: BarChart3, permission: 'grading.manage' },
   { to: '/assessment', label: 'Assessment', icon: ClipboardCheck, permission: 'assessment.approve' },
   { to: '/analytics', label: 'Analytics', icon: LineChart, permission: 'assessment.view' },
-  { to: '/organization', label: 'Organization Admin', icon: ShieldCheck, permission: 'org.view' },
+  { to: '/organization', label: 'Institute Settings', icon: ShieldCheck, permission: 'org.view' },
 ]
 
 /**
@@ -76,6 +82,8 @@ export function DashboardPage() {
       {isStudent && <MyAttainmentPanel />}
 
       {teachesCourses && <FacultyCoursesPanel />}
+
+      {!isStudent && <CurrentTermCard />}
 
       {!isStudent && <PendingDocumentsCard />}
 
@@ -266,6 +274,74 @@ function OverviewStats() {
         })}
       </div>
     </div>
+  )
+}
+
+/** Surfaces the institution's current academic term (or the lack of one)
+ * right on the dashboard — trimester/semester definition is Institution
+ * Administrator's own job (docs/Master_Architecture_Part1.md §3), but the
+ * page that does it is the last tab of Trimester Management, several clicks
+ * away. Reuses the same academic-terms query every offerings/sections/
+ * assessment screen already shares (useAcademicTermLookup), so this adds no
+ * new network request beyond what most admin sessions already fetch. */
+function CurrentTermCard() {
+  const { hasPermission } = useAuth()
+  const canSeeCalendar = hasPermission('academic_calendar.view')
+  const { terms } = useAcademicTermLookup()
+
+  if (!canSeeCalendar) return null
+
+  const currentTerm = terms.find((t) => t.is_active)
+
+  if (!currentTerm) {
+    return (
+      <Link
+        to="/academic"
+        className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        <Card className="cursor-pointer border-warning/30 bg-warning/5 transition-colors hover:border-warning/50">
+          <CardContent className="flex items-center gap-3 py-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
+              <CalendarClock className="size-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">No active academic term</span>
+              <span className="text-xs text-muted-foreground">
+                Set up a trimester/semester before course offerings, sections, or enrollments can
+                reference one — see Trimester Management → Academic calendar.
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    )
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-3 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <CalendarClock className="size-4" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">
+              Current term: {currentTerm.name}
+              <span className="ml-1.5 font-normal text-muted-foreground">
+                ({currentTerm.term_type})
+              </span>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {new Date(currentTerm.start_date).toLocaleDateString()} –{' '}
+              {new Date(currentTerm.end_date).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/academic">Manage</Link>
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 

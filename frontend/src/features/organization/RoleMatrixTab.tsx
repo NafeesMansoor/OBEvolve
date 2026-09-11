@@ -1,10 +1,25 @@
 import * as React from 'react'
+import { Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { Course } from '@/features/curriculum/types'
-import type { AppUser, Program, Role, UserRoleGrant } from '@/features/organization/types'
+import type {
+  AppUser,
+  Permission,
+  Program,
+  Role,
+  RoleCreateInput,
+  RoleUpdateInput,
+  UserRoleGrant,
+} from '@/features/organization/types'
 import { ApiError, apiClient } from '@/lib/api-client'
-import { useEntityList } from '@/lib/crud-hooks'
+import { useEntityCreate, useEntityList, useEntityUpdate } from '@/lib/crud-hooks'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -16,6 +31,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Table,
@@ -32,7 +49,7 @@ import {
  * because the grant is meaningless without a scope. Everything else grants
  * institution-wide on check / revokes on uncheck. */
 const PROGRAM_SCOPED_ROLE_NAMES = new Set(['Program Administrator', 'Program Coordinator'])
-const COURSE_SCOPED_ROLE_NAMES = new Set(['Course Administrator', 'Section Coordinator'])
+const COURSE_SCOPED_ROLE_NAMES = new Set(['Section Coordinator'])
 
 function scopeKindFor(roleName: string): 'program' | 'course' | 'institution' {
   if (PROGRAM_SCOPED_ROLE_NAMES.has(roleName)) return 'program'
@@ -63,9 +80,12 @@ export function RoleMatrixTab() {
     role: Role
     kind: 'program' | 'course'
   } | null>(null)
+  const [creatingRole, setCreatingRole] = React.useState(false)
+  const [editingRole, setEditingRole] = React.useState<Role | null>(null)
 
   const { data: users, isLoading } = useEntityList<AppUser>(['users'], '/users')
   const { data: roles } = useEntityList<Role>(['roles'], '/users/roles/all')
+  const { data: permissions } = useEntityList<Permission>(['permissions'], '/users/permissions')
   const { data: grants, refetch: refetchGrants } = useEntityList<UserRoleGrant>(
     ['users', 'user-roles'],
     '/users/user-roles',
@@ -128,12 +148,18 @@ export function RoleMatrixTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Input
-        placeholder="Search users…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
+      <div className="flex items-center justify-between gap-3">
+        <Input
+          placeholder="Search users…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-sm"
+        />
+        <Button size="sm" onClick={() => setCreatingRole(true)}>
+          <Plus className="size-4" />
+          New role type
+        </Button>
+      </div>
 
       {isLoading || !roles ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -145,7 +171,24 @@ export function RoleMatrixTab() {
                 <TableHead className="sticky left-0 bg-background">User</TableHead>
                 {roles.map((r) => (
                   <TableHead key={r.id} className="whitespace-nowrap text-center">
-                    {r.name}
+                    <div className="flex items-center justify-center gap-1">
+                      {r.name}
+                      {!r.is_system_role && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label={`Edit ${r.name}`}
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => setEditingRole(r)}
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit this custom role</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   </TableHead>
                 ))}
               </TableRow>
@@ -241,7 +284,182 @@ export function RoleMatrixTab() {
           }}
         />
       )}
+
+      {creatingRole && (
+        <RoleFormDialog
+          permissions={permissions ?? []}
+          onClose={() => setCreatingRole(false)}
+        />
+      )}
+
+      {editingRole && (
+        <RoleFormDialog
+          role={editingRole}
+          permissions={permissions ?? []}
+          onClose={() => setEditingRole(null)}
+        />
+      )}
     </div>
+  )
+}
+
+/** Create (no `role` prop) or edit (custom roles only — callers never pass a
+ * system role here) a tenant-scoped "user type." Always institution-local:
+ * `POST /users/roles` creates a plain row in THIS tenant's own `roles`
+ * table, structurally invisible to every other institution and to the
+ * platform-level default-role catalogue (schema-per-institution) — an
+ * institution can compose its own role from the fixed permission
+ * catalogue, but never touch what the platform seeds by default. */
+function RoleFormDialog({
+  role,
+  permissions,
+  onClose,
+}: {
+  role?: Role
+  permissions: Permission[]
+  onClose: () => void
+}) {
+  const [name, setName] = React.useState(role?.name ?? '')
+  const [description, setDescription] = React.useState(role?.description ?? '')
+  const [selectedCodes, setSelectedCodes] = React.useState<Set<string>>(
+    new Set(role?.permission_codes ?? []),
+  )
+  const [submitting, setSubmitting] = React.useState(false)
+
+  const createRole = useEntityCreate<RoleCreateInput, Role>('/users/roles', [['roles']])
+  const updateRole = useEntityUpdate<RoleUpdateInput, Role>(
+    (id) => `/users/roles/${id}`,
+    [['roles']],
+  )
+
+  const modules = React.useMemo(() => {
+    const byModule = new Map<string, Permission[]>()
+    for (const p of permissions) {
+      const list = byModule.get(p.module) ?? []
+      list.push(p)
+      byModule.set(p.module, list)
+    }
+    return Array.from(byModule.entries()).sort(([a], [b]) => a.localeCompare(b))
+  }, [permissions])
+
+  function toggleCode(code: string) {
+    setSelectedCodes((prev) => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      return next
+    })
+  }
+
+  async function handleSubmit() {
+    if (!name.trim()) {
+      toast.error('Name is required.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      if (role) {
+        await updateRole.mutateAsync({
+          id: role.id,
+          body: {
+            name: name.trim(),
+            description: description.trim() || null,
+            permission_codes: Array.from(selectedCodes),
+          },
+        })
+        toast.success(`${name.trim()} updated.`)
+      } else {
+        await createRole.mutateAsync({
+          name: name.trim(),
+          description: description.trim() || null,
+          permission_codes: Array.from(selectedCodes),
+        })
+        toast.success(`${name.trim()} created.`)
+      }
+      onClose()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Unable to save role.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{role ? `Edit ${role.name}` : 'New role type'}</DialogTitle>
+          <DialogDescription>
+            {role
+              ? 'Custom roles can be renamed and re-permissioned freely — system roles cannot.'
+              : "A new user type scoped to this institution only — it won't appear for any other institution, and the platform's default role catalogue is unaffected."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="role-name">Name</Label>
+            <Input
+              id="role-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Lab Coordinator"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="role-description">Description</Label>
+            <Textarea
+              id="role-description"
+              value={description ?? ''}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What this role is for"
+              rows={2}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Permissions ({selectedCodes.size} selected)</Label>
+            <div className="max-h-72 overflow-y-auto rounded-md border">
+              <Accordion type="multiple" className="w-full">
+                {modules.map(([moduleName, modulePermissions]) => (
+                  <AccordionItem key={moduleName} value={moduleName}>
+                    <AccordionTrigger className="px-3 text-sm capitalize">
+                      {moduleName.replace(/_/g, ' ')}
+                    </AccordionTrigger>
+                    <AccordionContent className="flex flex-col gap-1 px-3">
+                      {modulePermissions.map((p) => (
+                        <label
+                          key={p.code}
+                          className="flex cursor-pointer items-start gap-2 rounded-md p-1.5 text-sm hover:bg-muted"
+                        >
+                          <Checkbox
+                            checked={selectedCodes.has(p.code)}
+                            onCheckedChange={() => toggleCode(p.code)}
+                            className="mt-0.5"
+                          />
+                          <span className="flex flex-col">
+                            <span className="font-mono text-xs">{p.code}</span>
+                            <span className="text-xs text-muted-foreground">{p.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={submitting}>
+            {submitting ? 'Saving…' : role ? 'Save changes' : 'Create role'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

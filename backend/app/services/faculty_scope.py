@@ -12,10 +12,10 @@ explicit query filter inside each endpoint:
 
 - A caller holding the broader authoring permission for a resource
   (`section.manage`, checked via `is_section_authority`) — Program
-  Coordinator, Program/Course Administrator — sees/acts on every section in
+  Coordinator, Section Coordinator — sees/acts on every section in
   the program, exactly as today.
 - A caller who only holds the narrower permission (`section.view`,
-  `assessment.create`, `marks.enter`, ...) — Faculty, Course Coordinator —
+  `assessment.create`, `marks.enter`, ...) — Faculty —
   is restricted to sections where they have a `FacultyAssignment` row.
 
 `ensure_section_access`'s `section.manage` bypass is correct for genuinely
@@ -64,10 +64,10 @@ def is_section_authority(
     db: Session, user_id: uuid.UUID, program_id: uuid.UUID | None = None
 ) -> bool:
     """True for a caller who administers sections institution/program-wide
-    (Program Coordinator, Program/Course Administrator) rather than only the
+    (Program Coordinator, Section Coordinator) rather than only the
     ones they're personally assigned to. `section.manage` is the one
     permission code every such role holds and no purely-teaching role
-    (Faculty, Course Coordinator) does — see `app.seed.default_roles`.
+    (Faculty) does — see `app.seed.default_roles`.
 
     Checks both an unscoped grant (a true institution-wide role) and one
     scoped to `program_id`: every real Coordinator/Administrator grant in

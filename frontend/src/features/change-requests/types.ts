@@ -62,7 +62,7 @@ export const TARGET_FIELD_LABELS: Record<ChangeRequestTargetField, string> = {
 
 export const STATUS_LABELS: Record<ChangeRequestStatus, string> = {
   draft: 'Draft',
-  pending_admin: 'Pending Course Administrator',
+  pending_admin: 'Pending Section Coordinator',
   pending_program_coordinator: 'Pending Program Coordinator',
   approved: 'Approved',
   rejected: 'Rejected',
@@ -70,7 +70,7 @@ export const STATUS_LABELS: Record<ChangeRequestStatus, string> = {
 }
 
 /** Fields `OverviewTab` lets a Course Teacher propose a change to —
- * single-stage approval (spec §5.A: Course Teacher -> Course Administrator
+ * single-stage approval (spec §5.A: Course Teacher -> Section Coordinator
  * -> final). Deliberately excludes everything `SETTINGS_TARGET_FIELDS`
  * covers, so a field is only ever proposable under one section_key/tier —
  * both tabs pick from disjoint field lists rather than letting a caller

@@ -7,7 +7,7 @@ directly.
 `section_key` (one of `app.models.tenant.course_type_config.SECTION_KEYS`)
 decides two things per docs/course_level_settings_and_approval_workflow.md
 §5: how many approval stages the request needs (`overview`/`students` are
-single-stage — a Course Administrator finalizes; `settings`/`assessments`
+single-stage — a Section Coordinator finalizes; `settings`/`assessments`
 are two-stage — a Program Coordinator must also sign off), and, on final
 approval, which `app.services.course_type_config.SECTION_APPLIERS` handler
 actually writes the change into the real target data (`apply_status`
@@ -81,7 +81,7 @@ class CourseChangeRequest(UUIDPKMixin, TimestampMixin, TenantBase):
     requested_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # Stage 1 (Course Administrator / Course Coordinator).
+    # Stage 1 (Section Coordinator).
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

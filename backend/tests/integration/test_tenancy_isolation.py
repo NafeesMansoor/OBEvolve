@@ -74,7 +74,7 @@ def test_each_tenant_gets_its_own_seeded_rbac_catalogue(public_db, db_engine) ->
     try:
         with session_scope(schema_translate_map={None: tenant_a.schema_name}) as db_a:
             role_names = {r.name for r in db_a.query(Role).all()}
-        assert "Super Administrator" in role_names
+        assert "Legacy Tenant Administrator" in role_names
         assert "Student" in role_names
     finally:
         _drop_tenant(db_engine, public_db, tenant_a)

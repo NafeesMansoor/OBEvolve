@@ -181,7 +181,7 @@ export function CourseSettingsTab({ course }: { course: MyCourseCard }) {
       {course.is_current_term && (
         <p className="text-xs text-muted-foreground">
           {settingsEnabled
-            ? 'Double-click a field or table cell below to propose a change — it goes to your Course Administrator, then your Program Coordinator, for approval.'
+            ? 'Double-click a field or table cell below to propose a change — it goes to your Section Coordinator, then your Program Coordinator, for approval.'
             : 'Course Settings changes are not enabled for this course type.'}
         </p>
       )}

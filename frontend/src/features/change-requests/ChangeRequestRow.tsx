@@ -64,7 +64,7 @@ function textToValue(original: Record<string, unknown> | null, text: string): Re
 
 /** The stage a given status is awaiting action at, and the permission code
  * that gates acting on it (docs/course_level_settings_and_approval_workflow.md
- * §5-§6) — Course Administrator/Course Coordinator act on pending_admin,
+ * §5-§6) — Section Coordinator acts on pending_admin,
  * Program Coordinator on pending_program_coordinator. */
 function requiredPermission(status: ChangeRequestStatus): string | null {
   if (status === 'pending_admin') return 'course_change_request.review_admin'

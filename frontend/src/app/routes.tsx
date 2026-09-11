@@ -24,6 +24,7 @@ import { ProgramAdministrationPage } from '@/features/organization/ProgramAdmini
 import { PlatformDashboardPage } from '@/features/platform/PlatformDashboardPage'
 import { PlatformLoginPage } from '@/features/platform/PlatformLoginPage'
 import { PlatformRawDataPage } from '@/features/platform/PlatformRawDataPage'
+import { PlatformRoleTemplatesPage } from '@/features/platform/PlatformRoleTemplatesPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { QuestionBankPage } from '@/features/question-bank/QuestionBankPage'
 import { PendingChangesPage } from '@/features/raw-data/PendingChangesPage'
@@ -52,6 +53,7 @@ export function AppRoutes() {
       <Route element={<PlatformProtectedRoute />}>
         <Route path="/platform" element={<PlatformDashboardPage />} />
         <Route path="/platform/raw-data" element={<PlatformRawDataPage />} />
+        <Route path="/platform/role-templates" element={<PlatformRoleTemplatesPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>

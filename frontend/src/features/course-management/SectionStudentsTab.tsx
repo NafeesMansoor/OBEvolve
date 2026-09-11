@@ -25,10 +25,10 @@ interface EnrolledRow {
 }
 
 /** Faculty Module spec §10-10.1 + Course-Level Settings spec §2/§4/§11: a
- * section authority (Program Coordinator, Program/Course Administrator —
+ * section authority (Program Coordinator, Section Coordinator —
  * `section.manage`) still adds/removes students directly, exactly as
  * before. A personally-assigned Course Teacher instead proposes the change
- * (single-stage — Course Administrator finalizes) once "Students" is
+ * (single-stage — Section Coordinator finalizes) once "Students" is
  * enabled for this course's type; the backend enforces this identically
  * via `ensure_direct_enrollment_write_allowed`, this is just the UI
  * consequence of that gate. */
@@ -191,7 +191,7 @@ export function SectionStudentsTab({ course }: { course: MyCourseCard }) {
                 </Button>
               }
               title="Propose removing this student?"
-              description={`Your Course Administrator will review removing ${r.student?.full_name ?? 'this student'}.`}
+              description={`Your Section Coordinator will review removing ${r.student?.full_name ?? 'this student'}.`}
               confirmLabel="Submit"
               onConfirm={() => proposeDrop(r.enrollment, r.student?.full_name ?? 'this student')}
             />
@@ -205,7 +205,7 @@ export function SectionStudentsTab({ course }: { course: MyCourseCard }) {
             <CardTitle className="text-base">Enrollment change requests</CardTitle>
             <CardDescription>
               {studentsEnabled
-                ? 'Submitted requests go to your Course Administrator for approval.'
+                ? 'Submitted requests go to your Section Coordinator for approval.'
                 : 'Enrollment changes are not enabled for this course type.'}
             </CardDescription>
           </CardHeader>

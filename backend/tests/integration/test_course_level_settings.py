@@ -365,7 +365,7 @@ def test_section_approval_tiers_match_spec() -> None:
 def test_default_role_grants_for_staged_review_permissions(
     provisioned_tenant: Institution,
 ) -> None:
-    """Course Administrator/Course Coordinator get stage-1 review;
+    """Section Coordinator gets stage-1 review;
     Program Coordinator gets stage-2 final review + course_type.manage —
     the RBAC split this whole workflow's authorization hinges on
     (app.core.permissions/app.seed.default_roles)."""
@@ -375,7 +375,7 @@ def test_default_role_grants_for_staged_review_permissions(
         coordinator_user = User(email="coord-cls109@example.org", password_hash="x", full_name="C")
         db.add_all([admin_user, coordinator_user])
         db.flush()
-        admin_role = db.query(Role).filter(Role.name == "Course Administrator").one()
+        admin_role = db.query(Role).filter(Role.name == "Section Coordinator").one()
         coordinator_role = db.query(Role).filter(Role.name == "Program Coordinator").one()
         db.add_all(
             [

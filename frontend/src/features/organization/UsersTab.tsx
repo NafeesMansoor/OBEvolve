@@ -19,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable, type DataTableColumn } from '@/components/data-table'
 import { EntityFormDialog, type EntityField } from '@/components/entity-form-dialog'
 import { RecordDetailSheet } from '@/components/record-detail-sheet'
@@ -46,6 +45,14 @@ const editFields: EntityField[] = [
   { name: 'is_active', label: 'Active', type: 'checkbox' },
 ]
 
+// Institute Settings feedback: an Institution Administrator managing users
+// from here should only see/manage Program Administrator and Program
+// Coordinator holders — every other role (Faculty, Section Coordinator,
+// students, ...) is either assigned elsewhere in the product or doesn't
+// belong to a console this broad. Same role-name set RoleMatrixTab already
+// treats as "program-scoped" (PROGRAM_SCOPED_ROLE_NAMES there).
+const MANAGED_ROLE_NAMES = new Set(['Program Administrator', 'Program Coordinator'])
+
 function RolesCell({ user, roles, grants }: { user: AppUser; roles: Role[]; grants: UserRoleGrant[] }) {
   const roleById = React.useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles])
   const userGrants = grants.filter((g) => g.user_id === user.id)
@@ -65,12 +72,17 @@ function RolesCell({ user, roles, grants }: { user: AppUser; roles: Role[]; gran
   )
 }
 
-/** Users + role assignment, including scoped grants (Program
- * Administrator/Coordinator, Section Coordinator) — previously these
- * could only be created institution-wide from this console, since the
- * assign form never offered a scope_type/scope_id at all even though the
- * backend has always accepted them (app/schemas/identity.py
- * UserRoleCreate). See RolesDialog's secondary tabs below. */
+/** Program Administrator/Coordinator user management — moved here (out of
+ * Institute Settings, into the "User" nav item, see layout.tsx) and scoped
+ * down from "every user in the institution" to just these two roles: an
+ * Institution Administrator's day-to-day user admin is assigning/managing
+ * program-level staff, not the whole faculty/student roster (those are
+ * managed from their own program/course-scoped surfaces). Role assignment
+ * here is correspondingly restricted to MANAGED_ROLE_NAMES — including
+ * scoped grants (a Program Administrator/Coordinator grant is always
+ * program-scoped in practice, see RoleMatrixTab's identical
+ * PROGRAM_SCOPED_ROLE_NAMES), assigned via RolesDialog's secondary tabs
+ * below. */
 export function UsersTab() {
   const { hasPermission, user: currentUser } = useAuth()
   const canManageUsers = hasPermission('user.manage')
@@ -81,8 +93,8 @@ export function UsersTab() {
   const [rolesUser, setRolesUser] = React.useState<AppUser | null>(null)
   const [viewUser, setViewUser] = React.useState<AppUser | null>(null)
 
-  const { data: users, isLoading, error } = useEntityList<AppUser>(['users'], '/users')
-  const { data: roles } = useEntityList<Role>(['roles'], '/users/roles/all', undefined, {
+  const { data: allUsers, isLoading, error } = useEntityList<AppUser>(['users'], '/users')
+  const { data: allRoles } = useEntityList<Role>(['roles'], '/users/roles/all', undefined, {
     enabled: hasPermission('role.view'),
   })
   const { data: grants, refetch: refetchGrants } = useEntityList<UserRoleGrant>(
@@ -90,6 +102,21 @@ export function UsersTab() {
     '/users/user-roles',
     undefined,
     { enabled: hasPermission('role.view') },
+  )
+
+  // Only the two managed roles are assignable from here, and only users
+  // who already hold one of them are listed.
+  const roles = React.useMemo(
+    () => (allRoles ?? []).filter((r) => MANAGED_ROLE_NAMES.has(r.name)),
+    [allRoles],
+  )
+  const managedRoleIds = React.useMemo(() => new Set(roles.map((r) => r.id)), [roles])
+  const users = React.useMemo(
+    () =>
+      (allUsers ?? []).filter((u) =>
+        (grants ?? []).some((g) => g.user_id === u.id && managedRoleIds.has(g.role_id)),
+      ),
+    [allUsers, grants, managedRoleIds],
   )
 
   const createUser = useEntityCreate<Record<string, unknown>, AppUser>('/users', [['users']])
@@ -202,14 +229,15 @@ export function UsersTab() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="Add user"
-        description="Creates a new account — e.g. a faculty member or another administrator. Assign a role from the Roles action afterwards."
+        description="Creates a new account. You'll assign it Program Administrator or Program Coordinator next — it won't appear in this list until then."
         fields={createFields}
         schema={createSchema}
         defaultValues={{ full_name: '', email: '', password: '' }}
         onSubmit={async (values) => {
           try {
-            await createUser.mutateAsync(values)
+            const created = await createUser.mutateAsync(values)
             toast.success('User created')
+            setRolesUser(created)
           } catch (err) {
             throw err instanceof ApiError ? err : new ApiError('Unable to create user.')
           }
@@ -328,25 +356,20 @@ function RolesDialog({
             </div>
           )}
 
-          <Tabs defaultValue="institution" className="border-t pt-3">
-            <TabsList>
-              <TabsTrigger value="institution">Institution-wide</TabsTrigger>
-              <TabsTrigger value="program">Program</TabsTrigger>
-              <TabsTrigger value="course">Course</TabsTrigger>
-            </TabsList>
-            {(['institution', 'program', 'course'] as ScopeCategory[]).map((category) => (
-              <TabsContent key={category} value={category}>
-                <AssignForm
-                  category={category}
-                  targetUser={targetUser}
-                  roles={roles}
-                  programs={programs ?? []}
-                  courses={courses ?? []}
-                  onAssigned={onChanged}
-                />
-              </TabsContent>
-            ))}
-          </Tabs>
+          {/* Both managed roles (Program Administrator, Program
+          Coordinator) are always program-scoped in practice — no
+          institution/course scope tabs needed here, unlike RoleMatrixTab's
+          general-purpose grant UI. */}
+          <div className="border-t pt-3">
+            <AssignForm
+              category="program"
+              targetUser={targetUser}
+              roles={roles}
+              programs={programs ?? []}
+              courses={courses ?? []}
+              onAssigned={onChanged}
+            />
+          </div>
         </div>
       </DialogContent>
     </Dialog>

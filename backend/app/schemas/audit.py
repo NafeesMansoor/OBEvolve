@@ -24,3 +24,14 @@ class AuditLogRead(BaseModel):
     entity_id: uuid.UUID | None
     previous_value_json: dict[str, Any] | None
     new_value_json: dict[str, Any] | None
+
+
+class AuditLogSettingsRead(BaseModel):
+    retention_days: int | None
+
+
+class AuditLogSettingsUpdate(BaseModel):
+    # `None` explicitly means "never archive" — distinct from "not sent" —
+    # so this isn't `exclude_unset`-based like the org.py PATCH endpoints;
+    # the field is always required in the payload.
+    retention_days: int | None

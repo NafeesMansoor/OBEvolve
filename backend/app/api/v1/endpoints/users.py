@@ -9,8 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.core.permissions import PERMISSION_CODES
 from app.core.security import hash_password
+from app.db.session import session_scope
 from app.db.tenancy import get_db
 from app.middleware.audit import get_request_context
+from app.models.public.role_template import RoleTemplate
 from app.models.tenant.identity import (
     FacultyProfile,
     Permission,
@@ -31,6 +33,7 @@ from app.schemas.identity import (
     UserRoleRead,
     UserUpdate,
 )
+from app.schemas.role_template import RoleTemplateRead
 from app.services.audit import write_audit_log
 from app.services.rbac import get_current_user, require_permission
 
@@ -140,6 +143,31 @@ def list_permissions(
     return db.query(Permission).order_by(Permission.module, Permission.code).all()
 
 
+@router.get("/role-templates", response_model=list[RoleTemplateRead])
+def list_role_templates(
+    _current_user: User = Depends(require_permission("role.manage")),
+) -> list[RoleTemplate]:
+    """Read-only view onto the platform's default role catalogue
+    (`public.role_templates`, seeded from `app.seed.default_roles` and
+    editable only by a platform Super Administrator — see
+    `app/api/v1/endpoints/role_templates.py`), so an Institution
+    Administrator can browse and re-adopt a default role type their tenant
+    doesn't currently have (see `POST /roles/from-template/{template_id}`)
+    without needing platform-admin access themselves.
+
+    MUST be registered before `GET /{user_id}` below — same single-path-
+    segment collision `GET /permissions` above already documents:
+    `/role-templates` would otherwise be swallowed by `/{user_id}` trying
+    (and failing) to parse "role-templates" as a UUID."""
+    with session_scope() as public_db:
+        return (
+            public_db.query(RoleTemplate)
+            .filter(RoleTemplate.is_active.is_(True))
+            .order_by(RoleTemplate.name)
+            .all()
+        )
+
+
 @router.get("/{user_id}", response_model=UserRead)
 def get_user(
     user_id: uuid.UUID,
@@ -246,6 +274,55 @@ def create_role(
         entity_type="Role",
         entity_id=role.id,
         new_value={"name": payload.name, "permission_codes": payload.permission_codes},
+        **get_request_context(request),
+    )
+    return role
+
+
+@router.post(
+    "/roles/from-template/{template_id}",
+    response_model=RoleRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def adopt_role_template(
+    template_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("role.manage")),
+) -> Role:
+    """Copy one platform default role template into this tenant as a real,
+    editable `Role` row — "fetch the default roles" (Institute Settings
+    feedback): re-adds a default role type this tenant doesn't currently
+    have (e.g. one disabled or renamed away earlier), same conflict check
+    `create_role` uses. `all_permissions` templates (the `ALL` sentinel,
+    `app.seed.default_roles`) resolve to every fixed permission code, same
+    as `seed_default_roles` does at provisioning time."""
+    with session_scope() as public_db:
+        template = public_db.get(RoleTemplate, template_id)
+        if template is None or not template.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Role template not found"
+            )
+        name, description = template.name, template.description
+        permission_codes = list(PERMISSION_CODES) if template.all_permissions else list(
+            template.permission_codes
+        )
+
+    if db.query(Role).filter(Role.name == name).one_or_none() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Role name already in use")
+
+    role = Role(name=name, description=description, is_system_role=False, is_active=True)
+    db.add(role)
+    db.flush()
+    _sync_role_permissions(db, role, permission_codes)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="role.created_from_template",
+        entity_type="Role",
+        entity_id=role.id,
+        new_value={"name": name, "permission_codes": permission_codes},
         **get_request_context(request),
     )
     return role

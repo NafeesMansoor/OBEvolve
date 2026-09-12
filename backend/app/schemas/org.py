@@ -18,6 +18,13 @@ class CampusCreate(BaseModel):
     address: str | None = None
 
 
+class CampusUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    code: str | None = Field(default=None, min_length=1, max_length=50)
+    address: str | None = None
+    is_active: bool | None = None
+
+
 class CampusRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -36,6 +43,13 @@ class SchoolCreate(BaseModel):
     campus_id: uuid.UUID
     name: str = Field(min_length=1, max_length=255)
     code: str = Field(min_length=1, max_length=50)
+
+
+class SchoolUpdate(BaseModel):
+    campus_id: uuid.UUID | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    code: str | None = Field(default=None, min_length=1, max_length=50)
+    is_active: bool | None = None
 
 
 class SchoolRead(BaseModel):
@@ -57,6 +71,13 @@ class DepartmentCreate(BaseModel):
     code: str = Field(min_length=1, max_length=50)
 
 
+class DepartmentUpdate(BaseModel):
+    school_id: uuid.UUID | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    code: str | None = Field(default=None, min_length=1, max_length=50)
+    is_active: bool | None = None
+
+
 class DepartmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -75,6 +96,23 @@ class ProgramCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     code: str = Field(min_length=1, max_length=50)
     degree_level: str | None = None
+    # Ordered session/term names for this program's academic year (e.g.
+    # ["Fall", "Spring", "Summer"] or ["Semester 1", "Semester 2"]) — how
+    # many sessions/year a program runs, decided at creation time.
+    session_names: list[str] = Field(default_factory=list)
+
+
+class ProgramUpdate(BaseModel):
+    # Deliberately no `code` here: it's baked into the program's own
+    # database schema name at creation time
+    # (tenancy.provision_program_schema) — changing it would require a real
+    # schema-rename operation, not a field edit. Recreate the program under
+    # a new code if the code itself was wrong.
+    department_id: uuid.UUID | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    degree_level: str | None = None
+    is_active: bool | None = None
+    session_names: list[str] | None = None
 
 
 class ProgramRead(BaseModel):
@@ -86,6 +124,7 @@ class ProgramRead(BaseModel):
     code: str
     degree_level: str | None
     is_active: bool
+    session_names: list[str]
     created_at: datetime
     updated_at: datetime
 

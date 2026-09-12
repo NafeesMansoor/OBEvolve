@@ -36,6 +36,7 @@ export interface Program {
   code: string
   degree_level: string | null
   is_active: boolean
+  session_names: string[]
   created_at: string
   updated_at: string
 }
@@ -134,6 +135,18 @@ export interface RoleUpdateInput {
   description?: string | null
   is_active?: boolean
   permission_codes?: string[]
+}
+
+/** A platform default-role catalogue entry (`public.role_templates`),
+ * read-only from a tenant's perspective — "fetch the default roles"
+ * (Institute Settings feedback). */
+export interface RoleTemplate {
+  id: string
+  name: string
+  description: string | null
+  permission_codes: string[]
+  all_permissions: boolean
+  is_active: boolean
 }
 
 export interface UserRoleGrant {

@@ -67,6 +67,14 @@ from app.models.tenant.mappings.scales import (
     ProgramOutcomePEOMapping,
 )
 from app.models.tenant.obe.improvement import ImprovementPlan
+from app.models.tenant.obe.mission_vision import (
+    InstitutionalMission,
+    InstitutionalVision,
+    InstitutionalVisionProgramVisionMapping,
+    PeoVisionMapping,
+    ProgramMission,
+    ProgramVision,
+)
 from app.models.tenant.obe.outcomes import (
     PEO,
     CourseOutcome,
@@ -75,9 +83,11 @@ from app.models.tenant.obe.outcomes import (
 from app.models.tenant.org import (
     AcademicTerm,
     AcademicYear,
+    Cohort,
     Program,
     ProgramVersion,
 )
+from app.models.tenant.raw_data import RawDataChangeRequest
 from app.seed.baete_v3 import seed_baete_v3_framework
 from app.services.tenancy import provision_program_schema
 
@@ -655,6 +665,121 @@ def populate(db, *, institution_id, program_id, department_id) -> None:
         expected_improvement="N/A — proposal rejected in favor of remedial office hours instead.",
         responsible_user_id=course_faculty["CS150"].id,
         reviewed_by=carol.id,
+    )
+
+    # --- Institutional & Program Mission/Vision (Master_Architecture_Part1.md
+    # §7-11) — nothing above touches this framework at all; every example
+    # numbering/mapping below mirrors that spec's own worked examples. ---
+    institution_admin_role = (
+        db.query(Role).filter(Role.name == "Institution Administrator").one_or_none()
+    )
+    institution_admin_id = None
+    if institution_admin_role is not None:
+        admin_grant = (
+            db.query(UserRole)
+            .filter(
+                UserRole.role_id == institution_admin_role.id,
+                UserRole.scope_type.is_(None),
+            )
+            .first()
+        )
+        if admin_grant is not None:
+            institution_admin_id = admin_grant.user_id
+
+    get_or_create(
+        db, InstitutionalMission,
+        {
+            "statement": (
+                "To cultivate globally competent engineers and technologists through "
+                "outcome-based education, research, and ethical practice."
+            ),
+        },
+        created_by=institution_admin_id,
+    )
+    inst_visions = {}
+    for label, seq, statement in [
+        ("V1", 1, "Be a nationally recognized center of excellence in engineering education."),
+        ("V2", 2, "Foster research and innovation that addresses real-world problems."),
+        ("V3", 3, "Produce graduates who lead with integrity and social responsibility."),
+        ("V4", 4, "Build lasting partnerships with industry and the global academic community."),
+    ]:
+        inst_visions[label] = get_or_create(
+            db, InstitutionalVision, {"label": label},
+            statement=statement, sequence=seq, created_by=institution_admin_id,
+        )
+
+    get_or_create(
+        db, ProgramMission, {"program_version_id": program_version.id},
+        statement=(
+            "To produce computer science and engineering graduates equipped with strong "
+            "theoretical foundations and practical skills for lifelong careers in technology."
+        ),
+    )
+    prog_visions = {}
+    for label, seq, statement in [
+        ("PV1", 1, "Graduates excel in software engineering and systems design roles."),
+        ("PV2", 2, "Graduates pursue advanced research in computing and allied fields."),
+        ("PV3", 3, "Graduates demonstrate ethical, professional, and entrepreneurial leadership."),
+        ("PV4", 4, "Graduates engage in continuous learning to adapt to emerging technologies."),
+    ]:
+        prog_visions[label] = get_or_create(
+            db, ProgramVision, {"program_version_id": program_version.id, "label": label},
+            statement=statement, sequence=seq,
+        )
+
+    # PV -> V mapping — the exact worked example from spec §9.
+    for pv_label, v_labels in [
+        ("PV1", ["V1", "V3"]), ("PV2", ["V2"]), ("PV3", ["V1", "V4"]), ("PV4", ["V2", "V3"]),
+    ]:
+        for v_label in v_labels:
+            get_or_create(
+                db, InstitutionalVisionProgramVisionMapping,
+                {
+                    "program_vision_id": prog_visions[pv_label].id,
+                    "institutional_vision_id": inst_visions[v_label].id,
+                },
+            )
+
+    # PEO -> Program Vision mapping — the exact worked example from spec §11
+    # (only 3 PEOs exist, matching PEO_STATEMENTS' length).
+    for peo, pv_labels in zip(
+        peos, [["PV1", "PV2"], ["PV2", "PV3"], ["PV1", "PV4"]], strict=False,
+    ):
+        for pv_label in pv_labels:
+            get_or_create(
+                db, PeoVisionMapping,
+                {"peo_id": peo.id, "program_vision_id": prog_visions[pv_label].id},
+            )
+
+    # --- Student cohorts (spec §5) — existing students already carry
+    # batch_year=2022, so tie them to a real "Cohort 2022" row instead of
+    # leaving the Cohorts tab empty; a second, newer cohort with no
+    # students yet shows the "just created" state too. ---
+    cohort_2022 = get_or_create(
+        db, Cohort, {"code": "Cohort 2022", "program_version_id": program_version.id},
+        intake_term_id=fall.id, intake_year=2022, status="active",
+    )
+    get_or_create(
+        db, Cohort, {"code": "Cohort 2026", "program_version_id": program_version.id},
+        intake_term_id=spring.id, intake_year=2026, status="active",
+    )
+    for student in students:
+        profile = db.get(StudentProfile, student.id)
+        if profile is not None and profile.cohort_id is None:
+            profile.cohort_id = cohort_2022.id
+
+    # --- A pending Raw Data Console proposal (raw_data.propose_scoped) —
+    # Carol (Program Coordinator) proposes bumping CS150's credit count; a
+    # Program Administrator reviewing raw data sees this in the "Pending
+    # changes" queue and can approve/reject it for real. ---
+    cs150_course = courses["CS150"]
+    get_or_create(
+        db, RawDataChangeRequest,
+        {"table_name": "courses", "row_pk": str(cs150_course.id), "status": "pending"},
+        requested_by=carol.id, operation="update",
+        payload_json={"credits": "4"},
+        previous_json={"credits": str(cs150_course.credits)},
+        scope_type="program", scope_id=program_id,
     )
 
     db.flush()

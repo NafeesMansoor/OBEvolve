@@ -11,8 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
  * of Program & Curriculum once that page's tab bar grew too cluttered: every
  * mapping matrix (PEO<->PO, CO<->PO, PO/PI<->Knowledge Profile/CEP/CEA) plus
  * the read-only accreditation framework catalog those mappings draw their
- * targets from. */
-export function OutcomeMappingPage() {
+ * targets from.
+ *
+ * `embedded`: see ProgramSettingsPage's docstring — true when nested under
+ * Institute Settings → Programs instead of its own top-level route. */
+export function OutcomeMappingPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasPermission } = useAuth()
   const canView = hasPermission('curriculum.view')
 
@@ -30,10 +33,12 @@ export function OutcomeMappingPage() {
 
   return (
     <RequirePermission anyOf={['curriculum.view']}>
-      <PageHeader
-        title="Outcome Mapping"
-        description="PEO-PO, CO-PO, and Knowledge Profile/CEP/CEA mapping matrices, and the accreditation framework catalog."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Outcome Mapping"
+          description="PEO-PO, CO-PO, and Knowledge Profile/CEP/CEA mapping matrices, and the accreditation framework catalog."
+        />
+      )}
       {tabs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No outcome mapping sections available.</p>
       ) : (

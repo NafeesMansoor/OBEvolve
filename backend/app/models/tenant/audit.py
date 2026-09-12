@@ -9,7 +9,7 @@ from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import TenantBase, UUIDPKMixin
+from app.db.base import TenantBase, TimestampMixin, UUIDPKMixin
 
 
 class AuditLog(UUIDPKMixin, TenantBase):
@@ -51,6 +51,20 @@ class AuditLog(UUIDPKMixin, TenantBase):
     program_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
+
+
+class AuditLogSettings(UUIDPKMixin, TimestampMixin, TenantBase):
+    """One row per tenant (created lazily on first `PATCH
+    /audit/settings`, see app/api/v1/endpoints/audit.py) holding the
+    archive-view retention window. `retention_days=None` means "never
+    archive" — nothing is physically moved (see migration 0030's
+    docstring), a log older than the window is just excluded from the
+    default list view and can be brought back with `include_archived=true`.
+    """
+
+    __tablename__ = "audit_log_settings"
+
+    retention_days: Mapped[int | None] = mapped_column(nullable=True)
 
 
 class Notification(UUIDPKMixin, TenantBase):

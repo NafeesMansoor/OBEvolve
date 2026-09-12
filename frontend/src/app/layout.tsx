@@ -18,6 +18,7 @@ import {
   Target,
   User as UserIcon,
   UserCog,
+  Users,
 } from 'lucide-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
@@ -59,6 +60,13 @@ interface NavItem {
   sectionKey: keyof typeof NAV_SECTION_ROLES
   /** Shown if the user holds ANY of these permissions. */
   anyOfPermissions: string[]
+  /** For Institution Administrator (detected via `institution.manage`,
+   * unique to that role among tenant roles — never by role name, per
+   * ARCHITECTURE.md §3) this item is dropped from the sidebar entirely:
+   * it's reachable instead as a nested tab under Institute Settings →
+   * Programs (see organization/ProgramsTab.tsx). Every other role keeps
+   * seeing it here as an ordinary top-level item. */
+  nestedForInstitutionAdmin?: boolean
 }
 
 // Ordered by where each section sits in OBEvolve's own stated pipeline
@@ -99,6 +107,7 @@ const navItems: NavItem[] = [
     icon: Target,
     sectionKey: 'programSettings',
     anyOfPermissions: ['program.view', 'curriculum.view', 'curriculum_feedback.create'],
+    nestedForInstitutionAdmin: true,
   },
   {
     label: 'Outcome Mapping',
@@ -106,6 +115,7 @@ const navItems: NavItem[] = [
     icon: Network,
     sectionKey: 'outcomeMapping',
     anyOfPermissions: ['curriculum.view'],
+    nestedForInstitutionAdmin: true,
   },
   {
     // curriculum.view is deliberately NOT the gate here — Faculty holds it
@@ -121,6 +131,7 @@ const navItems: NavItem[] = [
     icon: BookOpen,
     sectionKey: 'courseSettings',
     anyOfPermissions: ['outcome.create', 'outcome.approve'],
+    nestedForInstitutionAdmin: true,
   },
   {
     label: 'Program Administration',
@@ -148,6 +159,7 @@ const navItems: NavItem[] = [
     icon: GraduationCap,
     sectionKey: 'courses',
     anyOfPermissions: ['section.view'],
+    nestedForInstitutionAdmin: true,
   },
   {
     label: 'Question Bank',
@@ -196,7 +208,17 @@ const navItems: NavItem[] = [
     to: '/organization',
     icon: ShieldCheck,
     sectionKey: 'organization',
-    anyOfPermissions: ['org.view', 'program.view', 'user.view', 'institution.view', 'audit.view'],
+    anyOfPermissions: ['org.view', 'program.view', 'institution.view', 'audit.view'],
+  },
+  {
+    // Users & roles + Role matrix, moved out of Institute Settings into
+    // their own admin-tier item (Institute Settings feedback) — neither is
+    // really "institute configuration" so much as its own surface.
+    label: 'User',
+    to: '/users',
+    icon: Users,
+    sectionKey: 'userManagement',
+    anyOfPermissions: ['user.view', 'role.manage'],
   },
   {
     label: 'Raw Data Console',
@@ -305,10 +327,12 @@ export function AppLayout() {
     navigate('/login', { replace: true })
   }
 
+  const isInstitutionAdmin = hasPermission('institution.manage')
   const visibleItems = navItems.filter(
     (item) =>
-      item.anyOfPermissions.length === 0 ||
-      item.anyOfPermissions.some((p) => hasPermission(p)),
+      (item.anyOfPermissions.length === 0 ||
+        item.anyOfPermissions.some((p) => hasPermission(p))) &&
+      !(item.nestedForInstitutionAdmin && isInstitutionAdmin),
   )
   // Active-role filtering only de-emphasizes — every permitted item stays
   // visible, but items irrelevant to the selected role are dimmed rather

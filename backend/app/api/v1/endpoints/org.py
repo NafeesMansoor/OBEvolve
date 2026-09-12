@@ -41,25 +41,33 @@ from app.schemas.org import (
     AcademicYearRead,
     CampusCreate,
     CampusRead,
+    CampusUpdate,
     CohortChangeCurriculum,
     CohortCreate,
     CohortRead,
     CohortUpdate,
     DepartmentCreate,
     DepartmentRead,
+    DepartmentUpdate,
     ProgramCreate,
     ProgramRead,
+    ProgramUpdate,
     ProgramVersionCreate,
     ProgramVersionRead,
     SchoolCreate,
     SchoolRead,
+    SchoolUpdate,
     TermEffectiveCurriculumCreate,
     TermEffectiveCurriculumRead,
 )
 from app.services.academic_terms import validate_calendar_order
 from app.services.audit import write_audit_log
 from app.services.rbac import get_current_user, get_program_scoped_db, require_permission
-from app.services.tenancy import ProgramProvisioningError, provision_program_schema
+from app.services.tenancy import (
+    InvalidProgramCodeError,
+    ProgramProvisioningError,
+    provision_program_schema,
+)
 
 router = APIRouter()
 
@@ -166,6 +174,34 @@ def get_campus(
     return _get_or_404(db, Campus, campus_id, "Campus")
 
 
+@router.patch("/campuses/{campus_id}", response_model=CampusRead)
+def update_campus(
+    campus_id: uuid.UUID,
+    payload: CampusUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("org.manage")),
+) -> Campus:
+    campus = _get_or_404(db, Campus, campus_id, "Campus")
+    changes = payload.model_dump(exclude_unset=True)
+    previous_value = {field: getattr(campus, field) for field in changes}
+    for field, value in changes.items():
+        setattr(campus, field, value)
+    db.add(campus)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="campus.updated",
+        entity_type="Campus",
+        entity_id=campus.id,
+        previous_value={k: str(v) for k, v in previous_value.items()},
+        new_value=changes,
+        **get_request_context(request),
+    )
+    return campus
+
+
 # --- Schools ---
 @router.post("/schools", response_model=SchoolRead, status_code=status.HTTP_201_CREATED)
 def create_school(
@@ -205,6 +241,36 @@ def get_school(
     _current_user: User = Depends(get_current_user),
 ) -> School:
     return _get_or_404(db, School, school_id, "School")
+
+
+@router.patch("/schools/{school_id}", response_model=SchoolRead)
+def update_school(
+    school_id: uuid.UUID,
+    payload: SchoolUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("org.manage")),
+) -> School:
+    school = _get_or_404(db, School, school_id, "School")
+    changes = payload.model_dump(exclude_unset=True)
+    if "campus_id" in changes:
+        _get_or_404(db, Campus, changes["campus_id"], "Campus")
+    previous_value = {field: getattr(school, field) for field in changes}
+    for field, value in changes.items():
+        setattr(school, field, value)
+    db.add(school)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="school.updated",
+        entity_type="School",
+        entity_id=school.id,
+        previous_value={k: str(v) for k, v in previous_value.items()},
+        new_value=changes,
+        **get_request_context(request),
+    )
+    return school
 
 
 # --- Departments ---
@@ -248,6 +314,36 @@ def get_department(
     return _get_or_404(db, Department, department_id, "Department")
 
 
+@router.patch("/departments/{department_id}", response_model=DepartmentRead)
+def update_department(
+    department_id: uuid.UUID,
+    payload: DepartmentUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("org.manage")),
+) -> Department:
+    department = _get_or_404(db, Department, department_id, "Department")
+    changes = payload.model_dump(exclude_unset=True)
+    if "school_id" in changes:
+        _get_or_404(db, School, changes["school_id"], "School")
+    previous_value = {field: getattr(department, field) for field in changes}
+    for field, value in changes.items():
+        setattr(department, field, value)
+    db.add(department)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="department.updated",
+        entity_type="Department",
+        entity_id=department.id,
+        previous_value={k: str(v) for k, v in previous_value.items()},
+        new_value=changes,
+        **get_request_context(request),
+    )
+    return department
+
+
 # --- Programs ---
 @router.post("/programs", response_model=ProgramRead, status_code=status.HTTP_201_CREATED)
 def create_program(
@@ -260,30 +356,62 @@ def create_program(
     program = Program(**payload.model_dump())
     db.add(program)
     db.flush()
+    program_id, program_code = program.id, program.code
 
-    # Every program gets its own schema (docs/adr/0003-schema-per-program.md)
-    # — provisioned right after the Program row exists, same
-    # schema-then-migrate sequencing as provision_tenant(). A failure here
-    # propagates and rolls back this request's whole session (get_db's
-    # except-block), undoing the Program row insert above; a failure that
-    # somehow happens *after* this call but before the request commits would
-    # leave an orphaned empty schema with no matching Program row — narrow
-    # enough (just the audit-log write below) to accept rather than add
-    # transactional machinery for.
+    # Commit the Program row *now*, before provisioning its schema — not
+    # after, as this used to. The new program schema's `program_versions`
+    # table carries a real FK back to this very row (ProgramVersion.program_id),
+    # so creating it needs a lock on `programs` that this request's own
+    # still-open INSERT already holds. Provisioning used to run inside that
+    # same open transaction: Postgres can't detect that as a deadlock (this
+    # session isn't waiting on any lock, just synchronously blocked in
+    # Python on the migration finishing) and the request would hang
+    # indefinitely instead of failing fast — the real mechanism behind
+    # "tried to add new program but failed to add any," reproduced and
+    # confirmed live (a stuck `idle in transaction` session holding the
+    # lock, migration waiting on it, both stuck for 100+ minutes) while
+    # fixing this. Committing first releases the lock before provisioning
+    # begins; a provisioning failure now needs its own explicit rollback
+    # (the row is no longer undone for free by get_db's except-block, since
+    # it's already durable) instead of relying on the whole-session rollback
+    # that used to make this "atomic."
+    db.commit()
+
     try:
-        provision_program_schema(request.state.schema_name, program.code)
+        provision_program_schema(request.state.schema_name, program_code)
+    except InvalidProgramCodeError as exc:
+        # A Core-style bulk delete, not `db.delete(<ORM object>)`: the ORM
+        # form would load `Program.versions` to evaluate cascade rules, and
+        # that relationship lives in the "program" schema_translate_map key
+        # — never bound on this plain `get_db` session (only
+        # `get_program_scoped_db` binds it), so it'd fail trying to resolve
+        # a schema literally named "program". The program's own schema was
+        # never created in this branch anyway (code validation failed
+        # before that step), so there's nothing there to clean up.
+        db.query(Program).filter(Program.id == program_id).delete()
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"{exc} The program code is used to derive a database schema name, so it "
+                "can only contain lowercase letters, digits, and hyphens."
+            ),
+        ) from exc
     except ProgramProvisioningError as exc:
+        db.query(Program).filter(Program.id == program_id).delete()
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Program created but its schema could not be provisioned: {exc}",
+            detail=f"Program creation failed and was rolled back: {exc}",
         ) from exc
 
+    program = db.get(Program, program_id)
     write_audit_log(
         db,
         user_id=current_user.id,
         action="program.created",
         entity_type="Program",
-        entity_id=program.id,
+        entity_id=program_id,
         new_value=payload.model_dump(mode="json"),
         **get_request_context(request),
     )
@@ -317,6 +445,36 @@ def get_program(
     _current_user: User = Depends(require_permission("program.view")),
 ) -> Program:
     return _get_or_404(db, Program, program_id, "Program")
+
+
+@router.patch("/programs/{program_id}", response_model=ProgramRead)
+def update_program(
+    program_id: uuid.UUID,
+    payload: ProgramUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("program.manage")),
+) -> Program:
+    program = _get_or_404(db, Program, program_id, "Program")
+    changes = payload.model_dump(exclude_unset=True)
+    if "department_id" in changes:
+        _get_or_404(db, Department, changes["department_id"], "Department")
+    previous_value = {field: getattr(program, field) for field in changes}
+    for field, value in changes.items():
+        setattr(program, field, value)
+    db.add(program)
+    db.flush()
+    write_audit_log(
+        db,
+        user_id=current_user.id,
+        action="program.updated",
+        entity_type="Program",
+        entity_id=program.id,
+        previous_value={k: str(v) for k, v in previous_value.items()},
+        new_value=changes,
+        **get_request_context(request),
+    )
+    return program
 
 
 # --- Program versions ---

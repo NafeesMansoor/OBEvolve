@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useEntityCreate, useEntityList } from '@/lib/crud-hooks'
+import { Switch } from '@/components/ui/switch'
+import { useEntityCreate, useEntityList, useEntityUpdate } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
 
 const ALL_CAMPUSES = '__all__'
@@ -33,6 +34,7 @@ export function SchoolsTab() {
   const canManage = hasPermission('org.manage')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [campusFilter, setCampusFilter] = React.useState(ALL_CAMPUSES)
+  const [editSchool, setEditSchool] = React.useState<School | null>(null)
   const [viewSchool, setViewSchool] = React.useState<School | null>(null)
 
   const { data: campuses } = useEntityList<Campus>(['org', 'campuses'], '/org/campuses')
@@ -44,6 +46,18 @@ export function SchoolsTab() {
   const create = useEntityCreate<Record<string, unknown>, School>('/org/schools', [
     ['org', 'schools'],
   ])
+  const update = useEntityUpdate<Record<string, unknown>, School>((id) => `/org/schools/${id}`, [
+    ['org', 'schools'],
+  ])
+
+  const toggleActive = async (school: School) => {
+    try {
+      await update.mutateAsync({ id: school.id, body: { is_active: !school.is_active } })
+      toast.success(school.is_active ? 'School deactivated' : 'School activated')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Unable to update school status.')
+    }
+  }
 
   const campusById = React.useMemo(
     () => new Map((campuses ?? []).map((c) => [c.id, c])),
@@ -68,11 +82,19 @@ export function SchoolsTab() {
     {
       key: 'is_active',
       header: 'Status',
-      render: (r) => (
-        <Badge variant={r.is_active ? 'secondary' : 'outline'} className="font-normal">
-          {r.is_active ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
+      render: (r) =>
+        canManage ? (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <Switch checked={r.is_active} onCheckedChange={() => toggleActive(r)} />
+            <span className="text-xs text-muted-foreground">
+              {r.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        ) : (
+          <Badge variant={r.is_active ? 'secondary' : 'outline'} className="font-normal">
+            {r.is_active ? 'Active' : 'Inactive'}
+          </Badge>
+        ),
     },
   ]
 
@@ -111,6 +133,20 @@ export function SchoolsTab() {
         searchPlaceholder="Search schools…"
         emptyMessage="No schools yet."
         onRowClick={(r) => setViewSchool(r)}
+        actions={
+          canManage
+            ? (r) => (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Edit ${r.name}`}
+                  onClick={() => setEditSchool(r)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              )
+            : undefined
+        }
       />
 
       {viewSchool && (
@@ -148,6 +184,30 @@ export function SchoolsTab() {
           }
         }}
       />
+
+      {editSchool && (
+        <EntityFormDialog
+          open={Boolean(editSchool)}
+          onOpenChange={(open) => !open && setEditSchool(null)}
+          title={`Edit ${editSchool.name}`}
+          fields={fields}
+          schema={schema}
+          defaultValues={{
+            campus_id: editSchool.campus_id,
+            name: editSchool.name,
+            code: editSchool.code,
+          }}
+          onSubmit={async (values) => {
+            try {
+              await update.mutateAsync({ id: editSchool.id, body: values })
+              toast.success('School updated')
+              setEditSchool(null)
+            } catch (err) {
+              throw err instanceof ApiError ? err : new ApiError('Unable to update school.')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

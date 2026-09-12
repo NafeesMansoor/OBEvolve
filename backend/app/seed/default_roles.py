@@ -66,6 +66,7 @@ DEFAULT_ROLES: list[RoleDef] = [
         "this institution only.",
         (
             "institution.view",
+            "institution.manage",
             "org.manage",
             "org.view",
             "program.manage",
@@ -78,6 +79,7 @@ DEFAULT_ROLES: list[RoleDef] = [
             "role.manage",
             "role.view",
             "audit.view",
+            "audit.manage",
             "curriculum.view",
             "outcome.create",
             "outcome.approve",

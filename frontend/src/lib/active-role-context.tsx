@@ -36,6 +36,7 @@ export const NAV_SECTION_ROLES: Record<string, string[]> = {
   assessment: ['Faculty', 'Section Coordinator', 'Examination Administrator', 'Institution Administrator', 'Legacy Tenant Administrator'],
   analytics: ['Faculty', 'Section Coordinator', 'Program Coordinator', 'Institution Administrator', 'Legacy Tenant Administrator'],
   organization: ['Institution Administrator', 'Legacy Tenant Administrator'],
+  userManagement: ['Institution Administrator', 'Legacy Tenant Administrator'],
   rawData: [
     'Institution Administrator',
     'Legacy Tenant Administrator',

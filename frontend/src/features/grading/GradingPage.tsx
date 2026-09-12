@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { AlertCircle, Inbox, Plus, Trash2 } from 'lucide-react'
+import { AlertCircle, Inbox, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -7,7 +7,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import type { GradingBand, GradingPolicy } from '@/features/grading/types'
 import { useProgramVersionOptions } from '@/features/curriculum/useProgramVersionOptions'
 import { ApiError } from '@/lib/api-client'
-import { useEntityCreate, useEntityDelete, useEntityList } from '@/lib/crud-hooks'
+import { useEntityCreate, useEntityDelete, useEntityList, useEntityUpdate } from '@/lib/crud-hooks'
 import {
   Accordion,
   AccordionContent,
@@ -163,6 +163,7 @@ function PolicyItem({
   canManage: boolean
 }) {
   const [createBandOpen, setCreateBandOpen] = React.useState(false)
+  const [editBand, setEditBand] = React.useState<GradingBand | null>(null)
   const { data: bands, isLoading } = useEntityList<GradingBand>(
     ['grading', 'bands', policy.id],
     '/grading/bands',
@@ -170,6 +171,10 @@ function PolicyItem({
   )
   const createBand = useEntityCreate<Record<string, unknown>, GradingBand>(
     '/grading/bands',
+    [['grading', 'bands', policy.id]],
+  )
+  const updateBand = useEntityUpdate<Record<string, unknown>, GradingBand>(
+    (id) => `/grading/bands/${id}`,
     [['grading', 'bands', policy.id]],
   )
   const removeBand = useEntityDelete(
@@ -250,31 +255,42 @@ function PolicyItem({
                       <TableCell>{b.grade_point ?? '—'}</TableCell>
                       {canManage && (
                         <TableCell>
-                          <ConfirmAction
-                            trigger={
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label={`Delete band ${b.letter_grade}`}
-                                className="text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            }
-                            title={`Delete band ${b.letter_grade}?`}
-                            onConfirm={async () => {
-                              try {
-                                await removeBand.mutateAsync(b.id)
-                                toast.success('Band deleted')
-                              } catch (err) {
-                                toast.error(
-                                  err instanceof ApiError
-                                    ? err.detail
-                                    : 'Unable to delete band.',
-                                )
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`Edit band ${b.letter_grade}`}
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => setEditBand(b)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <ConfirmAction
+                              trigger={
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  aria-label={`Delete band ${b.letter_grade}`}
+                                  className="text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
                               }
-                            }}
-                          />
+                              title={`Delete band ${b.letter_grade}?`}
+                              onConfirm={async () => {
+                                try {
+                                  await removeBand.mutateAsync(b.id)
+                                  toast.success('Band deleted')
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof ApiError
+                                      ? err.detail
+                                      : 'Unable to delete band.',
+                                  )
+                                }
+                              }}
+                            />
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -314,6 +330,42 @@ function PolicyItem({
             }
           }}
         />
+
+        {editBand && (
+          <EntityFormDialog
+            open={Boolean(editBand)}
+            onOpenChange={(open) => !open && setEditBand(null)}
+            title={`Edit band ${editBand.letter_grade}`}
+            fields={bandFields}
+            schema={bandSchema}
+            defaultValues={{
+              letter_grade: editBand.letter_grade,
+              min_percentage: editBand.min_percentage,
+              max_percentage: editBand.max_percentage,
+              grade_point: editBand.grade_point ?? '',
+              sequence: editBand.sequence,
+            }}
+            onSubmit={async (values) => {
+              try {
+                await updateBand.mutateAsync({
+                  id: editBand.id,
+                  body: {
+                    grading_policy_id: policy.id,
+                    letter_grade: values.letter_grade,
+                    min_percentage: values.min_percentage,
+                    max_percentage: values.max_percentage,
+                    grade_point: values.grade_point === '' ? null : values.grade_point,
+                    sequence: values.sequence,
+                  },
+                })
+                toast.success('Band updated')
+                setEditBand(null)
+              } catch (err) {
+                throw err instanceof ApiError ? err : new ApiError('Unable to update band.')
+              }
+            }}
+          />
+        )}
       </AccordionContent>
     </AccordionItem>
   )

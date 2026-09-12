@@ -1,7 +1,9 @@
 import * as React from 'react'
-import { Eye } from 'lucide-react'
+import { Archive, Eye } from 'lucide-react'
+import { toast } from 'sonner'
 
-import { useAuditLog } from '@/features/audit/api'
+import { useAuth } from '@/features/auth/useAuth'
+import { useAuditLog, useAuditLogSettings, useUpdateAuditLogSettings } from '@/features/audit/api'
 import type { AuditLogEntry, AuditLogFilters } from '@/features/audit/types'
 import { ApiError } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 
 function Json({ value }: { value: unknown }) {
   if (value === null || value === undefined) {
@@ -72,6 +75,64 @@ function actionVariant(action: string): 'default' | 'secondary' | 'destructive' 
   return ACTION_VARIANT[key] ?? 'outline'
 }
 
+function ArchiveSettings() {
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('audit.manage')
+  const { data: settings } = useAuditLogSettings()
+  const update = useUpdateAuditLogSettings()
+  const [draft, setDraft] = React.useState('')
+  // Re-derive the editable draft when the fetched value changes, without a
+  // useEffect (React's "adjust state during render" pattern) — a plain
+  // effect here would set state synchronously on every render once loaded.
+  const [syncedDays, setSyncedDays] = React.useState<number | null | undefined>(undefined)
+  if (settings && settings.retention_days !== syncedDays) {
+    setSyncedDays(settings.retention_days)
+    setDraft(settings.retention_days != null ? String(settings.retention_days) : '')
+  }
+
+  if (!canManage) return null
+
+  const save = async () => {
+    const days = draft.trim() === '' ? null : Number(draft)
+    if (days !== null && (!Number.isInteger(days) || days < 1)) {
+      toast.error('Enter a whole number of days, or leave blank to never archive.')
+      return
+    }
+    try {
+      await update.mutateAsync({ retention_days: days })
+      toast.success(days === null ? 'Archiving disabled' : `Logs archive after ${days} days`)
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Unable to update archive settings.')
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded-md border border-dashed p-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-muted-foreground" htmlFor="audit-retention">
+          Archive logs older than (days)
+        </label>
+        <Input
+          id="audit-retention"
+          type="number"
+          min={1}
+          placeholder="Never"
+          className="w-32"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+      </div>
+      <Button size="sm" variant="outline" onClick={save} disabled={update.isPending}>
+        Save
+      </Button>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        Older logs are hidden from the list below by default — nothing is deleted. Use "Show
+        archived" to bring them back.
+      </p>
+    </div>
+  )
+}
+
 export function AuditLogTab() {
   const [filters, setFilters] = React.useState<AuditLogFilters>({})
   const [selected, setSelected] = React.useState<AuditLogEntry | null>(null)
@@ -115,6 +176,8 @@ export function AuditLogTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <ArchiveSettings />
+
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground" htmlFor="audit-entity-type">
@@ -168,7 +231,22 @@ export function AuditLogTab() {
             onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value || undefined }))}
           />
         </div>
-        {(filters.entity_type || filters.action || filters.date_from || filters.date_to) && (
+        <div className="flex flex-col gap-1">
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Archive className="size-3.5" /> Show archived
+          </label>
+          <Switch
+            checked={filters.include_archived ?? false}
+            onCheckedChange={(checked) =>
+              setFilters((f) => ({ ...f, include_archived: checked || undefined }))
+            }
+          />
+        </div>
+        {(filters.entity_type ||
+          filters.action ||
+          filters.date_from ||
+          filters.date_to ||
+          filters.include_archived) && (
           <Button variant="ghost" size="sm" onClick={() => setFilters({})}>
             Clear filters
           </Button>

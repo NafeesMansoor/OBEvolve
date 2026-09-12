@@ -34,7 +34,7 @@ from app.models.tenant.assessments import (
     RubricLevel,
     StudentMark,
 )
-from app.models.tenant.audit import AuditLog, Notification
+from app.models.tenant.audit import AuditLog, AuditLogSettings, Notification
 from app.models.tenant.change_requests import CourseChangeRequest
 from app.models.tenant.course_files import (
     CourseFileRequirement,
@@ -114,6 +114,7 @@ __all__ = [
     "AssessmentType",
     "AttainmentSnapshot",
     "AuditLog",
+    "AuditLogSettings",
     "BloomLevel",
     "Campus",
     "Cohort",

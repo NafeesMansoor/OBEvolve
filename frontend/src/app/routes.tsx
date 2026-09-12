@@ -21,6 +21,7 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { GradingPage } from '@/features/grading/GradingPage'
 import { InstituteSettingsPage } from '@/features/organization/InstituteSettingsPage'
 import { ProgramAdministrationPage } from '@/features/organization/ProgramAdministrationPage'
+import { UserManagementPage } from '@/features/organization/UserManagementPage'
 import { PlatformDashboardPage } from '@/features/platform/PlatformDashboardPage'
 import { PlatformLoginPage } from '@/features/platform/PlatformLoginPage'
 import { PlatformRawDataPage } from '@/features/platform/PlatformRawDataPage'
@@ -72,6 +73,7 @@ export function AppRoutes() {
           <Route path="/assessment" element={<AssessmentPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/organization" element={<InstituteSettingsPage />} />
+          <Route path="/users" element={<UserManagementPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/raw-data" element={<RawDataConsolePage />} />
           <Route path="/raw-data/pending-changes" element={<PendingChangesPage />} />

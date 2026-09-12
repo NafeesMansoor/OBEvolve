@@ -18,8 +18,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
  * Split out of what used to be one 12-tab mega-page (mapping matrices moved
  * to Outcome Mapping, faculty-role/final-commit administration moved to
  * Program Administration — see those pages' own docstrings) once this page
- * had grown too cluttered for a single tab bar to stay usable. */
-export function ProgramSettingsPage() {
+ * had grown too cluttered for a single tab bar to stay usable.
+ *
+ * `embedded`: true when rendered as a nested tab under Institute Settings →
+ * Programs (Institution Administrator's nav — see layout.tsx's
+ * `institution.manage`-gated nav filtering) instead of at its own top-level
+ * route; suppresses the page's own header, which would otherwise duplicate
+ * the parent tab's. */
+export function ProgramSettingsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasPermission } = useAuth()
   const canView = hasPermission('curriculum.view')
   const canViewProgram = hasPermission('program.view')
@@ -56,10 +62,12 @@ export function ProgramSettingsPage() {
 
   return (
     <RequirePermission anyOf={['curriculum.view', 'program.view', 'curriculum_feedback.create']}>
-      <PageHeader
-        title="Program & Curriculum"
-        description="Curricula, mission & vision, PEOs, program outcomes, performance indicators, and feedback."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Program & Curriculum"
+          description="Curricula, mission & vision, PEOs, program outcomes, performance indicators, and feedback."
+        />
+      )}
       {tabs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No program-level settings available.</p>
       ) : (

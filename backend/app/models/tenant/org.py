@@ -10,7 +10,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TenantBase, TimestampMixin, UUIDPKMixin, WorkflowStatus
@@ -81,6 +81,11 @@ class Program(UUIDPKMixin, TimestampMixin, TenantBase):
     code: Mapped[str] = mapped_column(String(50), nullable=False)
     degree_level: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Ordered session/term names for this program (e.g. ["Fall", "Spring",
+    # "Summer"] or ["Semester 1", "Semester 2"]) — see migration 0029.
+    # Informational: not an FK-enforced source for AcademicTerm.term_type,
+    # which stays institution-wide free text (see that column's docstring).
+    session_names: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     department: Mapped[Department] = relationship(back_populates="programs")
     versions: Mapped[list[ProgramVersion]] = relationship(back_populates="program")

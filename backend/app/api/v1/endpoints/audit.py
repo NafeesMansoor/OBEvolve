@@ -5,18 +5,47 @@ already called across 15+ mutating endpoints)."""
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.tenancy import get_db
-from app.models.tenant.audit import AuditLog
+from app.models.tenant.audit import AuditLog, AuditLogSettings
 from app.models.tenant.identity import User
-from app.schemas.audit import AuditLogRead
+from app.schemas.audit import AuditLogRead, AuditLogSettingsRead, AuditLogSettingsUpdate
 from app.services.rbac import require_permission
 
 router = APIRouter()
+
+
+def _get_settings(db: Session) -> AuditLogSettings | None:
+    return db.query(AuditLogSettings).first()
+
+
+@router.get("/settings", response_model=AuditLogSettingsRead)
+def get_audit_log_settings(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("audit.view")),
+) -> AuditLogSettingsRead:
+    settings = _get_settings(db)
+    return AuditLogSettingsRead(retention_days=settings.retention_days if settings else None)
+
+
+@router.patch("/settings", response_model=AuditLogSettingsRead)
+def update_audit_log_settings(
+    payload: AuditLogSettingsUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_permission("audit.manage")),
+) -> AuditLogSettingsRead:
+    settings = _get_settings(db)
+    if settings is None:
+        settings = AuditLogSettings(retention_days=payload.retention_days)
+        db.add(settings)
+    else:
+        settings.retention_days = payload.retention_days
+    db.flush()
+    return AuditLogSettingsRead(retention_days=settings.retention_days)
 
 
 @router.get("", response_model=list[AuditLogRead])
@@ -27,6 +56,14 @@ def list_audit_logs(
     action: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
+    include_archived: bool = Query(
+        default=False,
+        description=(
+            "Archived = older than the retention_days window in "
+            "audit_log_settings (view-only: nothing is physically moved). "
+            "False (default) excludes them; true fetches them back."
+        ),
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -45,6 +82,12 @@ def list_audit_logs(
         query = query.filter(AuditLog.timestamp >= date_from)
     if date_to is not None:
         query = query.filter(AuditLog.timestamp <= date_to)
+
+    if not include_archived:
+        settings = _get_settings(db)
+        if settings is not None and settings.retention_days is not None:
+            cutoff = datetime.now(UTC) - timedelta(days=settings.retention_days)
+            query = query.filter(AuditLog.timestamp >= cutoff)
 
     rows = query.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit).all()
 

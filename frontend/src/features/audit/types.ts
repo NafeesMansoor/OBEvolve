@@ -14,4 +14,9 @@ export interface AuditLogFilters {
   action?: string
   date_from?: string
   date_to?: string
+  include_archived?: boolean
+}
+
+export interface AuditLogSettings {
+  retention_days: number | null
 }

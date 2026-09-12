@@ -123,6 +123,9 @@ PERMISSIONS: list[PermissionDef] = [
     PermissionDef("report.generate", "Generate reports", "reporting"),
     # --- Audit (Phase 1) ---
     PermissionDef("audit.view", "View audit logs", "audit"),
+    PermissionDef(
+        "audit.manage", "Configure audit-log retention/archiving settings", "audit"
+    ),
     # --- Raw data console (phpMyAdmin-style table browser/editor) ---
     PermissionDef(
         "raw_data.manage_all",

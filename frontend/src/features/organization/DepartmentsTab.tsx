@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useEntityCreate, useEntityList } from '@/lib/crud-hooks'
+import { Switch } from '@/components/ui/switch'
+import { useEntityCreate, useEntityList, useEntityUpdate } from '@/lib/crud-hooks'
 import { ApiError } from '@/lib/api-client'
 
 const ALL_CAMPUSES = '__all__'
@@ -33,6 +34,7 @@ export function DepartmentsTab() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission('org.manage')
   const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [editDept, setEditDept] = React.useState<Department | null>(null)
   const [viewDept, setViewDept] = React.useState<Department | null>(null)
   const [campusFilter, setCampusFilter] = React.useState(ALL_CAMPUSES)
   const [schoolFilter, setSchoolFilter] = React.useState(ALL_SCHOOLS)
@@ -46,6 +48,22 @@ export function DepartmentsTab() {
   const create = useEntityCreate<Record<string, unknown>, Department>('/org/departments', [
     ['org', 'departments'],
   ])
+  const update = useEntityUpdate<Record<string, unknown>, Department>(
+    (id) => `/org/departments/${id}`,
+    [['org', 'departments']],
+  )
+
+  const toggleActive = async (department: Department) => {
+    try {
+      await update.mutateAsync({
+        id: department.id,
+        body: { is_active: !department.is_active },
+      })
+      toast.success(department.is_active ? 'Department deactivated' : 'Department activated')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.detail : 'Unable to update department status.')
+    }
+  }
 
   const schoolById = React.useMemo(() => new Map((schools ?? []).map((s) => [s.id, s])), [schools])
   const campusById = React.useMemo(() => new Map((campuses ?? []).map((c) => [c.id, c])), [campuses])
@@ -94,11 +112,19 @@ export function DepartmentsTab() {
     {
       key: 'is_active',
       header: 'Status',
-      render: (r) => (
-        <Badge variant={r.is_active ? 'secondary' : 'outline'} className="font-normal">
-          {r.is_active ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
+      render: (r) =>
+        canManage ? (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <Switch checked={r.is_active} onCheckedChange={() => toggleActive(r)} />
+            <span className="text-xs text-muted-foreground">
+              {r.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        ) : (
+          <Badge variant={r.is_active ? 'secondary' : 'outline'} className="font-normal">
+            {r.is_active ? 'Active' : 'Inactive'}
+          </Badge>
+        ),
     },
   ]
 
@@ -160,6 +186,20 @@ export function DepartmentsTab() {
         searchPlaceholder="Search departments…"
         emptyMessage="No departments yet."
         onRowClick={(r) => setViewDept(r)}
+        actions={
+          canManage
+            ? (r) => (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Edit ${r.name}`}
+                  onClick={() => setEditDept(r)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              )
+            : undefined
+        }
       />
 
       {viewDept && (
@@ -204,6 +244,30 @@ export function DepartmentsTab() {
           }
         }}
       />
+
+      {editDept && (
+        <EntityFormDialog
+          open={Boolean(editDept)}
+          onOpenChange={(open) => !open && setEditDept(null)}
+          title={`Edit ${editDept.name}`}
+          fields={fields}
+          schema={schema}
+          defaultValues={{
+            school_id: editDept.school_id,
+            name: editDept.name,
+            code: editDept.code,
+          }}
+          onSubmit={async (values) => {
+            try {
+              await update.mutateAsync({ id: editDept.id, body: values })
+              toast.success('Department updated')
+              setEditDept(null)
+            } catch (err) {
+              throw err instanceof ApiError ? err : new ApiError('Unable to update department.')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

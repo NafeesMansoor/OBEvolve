@@ -14,8 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
  * instead (see ProgramSettingsPage). Course Types (docs/
  * course_level_settings_and_approval_workflow.md §1-§3) live here too —
  * they're the classification that drives which course-level sections a
- * Course Teacher may propose changes to. */
-export function CourseSettingsPage() {
+ * Course Teacher may propose changes to.
+ *
+ * `embedded`: see ProgramSettingsPage's docstring — true when nested under
+ * Institute Settings → Programs instead of its own top-level route. */
+export function CourseSettingsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasPermission } = useAuth()
   const canView = hasPermission('curriculum.view')
   const canManageCourseTypes = hasPermission('course_type.manage')
@@ -34,10 +37,12 @@ export function CourseSettingsPage() {
 
   return (
     <RequirePermission anyOf={['curriculum.view']}>
-      <PageHeader
-        title="Course Level Settings"
-        description="The course catalog, course versions, and each version's course outcomes (COs)."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Course Level Settings"
+          description="The course catalog, course versions, and each version's course outcomes (COs)."
+        />
+      )}
       {tabs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No course settings sections available.</p>
       ) : (
